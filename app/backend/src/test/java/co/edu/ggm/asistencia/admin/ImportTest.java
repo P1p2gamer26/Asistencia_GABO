@@ -1,8 +1,8 @@
 package co.edu.ggm.asistencia.admin;
 
 import co.edu.ggm.asistencia.AbstractIntegrationTest;
-import co.edu.ggm.asistencia.shared.service.JwtService;
-import co.edu.ggm.asistencia.user.repository.UserRepository;
+import co.edu.ggm.asistencia.service.JwtService;
+import co.edu.ggm.asistencia.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
