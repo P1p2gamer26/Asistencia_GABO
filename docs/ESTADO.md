@@ -18,3 +18,4 @@ _(vacio)_
 ## Bloqueos
 _(vacio)_
 - [A3] hecho — /api/sync/bootstrap incluye schoolDays; contrato verificado
+- [A4] hecho — sync valida dia lectivo; TRACK A COMPLETO
