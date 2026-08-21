@@ -1,7 +1,7 @@
 package co.edu.ggm.asistencia.notify;
 
 import co.edu.ggm.asistencia.AbstractIntegrationTest;
-import co.edu.ggm.asistencia.notify.service.NotificationService;
+import co.edu.ggm.asistencia.service.NotificationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
