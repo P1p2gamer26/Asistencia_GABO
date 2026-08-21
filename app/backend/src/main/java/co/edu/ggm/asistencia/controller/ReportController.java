@@ -62,6 +62,10 @@ public class ReportController {
                 libro = excel.buildMatriz(repo.matrix(grade, from, to), lectivos, from, to);
                 nombre = "asistencia_matriz_%s_%s_%s.xlsx".formatted(curso, from, to);
             }
+            case "inasistencias" -> {
+                libro = excel.buildInasistencias(repo.absences(grade, from, to), from, to);
+                nombre = "inasistencias_%s_%s_%s.xlsx".formatted(curso, from, to);
+            }
             default -> {
                 libro = excel.build(repo.summary(grade, from, to), from, to);
                 nombre = "asistencia_%s_%s_%s.xlsx".formatted(curso, from, to);

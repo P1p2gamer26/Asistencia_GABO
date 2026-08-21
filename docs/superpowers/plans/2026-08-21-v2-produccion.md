@@ -728,7 +728,7 @@ que usa coordinación para el proceso de seguimiento, y por eso importa que diga
   - `ReportRepository.absences(String grade, LocalDate from, LocalDate to) : List<AbsenceRow>`
   - `ExcelReportService.buildInasistencias(List<AbsenceRow> filas, LocalDate from, LocalDate to) : byte[]`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Añadir a `ExcelTest.java`:
 
@@ -787,13 +787,13 @@ Añadir a `ExcelTest.java`:
 Nota: `sembrarFalta` usa `LIMIT 1` sobre el mismo estudiante, así que las dos llamadas
 marcan al mismo en días distintos. Es lo que se quiere para el orden.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd app/backend && mvn -B test -Dtest=ExcelTest`
 Expected: FAIL — `tipo=inasistencias` cae en el `default` y devuelve el resumen de 9
 columnas, donde la columna 3 dice "Dias lectivos", no "Faltas".
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 En `ReportRepository.java`:
 
@@ -876,12 +876,12 @@ En `ReportController.excel`, añadir la rama al `switch`, antes del `default`:
             }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `cd app/backend && mvn -B test -Dtest=ExcelTest`
 Expected: PASS, 5 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/backend/src/main/java app/backend/src/test/java

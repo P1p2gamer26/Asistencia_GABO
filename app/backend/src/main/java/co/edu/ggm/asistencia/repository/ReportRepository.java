@@ -72,6 +72,39 @@ public interface ReportRepository extends Repository<Student, Long> {
                            @Param("from") LocalDate from,
                            @Param("to") LocalDate to);
 
+    interface AbsenceRow {
+        String getDocumentId();
+        String getFullName();
+        String getGrade();
+        int getAbsences();
+        int getEvasions();
+        String getDates();
+    }
+
+    @Query(value = """
+            SELECT s.document_id AS documentId,
+                   trim(regexp_replace(concat_ws(' ', s.first_name, s.middle_name,
+                        s.last_name, s.second_surname), '\\s+', ' ', 'g')) AS fullName,
+                   s.grade AS grade,
+                   count(*) FILTER (WHERE a.status = 'F') AS absences,
+                   count(*) FILTER (WHERE a.status = 'E') AS evasions,
+                   string_agg(DISTINCT to_char(a.class_date, 'YYYY-MM-DD'), ', ') AS dates
+            FROM attendance a
+            JOIN students s ON s.id = a.student_id
+            WHERE a.class_date BETWEEN :from AND :to
+              AND a.status IN ('F','E')
+              AND s.active
+              AND (:grade IS NULL OR s.grade = :grade)
+            GROUP BY s.id, s.document_id, s.first_name, s.middle_name,
+                     s.last_name, s.second_surname, s.grade
+            ORDER BY count(*) FILTER (WHERE a.status = 'F') DESC,
+                     count(*) FILTER (WHERE a.status = 'E') DESC,
+                     s.last_name, s.first_name
+            """, nativeQuery = true)
+    List<AbsenceRow> absences(@Param("grade") String grade,
+                              @Param("from") LocalDate from,
+                              @Param("to") LocalDate to);
+
     interface PendingBlock {
         Long getBlockId();
         String getGrade();
