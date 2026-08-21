@@ -107,6 +107,19 @@ asistencia.ggm.edu.co {
 docker compose -f docker-compose.prod.yml up -d
 ```
 
+**La imagen es privada**, porque hereda la visibilidad del repositorio. El servidor
+tiene que autenticarse antes de poder descargarla:
+
+```bash
+# Con un token de GitHub que tenga permiso read:packages
+echo "$GITHUB_TOKEN" | docker login ghcr.io -u p1p2gamer26 --password-stdin
+```
+
+La alternativa es hacer el paquete público desde GitHub (pestaña Packages > Package
+settings > Change visibility). Publicarlo no expone el código fuente, pero sí la
+aplicación compilada: si el colegio prefiere no hacerlo, el `docker login` con un
+token de solo lectura es la opción correcta.
+
 ## Variables de entorno
 
 Obligatorias. Sin ellas el sistema no arranca, o arranca y no manda correos sin avisar.
