@@ -313,6 +313,125 @@ debe fallar, porque sin base no hay sistema.
 
 ---
 
+## 6.f Sexta iteración: el carnet real y la salida a producción
+
+### El QR del carnet no traía lo que suponíamos
+
+El colegio mostró un carnet real: el QR es pequeño y trae **el texto completo** en una
+sola línea, no el número de documento suelto.
+
+```
+Álvaro Mathias Orozco Lara 1013696566 Primero - 103
+```
+
+La versión anterior mandaba ese texto tal cual como `documentId`, así que **ningún
+escaneo real habría funcionado**. Ahora se extrae el primer número de 6 a 12 dígitos y
+se busca en la base.
+
+El parseo está en los **dos lados**, y no por duplicar por duplicar: la cola offline de
+un teléfono puede llevar semanas de escaneos hechos con la versión vieja, con el texto
+crudo dentro. Si solo se arreglara el navegador, esos quedarían rechazados para
+siempre. El arreglo va donde pasan todos, en `EntryController.sync`.
+
+**La base manda sobre el carnet.** El nombre y el curso que trae el QR no se usan para
+registrar nada, pero si el curso no coincide con el de la base la pantalla lo avisa:
+un carnet viejo o un traslado sin actualizar es un problema de datos que conviene ver,
+no esconder. Un QR ilegible se rechaza con motivo propio (`Carnet ilegible`), distinto
+de `Carnet no registrado`: son dos problemas distintos y quien esté en el salón
+necesita saber cuál de los dos tiene.
+
+### Tres informes en Excel
+
+Coordinación pidió tres, y son tres formas distintas de mirar lo mismo:
+
+| Informe | Para qué | Decisión que trae dentro |
+|---|---|---|
+| **Matriz por curso y rango** | ver el mes de un curso de un vistazo | una celda vacía es "sin registro", **no** una falta: si la docente no pasó lista, poner F sería inventarse una inasistencia |
+| **Consolidado de inasistencias** | el proceso de seguimiento | trae **las fechas concretas**, no solo el conteo: "3 faltas" no le dice a nadie a qué clase ir a preguntar |
+| **Individual del estudiante** | entregárselo al acudiente | los estados van traducidos (P/T/F/E → Presente/Tarde/Falta/Evasión): la hoja sale del colegio y nadie de fuera sabe qué es una E |
+
+Los tres son tipos del endpoint que ya existía. Sin el parámetro `tipo` devuelve el
+resumen de siempre, con sus nueve columnas, porque `tools/humo.sh` lo comprueba y
+romper la prueba de humo para añadir una función sería el peor cambio posible.
+
+El informe individual es el único que recibe un `studentId`, y es de personal del
+colegio. Un acudiente que lo pida recibe 403: para eso tiene su portal, que resuelve
+los hijos desde el token.
+
+### El calendario, por rangos
+
+Un paro de tres días o un receso que la rectoría mueve son rangos, no días sueltos.
+Hacerlo día por día es exactamente donde la gente se equivoca. El panel gana un
+formulario de rango que salta sábados y domingos, y dice cuántos días cambió, para que
+quien lo usa vea si fueron los que esperaba.
+
+El test comprueba además algo que no se ve en la pantalla: que la **caché en memoria**
+de días lectivos se entera del cambio. Sin eso el servidor seguiría aceptando
+asistencia en un día que el calendario ya dice suspendido.
+
+### Los datos de los menores, blindados por un test
+
+El portal del acudiente ya resolvía bien los hijos desde el token. Lo que faltaba era
+que **fallara ruidosamente** si alguien en el futuro le añade un parámetro
+`studentId`. Se añadieron dos acudientes con hijos distintos —con uno solo, "ve a los
+suyos" no se distingue de "ve a todos"— y el test se verificó **al revés**: al
+introducir a propósito ese parámetro en el controlador, se cae. Se deshizo el cambio.
+
+### La salida a producción, en tres proveedores
+
+| Pieza | Dónde | Por qué |
+|---|---|---|
+| PWA | Vercel | HTTPS y CDN gratis; la PWA los necesita para instalarse en un teléfono |
+| PostgreSQL | Supabase | gestionado, con copias de seguridad; el esquema y Flyway van sin cambios |
+| Backend Java | Fly.io | Vercel no ejecuta Java, y el backend de 56 tests ya verificado se conserva entero |
+
+Separar el frontend del backend tiene una consecuencia que no se ve hasta que falla:
+las llamadas pasan a ser **de origen cruzado**. Se añadió una URL base configurable
+(`VITE_API_URL`) y CORS por variable de entorno (`APP_CORS_ORIGINS`), porque el dominio
+de Vercel no se sabe hasta desplegar.
+
+Y un **test guardián** que recorre las fuentes y falla si alguien vuelve a llamar a
+`fetch` con una ruta `/api` relativa. Ya cazó uno que se nos había pasado, en
+`PanelCarga.tsx`: en Vercel esa ruta apuntaría a Vercel, y el fallo solo se vería en
+producción, con el colegio delante.
+
+En `docs/DESPLIEGUE.md` queda documentada la trampa cara de Supabase: hay que usar el
+**Session pooler (puerto 5432)**, no el Transaction pooler (6543), que no conserva las
+sentencias preparadas de JDBC y hace fallar a Hibernate de forma intermitente y muy
+difícil de diagnosticar.
+
+### Verificación
+
+| Comprobación | Resultado |
+|---|---|
+| Tests de backend | **77 de 77**, contra PostgreSQL 16 real, en orden aleatorio |
+| Tests de frontend | **67 de 67** |
+| Compilación del frontend | Limpia · **98,05 KB gzip** el paquete inicial |
+| Prueba de humo | **16 invariantes en verde** contra la aplicación corriendo |
+| Los tres Excel, contra la API viva | contenido comprobado celda a celda, no solo HTTP 200 |
+| Carnet con texto completo, contra la API viva | `accepted: 1`, devuelve `DANIEL ALEJANDRO BARRIOS PARATES` |
+| Carnet ilegible | `accepted: 0`, motivo `Carnet ilegible` |
+
+La prueba de humo se ejecutó contra una instancia que **no sirve el frontend**, que es
+justo el escenario de Vercel: el propio script detecta que no hay SPA y omite esos
+invariantes en vez de fallar.
+
+### Lo que no se pudo verificar en esta iteración
+
+**El recorrido en navegador real no se ejecutó**: la extensión de Chrome no estaba
+conectada en esta sesión. Queda pendiente comprobar con el navegador el flujo completo
+de las tres pantallas nuevas (selector de informe, rango de calendario, aviso de curso
+que no coincide). El patrón de todo este proyecto es que **los bugs más serios los
+encontró mirar el sistema funcionando, no los tests**, así que este pendiente no es
+menor: es el que más probabilidades tiene de encontrar el siguiente.
+
+Tampoco se ha desplegado todavía en Vercel, Supabase ni Fly: la configuración
+(`vercel.json`, `fly.toml`, CORS por entorno) está escrita y validada sintácticamente,
+pero **una configuración de despliegue sin desplegar es una hipótesis**, igual que lo
+fue el Dockerfile en la cuarta iteración —donde resultó estar mal—.
+
+---
+
 ## 7. Lo que sigue faltando
 
 Requieren su propio plan:
