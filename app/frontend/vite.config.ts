@@ -43,5 +43,9 @@ export default defineConfig({
     // Un solo bundle: con conexion mala, menos peticiones gana a menos bytes por peticion.
     rollupOptions: { output: { manualChunks: undefined } },
   },
-  test: { environment: 'jsdom', setupFiles: [] },
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/test-setup.ts'],
+    globals: true,
+  },
 });
