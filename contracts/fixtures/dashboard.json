@@ -1,0 +1,15 @@
+{
+  "kpi": { "attendanceRate": 94.2, "absentToday": 38, "evasionsWeek": 7, "blocksPending": 3, "schoolDays": 21 },
+  "byGrade": [
+    { "grade": "601", "present": 780, "late": 41, "absent": 52, "evasion": 6 },
+    { "grade": "602", "present": 742, "late": 63, "absent": 71, "evasion": 11 },
+    { "grade": "701", "present": 810, "late": 29, "absent": 34, "evasion": 3 }
+  ],
+  "trend": [
+    { "classDate": "2026-07-06", "attendanceRate": 95.1 },
+    { "classDate": "2026-07-07", "attendanceRate": 93.8 },
+    { "classDate": "2026-07-08", "attendanceRate": 94.6 },
+    { "classDate": "2026-07-09", "attendanceRate": 91.2 },
+    { "classDate": "2026-07-10", "attendanceRate": 96.0 }
+  ]
+}

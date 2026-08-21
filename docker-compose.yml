@@ -1,0 +1,13 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: asistencia
+      POSTGRES_USER: asistencia
+      POSTGRES_PASSWORD: asistencia
+    ports: ["${DB_PORT:-5432}:5432"]
+    volumes: ["pgdata_${DB_PORT:-5432}:/var/lib/postgresql/data"]
+volumes:
+  pgdata_5432:
+  pgdata_5433:
+  pgdata_5434:

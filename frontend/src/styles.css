@@ -1,0 +1,63 @@
+:root {
+  --azul: #3860b2; --azul-oscuro: #00126b; --fondo: #f1f4f9;
+  --superficie: #fcfcfb; --tinta: #0b0b0b; --tinta-suave: #52514e; --tinta-mute: #898781;
+  --rejilla: #e1e0d9; --eje: #c3c2b7;
+  --estado-p: #0ca30c; --estado-t: #fab219; --estado-f: #d03b3b; --estado-e: #ec835a;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+       background: var(--fondo); color: var(--tinta); }
+.card { background: #fff; border-radius: 8px; padding: 16px; margin: 16px; }
+.login { display: flex; flex-direction: column; gap: 8px; max-width: 420px; }
+input, select, button { font: inherit; padding: 12px; border-radius: 6px; border: 1px solid #ccd; }
+button { background: var(--azul); color: #fff; border: 0; min-height: 48px; }
+button:disabled { opacity: .6; }
+.secundario { background: #667; }
+.error { color: #b00020; }
+.meta { color: var(--tinta-suave); font-size: .9rem; }
+.filtros { display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: center; }
+.acciones { display: flex; flex-direction: column; gap: 12px; margin: 16px 0; }
+.boton { display: block; text-align: center; padding: 16px; background: var(--azul);
+         color: #fff; border-radius: 6px; text-decoration: none; }
+.estudiantes { list-style: none; padding: 0; margin: 16px 0; }
+.estudiantes li { border-bottom: 1px solid var(--rejilla); padding: 10px 0;
+                  display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
+.nombre { display: flex; flex-direction: column; }
+.nombre small { color: var(--tinta-suave); }
+.estados { display: flex; gap: 4px; }
+.estado { min-width: 48px; min-height: 48px; padding: 0; background: #fff;
+          color: var(--azul-oscuro); border: 1px solid #ccd; font-weight: 700; }
+.estado.activo { color: #fff; }
+.estado.P.activo { background: var(--estado-p); border-color: var(--estado-p); }
+.estado.T.activo { background: var(--estado-t); border-color: var(--estado-t); color: var(--tinta); }
+.estado.F.activo { background: var(--estado-f); border-color: var(--estado-f); }
+.estado.E.activo { background: var(--estado-e); border-color: var(--estado-e); color: var(--tinta); }
+.comentario { grid-column: 1 / -1; }
+.banner { padding: 10px; border-radius: 6px; margin-bottom: 12px;
+          display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.banner.offline { background: #ffe9b8; }
+.banner.pendiente { background: #dbe6ff; }
+.banner button { min-height: 40px; padding: 6px 12px; }
+.camara { width: 100%; max-height: 50vh; background: #000; border-radius: 8px; }
+.ultimo { font-size: 1.2rem; font-weight: 700; color: var(--azul-oscuro); }
+.novedades { list-style: none; padding: 0; }
+.novedades li { padding: 8px 0; border-bottom: 1px solid var(--rejilla); }
+.novedades em { color: var(--tinta-suave); }
+.tabla-scroll { overflow-x: auto; margin-top: 16px; }
+table { border-collapse: collapse; width: 100%; font-size: .95rem; }
+th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--rejilla); white-space: nowrap; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.kpi { background: var(--superficie); border: 1px solid var(--rejilla);
+       border-radius: 8px; padding: 14px; }
+.kpi .valor { font-size: 2rem; font-weight: 700; line-height: 1.1; }
+.kpi .etiqueta { color: var(--tinta-suave); font-size: .85rem; }
+.grafica { background: var(--superficie); border: 1px solid var(--rejilla);
+           border-radius: 8px; padding: 14px; margin-top: 16px; }
+.grafica h3 { margin: 0 0 4px; font-size: 1rem; }
+.grafica figcaption { color: var(--tinta-suave); font-size: .85rem; margin-bottom: 12px; }
+.leyenda { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px;
+           font-size: .85rem; color: var(--tinta-suave); }
+.leyenda span { display: inline-flex; align-items: center; gap: 6px; }
+.leyenda i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.no-lectivo { background: #f4f4f2; color: var(--tinta-mute); }
