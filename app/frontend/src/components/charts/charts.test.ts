@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { segmentosApilados, puntosLinea } from './geometria';
+import { segmentosApilados, puntosLinea, dominioY } from './geometria';
 
 describe('geometria de las graficas', () => {
   it('los segmentos apilados cubren exactamente el ancho disponible', () => {
@@ -40,5 +40,32 @@ describe('geometria de las graficas', () => {
     expect(pts).toHaveLength(1);
     expect(Number.isFinite(pts[0].x)).toBe(true);
     expect(Number.isFinite(pts[0].y)).toBe(true);
+  });
+
+  it('con un solo dia el dominio no queda plano', () => {
+    const d = dominioY([{ attendanceRate: 50 }]);
+    expect(d.max).toBeGreaterThan(d.min);
+    expect(d.min).toBeLessThanOrEqual(50);
+    expect(d.max).toBeGreaterThanOrEqual(50);
+  });
+
+  it('con todos los valores iguales tampoco queda plano', () => {
+    const d = dominioY([{ attendanceRate: 92 }, { attendanceRate: 92 }]);
+    expect(d.max).toBeGreaterThan(d.min);
+  });
+
+  it('nunca se sale de 0 a 100', () => {
+    expect(dominioY([{ attendanceRate: 100 }]).max).toBeLessThanOrEqual(100);
+    expect(dominioY([{ attendanceRate: 0 }]).min).toBeGreaterThanOrEqual(0);
+  });
+
+  it('con rango real lo respeta tal cual', () => {
+    const d = dominioY([{ attendanceRate: 88 }, { attendanceRate: 96 }]);
+    expect(d.min).toBe(88);
+    expect(d.max).toBe(96);
+  });
+
+  it('una serie vacia sigue devolviendo 0 a 100', () => {
+    expect(dominioY([])).toEqual({ min: 0, max: 100 });
   });
 });
