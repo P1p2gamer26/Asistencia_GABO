@@ -1873,7 +1873,7 @@ el sistema funcionando. Esta tarea es esa mirada, y solo se da por buena con cap
 - Consumes: todo lo anterior.
 - Produces: nada.
 
-- [ ] **Step 1: Levantar el sistema completo en local**
+- [x] **Step 1: Levantar el sistema completo en local**
 
 Run:
 ```bash
@@ -1883,7 +1883,7 @@ cd app/frontend && npm run dev
 Expected: `http://localhost:5173` responde y `curl localhost:8080/actuator/health` da
 `{"status":"UP"}`.
 
-- [ ] **Step 2: Generar un QR de prueba con el formato real**
+- [x] **Step 2: Generar un QR de prueba con el formato real**
 
 Crear un fichero HTML temporal en el scratchpad con un QR que contenga exactamente
 `Álvaro Mathias Orozco Lara 1013696566 Primero - 103`, y sembrar en la base un
@@ -1901,7 +1901,7 @@ curl -s -X POST localhost:8080/api/entry/sync -H "Authorization: Bearer $TOKEN" 
 ```
 Expected: `{"accepted":1,...}` con el nombre que tiene la base.
 
-- [ ] **Step 3: Recorrer la aplicación con agent-browser**
+- [ ] **Step 3: Recorrer la aplicación con agent-browser** — BLOQUEADO 2026-08-21: la extensión de Chrome no está conectada. Todo lo demás de esta tarea está hecho.
 
 Con las herramientas de navegador (`mcp__claude-in-chrome__*`), en una pestaña nueva:
 
@@ -1919,13 +1919,13 @@ Con las herramientas de navegador (`mcp__claude-in-chrome__*`), en una pestaña 
 Consultar la consola del navegador con `read_console_messages` en cada pantalla: un
 error de CORS o de red aparece ahí y en ningún test.
 
-- [ ] **Step 4: Prueba de humo completa**
+- [x] **Step 4: Prueba de humo completa**
 
 Run: `bash tools/humo.sh http://localhost:8080`
 Expected: los 15 invariantes en verde. Si alguno falla, **el fallo manda**: arreglar
 antes de seguir.
 
-- [ ] **Step 5: Suites completas de los dos lados**
+- [x] **Step 5: Suites completas de los dos lados**
 
 Run:
 ```bash
@@ -1934,7 +1934,7 @@ cd app/frontend && npm test && npm run build
 ```
 Expected: todo en verde. Anotar las cifras exactas: son las que van al informe.
 
-- [ ] **Step 6: Actualizar la documentación con lo que se observó**
+- [x] **Step 6: Actualizar la documentación con lo que se observó**
 
 En `docs/INFORME-FINAL.md`, añadir una sección **"6.f Sexta iteración: el carnet real y
 la salida a producción"** con: el formato del QR y por qué el parseo va también en el
@@ -1945,7 +1945,7 @@ cifras observadas, no estimadas, y **decir explícitamente qué no se pudo verif
 
 En `docs/ESTADO.md`, añadir una línea por tarea con el formato de la bitácora.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add docs
