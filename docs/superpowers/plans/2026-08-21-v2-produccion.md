@@ -317,7 +317,7 @@ todos: en `EntryController.sync`.
 - Consumes: `StudentRepository.findByDocumentIdAndActiveTrue(String)`.
 - Produces: `CarnetParser.documento(String raw)` → `String` o `null`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Añadir a `app/backend/src/test/java/co/edu/ggm/asistencia/entry/EntryTest.java` (dentro
 de la clase, siguiendo el estilo de los tests que ya hay ahí):
@@ -358,12 +358,12 @@ de la clase, siguiendo el estilo de los tests que ya hay ahí):
 Si no existe, insertarlo al principio del test con el mismo mecanismo que usan los
 demás tests de esa clase, o usar el documento que sí exista en la semilla.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd app/backend && mvn -B test -Dtest=EntryTest`
 Expected: FAIL — `accepted` es 0 en el primero: el texto completo no es un documento.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Crear `app/backend/src/main/java/co/edu/ggm/asistencia/service/CarnetParser.java`:
 
@@ -412,17 +412,17 @@ En `EntryController.sync`, reemplazar el arranque del bucle:
 
 y añadir el import `import co.edu.ggm.asistencia.service.CarnetParser;`.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `cd app/backend && mvn -B test -Dtest=EntryTest`
 Expected: PASS, todos los de `EntryTest`.
 
-- [ ] **Step 5: Run the whole backend suite**
+- [x] **Step 5: Run the whole backend suite**
 
 Run: `cd app/backend && mvn -B verify -Dsurefire.runOrder=random`
 Expected: 58 de 58 en verde (56 previos + 2 nuevos).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add app/backend/src/main/java/co/edu/ggm/asistencia/service/CarnetParser.java app/backend/src/main/java/co/edu/ggm/asistencia/controller/EntryController.java app/backend/src/test/java/co/edu/ggm/asistencia/entry/EntryTest.java
