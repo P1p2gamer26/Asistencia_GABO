@@ -1,0 +1,6 @@
+[
+  { "studentId": 1, "documentId": "1010101010", "fullName": "LINDA ISABELLA AREVALO FIGUEROA",
+    "grade": "601", "present": 18, "late": 1, "absent": 2, "evasion": 0, "schoolDays": 21 },
+  { "studentId": 2, "documentId": "1010101011", "fullName": "JUAN DIEGO AVILA VERGARA",
+    "grade": "601", "present": 15, "late": 3, "absent": 2, "evasion": 1, "schoolDays": 21 }
+]

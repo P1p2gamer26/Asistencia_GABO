@@ -1,0 +1,13 @@
+{
+  "blocks": [
+    { "id": 1, "grade": "601", "weekday": 1, "blockNo": 1, "subject": "Matematicas", "startTime": "06:30" }
+  ],
+  "students": [
+    { "id": 1, "documentId": "1010101010", "fullName": "LINDA ISABELLA AREVALO FIGUEROA", "grade": "601" },
+    { "id": 2, "documentId": "1010101011", "fullName": "JUAN DIEGO AVILA VERGARA", "grade": "601" }
+  ],
+  "schoolDays": [
+    { "calendarDate": "2026-07-13", "dayType": "LECTIVO" },
+    { "calendarDate": "2026-07-20", "dayType": "FESTIVO" }
+  ]
+}
