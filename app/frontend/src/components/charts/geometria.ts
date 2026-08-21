@@ -52,7 +52,20 @@ export function puntosLinea(
   }));
 }
 
+/**
+ * Dominio vertical del grafico de tendencia. Si todos los valores son iguales
+ * (un solo dia registrado, o una semana perfecta), se ensancha cinco puntos a cada
+ * lado: sin eso las dos etiquetas del eje muestran el mismo numero y el punto queda
+ * pegado al borde, que parece un fallo aunque el dato sea correcto.
+ * El resultado nunca se sale de 0 a 100 porque es un porcentaje.
+ */
 export const dominioY = (serie: { attendanceRate: number }[]) => {
   const valores = serie.map((d) => d.attendanceRate);
-  return valores.length ? { min: Math.min(...valores), max: Math.max(...valores) } : { min: 0, max: 100 };
+  if (valores.length === 0) return { min: 0, max: 100 };
+
+  const min = Math.min(...valores);
+  const max = Math.max(...valores);
+  if (max > min) return { min, max };
+
+  return { min: Math.max(0, min - 5), max: Math.min(100, max + 5) };
 };

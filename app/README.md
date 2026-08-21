@@ -82,6 +82,27 @@ Variables de entorno de los tests (con estos valores por defecto):
 `TEST_DB_URL=jdbc:postgresql://localhost:5432/asistencia_test`,
 `TEST_DB_USER=postgres`, `TEST_DB_PASSWORD=postgres`.
 
+## Carga de datos
+
+Tres importadores CSV, en `POST /api/admin/import/{students,schedule,guardians}`
+(rol `ADMIN`). Cada uno crea lo que falte (materia, docente, acudiente) para no
+obligar a cargar los ficheros en un orden distinto al natural. **Orden de carga:
+estudiantes primero, horario despues, acudientes al final** — el horario y los
+acudientes referencian estudiantes que ya deben existir.
+
+Cabeceras exactas:
+
+- `estudiantes.csv`: `document_id,first_name,middle_name,last_name,second_surname,grade`
+- `horario.csv`: `grade,weekday,block_no,start_time,end_time,subject,teacher_email`
+- `acudientes.csv`: `document_id,guardian_name,guardian_email,relationship`
+
+```bash
+TOKEN=... # de POST /api/auth/login con admin@ggm.edu.co
+curl -X POST http://localhost:8080/api/admin/import/students  -H "Authorization: Bearer $TOKEN" -F "file=@estudiantes.csv"
+curl -X POST http://localhost:8080/api/admin/import/schedule  -H "Authorization: Bearer $TOKEN" -F "file=@horario.csv"
+curl -X POST http://localhost:8080/api/admin/import/guardians -H "Authorization: Bearer $TOKEN" -F "file=@acudientes.csv"
+```
+
 ## Documentación
 
 - Plan de implementación: `../docs/superpowers/plans/2026-08-20-sistema-asistencia-paralelo.md`
