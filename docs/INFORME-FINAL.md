@@ -77,8 +77,8 @@ Todas las cifras siguientes se ejecutaron y se observaron; ninguna es estimada.
 | Tests de backend (`mvn test`) | **56 de 56**, contra PostgreSQL 16 real, en tres órdenes de ejecución |
 | Tests de frontend (`npm test`) | **50 de 50** |
 | Compilación del frontend | Limpia · **95,5 KB gzip** el paquete inicial |
-| Integración continua | **Verde entera**: backend, frontend e **imagen Docker construida** |
-| Commits | 66 |
+| Integración continua | **Verde entera**: backend, frontend, imagen Docker y **prueba de humo** |
+| Commits | 70 |
 
 El paquete inicial queda por debajo del objetivo de 200 KB. El segundo fragmento de
 107 KB es la librería de escaneo de códigos, que **solo se descarga en teléfonos sin
@@ -278,6 +278,38 @@ Tras todas las fusiones, los cuatro invariantes del sistema siguen en pie:
 | Calendario | marcar en festivo → `"La fecha no es un dia lectivo"` |
 | Horas sin desfase | el bloque sigue siendo `06:30`, no `01:30` |
 | Roles | el docente ve Consultas y **no** ve Tablero ni Administración |
+
+---
+
+## 6.e Quinta iteración: los invariantes ahora se comprueban solos
+
+El patrón de todo el proyecto fue este: **los tres bugs más serios no los encontró
+ningún test, los encontró mirar el sistema funcionando.** Las horas desplazadas cinco
+horas, el Dockerfile que no compilaba, la suite que dependía del orden. Mientras eso
+dependiera de que alguien se acordara de mirar, iba a volver a pasar.
+
+`tools/humo.sh` comprueba 15 invariantes contra una instancia **real** ya corriendo:
+autenticación y rechazo de credenciales, horas sin desfase, idempotencia (mismo lote
+dos veces, una sola fila), calendario (festivo y domingo rechazados), separación de
+roles, descarga del Excel y rutas de la SPA. La integración continua lo ejecuta contra
+la imagen empaquetada, que es la única forma de cubrir también el frontend servido.
+
+Se verificó **en los dos sentidos**, igual que la verificación del driver: pasa contra
+el sistema sano, y al reintroducir a propósito el `hibernate.jdbc.time_zone` que
+causaba el bug de las horas, lo detecta. Una prueba que nunca falla no prueba nada.
+
+### Y encontró un bug de producción en su primera ejecución
+
+La sonda `/actuator/health` devolvía **503 con el servidor de correo inalcanzable**.
+`spring-boot-starter-mail` añade un indicador que intenta conectarse al SMTP y, si no
+responde, marca **toda la aplicación** como caída. En producción, un orquestador la
+habría reiniciado en bucle aunque tomar asistencia —que es lo crítico— funcionara
+perfectamente.
+
+Corregido desactivando ese indicador: los fallos de envío ya quedan registrados con su
+motivo en la tabla `notifications`, que es donde hay que mirarlos, no en una sonda de
+vida. El indicador de base de datos sigue activo, comprobado: si la base cae, la sonda
+debe fallar, porque sin base no hay sistema.
 
 ---
 
