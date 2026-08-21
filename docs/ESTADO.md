@@ -18,3 +18,4 @@ _(vacio)_
 
 ## Bloqueos
 _(vacio)_
+- [C3] hecho — cola de notificaciones (V20) con envio cada 15 minutos
