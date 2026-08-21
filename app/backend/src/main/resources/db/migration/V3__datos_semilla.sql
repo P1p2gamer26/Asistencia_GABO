@@ -1,7 +1,8 @@
+-- Password de todos los usuarios semilla: cambiar123 (hash BCrypt coste 10). Solo desarrollo y tests.
 INSERT INTO users (email, password_hash, full_name, role) VALUES
- ('admin@ggm.edu.co',    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Administrador GGM', 'ADMIN'),
- ('coord@ggm.edu.co',    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Coordinacion GGM',  'COORDINADOR'),
- ('fpalacios@ggm.edu.co','$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Francisco Palacios','DOCENTE');
+ ('admin@ggm.edu.co',    '$2a$10$Dj7iHjr8j08eQUlmQcVd5uM9.8ffEMX0WtxdQPz3IAsepUn6jQnTu', 'Administrador GGM', 'ADMIN'),
+ ('coord@ggm.edu.co',    '$2a$10$Dj7iHjr8j08eQUlmQcVd5uM9.8ffEMX0WtxdQPz3IAsepUn6jQnTu', 'Coordinacion GGM',  'COORDINADOR'),
+ ('fpalacios@ggm.edu.co','$2a$10$Dj7iHjr8j08eQUlmQcVd5uM9.8ffEMX0WtxdQPz3IAsepUn6jQnTu', 'Francisco Palacios','DOCENTE');
 
 INSERT INTO subjects (name) VALUES ('Matematicas'), ('Espanol'), ('Informatica');
 
