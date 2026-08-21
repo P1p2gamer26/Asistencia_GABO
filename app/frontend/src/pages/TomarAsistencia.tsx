@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { db } from '../db/local';
 import { isSchoolDay } from '../db/local';
 import type { Block, StudentDto, Status } from '../api/contract';
@@ -10,10 +11,14 @@ import SelectorFecha from '../components/SelectorFecha';
 const hoyISO = () => new Date().toLocaleDateString('en-CA');   // YYYY-MM-DD en hora local
 
 export default function TomarAsistencia() {
+  // Los pendientes de hoy en el inicio enlazan aqui con el curso y el bloque ya elegidos.
+  const [params] = useSearchParams();
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [students, setStudents] = useState<StudentDto[]>([]);
-  const [grade, setGrade] = useState('');
-  const [blockId, setBlockId] = useState<number | null>(null);
+  const [grade, setGrade] = useState(params.get('grade') ?? '');
+  const [blockId, setBlockId] = useState<number | null>(
+    params.get('blockId') ? Number(params.get('blockId')) : null,
+  );
   const [fecha, setFecha] = useState(hoyISO());
   const [lectivo, setLectivo] = useState(true);
   const [marcas, setMarcas] = useState<Record<number, Status>>({});
