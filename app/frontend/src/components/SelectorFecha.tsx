@@ -11,9 +11,13 @@ type Props = { valor: string; onChange: (fecha: string) => void; max: string };
 
 export default function SelectorFecha({ valor, onChange, max }: Props) {
   const [dia, setDia] = useState<SchoolDay | undefined>();
+  const [consultado, setConsultado] = useState(false);
   const [recientes, setRecientes] = useState<string[]>([]);
 
-  useEffect(() => { void db.schoolDays.get(valor).then(setDia); }, [valor]);
+  useEffect(() => {
+    setConsultado(false);
+    void db.schoolDays.get(valor).then((d) => { setDia(d); setConsultado(true); });
+  }, [valor]);
 
   useEffect(() => {
     void db.schoolDays.where('dayType').equals('LECTIVO').toArray().then((dias) => {
@@ -39,7 +43,7 @@ export default function SelectorFecha({ valor, onChange, max }: Props) {
           ))}
         </div>
       </div>
-      {!lectivo && (
+      {consultado && !lectivo && (
         <p role="alert" className="banner no-lectivo" style={{ gridColumn: '1 / -1' }}>
           {dia
             ? `El ${new Date(`${valor}T00:00`).toLocaleDateString('es-CO')} es ${ETIQUETA_TIPO[dia.dayType] ?? 'no lectivo'}`
