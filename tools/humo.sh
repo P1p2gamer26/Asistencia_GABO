@@ -52,6 +52,21 @@ comprobar "una clave incorrecta se rechaza" "401" \
 comprobar "sin token no se entra" "401" \
   "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/api/sync/bootstrap")"
 
+# Un navegador manda la cabecera Origin y curl no. Sin esta comprobacion, "el login
+# funciona" se puede afirmar con una peticion que ningun navegador hace jamas: paso
+# en el tunel de pruebas del 2026-08-21, donde curl daba 200 y el celular 403.
+# Con el frontend en Vercel y la API en otro dominio es el fallo que tumba el
+# despliegue el primer dia, y no deja ni rastro en el registro del servidor.
+comprobar "el login funciona desde un navegador (con Origin)" "200" \
+  "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/api/auth/login" \
+     -H "Origin: $BASE" -H 'Content-Type: application/json' \
+     -d '{"email":"fpalacios@ggm.edu.co","password":"cambiar123"}')"
+
+comprobar "un origen ajeno se rechaza" "403" \
+  "$(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS "$BASE/api/auth/login" \
+     -H 'Origin: https://sitio-que-no-es-nuestro.example' \
+     -H 'Access-Control-Request-Method: POST')"
+
 AUTH="Authorization: Bearer $TOKEN"
 
 # --- Horas sin desfase de zona horaria ----------------------------------------
