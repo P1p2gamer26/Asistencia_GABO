@@ -31,7 +31,10 @@ export default function Home() {
       <nav className="acciones">
         <Link className="boton" to="/asistencia">Asistencia a clase</Link>
         <Link className="boton" to="/ingreso">Ingreso al colegio</Link>
-        {session.role !== 'DOCENTE' && <Link className="boton" to="/consultas">Consultas</Link>}
+        <Link className="boton" to="/consultas">Consultas</Link>
+        {(session.role === 'COORDINADOR' || session.role === 'ADMIN') && (
+          <Link className="boton" to="/dashboard">Tablero</Link>
+        )}
       </nav>
       <p className="meta">
         Datos descargados: {ultima ? new Date(ultima).toLocaleString('es-CO') : 'nunca'}

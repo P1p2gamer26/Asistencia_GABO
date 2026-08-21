@@ -9,6 +9,7 @@ Formato: `- [<tarea>] <estado> <fecha> — <nota>`
 - [0.3] hecho — contratos congelados; los tres tracks pueden arrancar
 - [A1] hecho 2026-08-20 — POST /api/auth/login y /api/auth/refresh operativos (SecurityConfig, JwtFilter/JwtService en shared/, AuthService+AuthController en user/); se corrigio el hash bcrypt de la semilla V3 (no correspondia a "cambiar123")
 - [A2] hecho 2026-08-20 — GET/PUT /api/calendar/school-days e isSchoolDay operativos (paquete calendar/ con controller, service, repository, model)
+- [Cierre-Task2] hecho 2026-08-20 — Home.tsx: el docente ya ve el enlace a Consultas y coordinacion/admin ven ademas el enlace al Tablero (antes solo se llegaba escribiendo la URL); `npm run build` OK. Verificacion manual de los dos roles (Step 3) no ejecutada por no tener backend+dev server levantados en esta sesion.
 ## Cambios al contrato (requiere acuerdo de los tres)
 _(vacio)_
 ## Bloqueos
