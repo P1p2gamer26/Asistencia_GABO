@@ -700,7 +700,7 @@ Expected: build correcto con las siete paginas marcador.
 ```bash
 git add contracts frontend docs
 git commit -m "feat: contratos congelados, fixtures y esqueleto de frontend compartido"
-git push origin main
+# push deshabilitado: el remoto es ajeno. Solo commits locales.
 ```
 
 **A partir de aqui se abren las tres terminales.**
@@ -1202,7 +1202,7 @@ Expected: PASS todo.
 ```bash
 echo '- [A4] hecho — sync valida dia lectivo; TRACK A COMPLETO' >> docs/ESTADO.md
 git add backend docs && git commit -m "feat: sincronizacion idempotente con validacion de dia lectivo"
-git push origin track-a-nucleo
+# push deshabilitado: el remoto es ajeno. Solo commits locales.
 ```
 
 ---
@@ -1733,7 +1733,7 @@ Comprobar en DevTools > Application: manifest sin errores, service worker activo
 ```bash
 echo '- [B4] hecho — PWA instalable y escaneo de carnet; TRACK B COMPLETO' >> docs/ESTADO.md
 git add frontend docs && git commit -m "feat: PWA instalable y registro de ingreso por QR del carnet"
-git push origin track-b-app
+# push deshabilitado: el remoto es ajeno. Solo commits locales.
 ```
 
 ---
@@ -2603,7 +2603,7 @@ Expected: PASS todo.
 echo '- [C4] hecho — consultas, portal del acudiente e importacion CSV; TRACK C COMPLETO' >> docs/ESTADO.md
 git add backend frontend docs
 git commit -m "feat: consultas con dias lectivos, portal del acudiente e importacion CSV"
-git push origin track-c-analitica
+# push deshabilitado: el remoto es ajeno. Solo commits locales.
 ```
 
 ---
