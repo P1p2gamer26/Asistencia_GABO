@@ -4,3 +4,5 @@ target/
 dist/
 *.local
 *.tsbuildinfo
+.loop-estado
+.loop-*.log
