@@ -37,11 +37,10 @@ body {
   line-height: 1.5;
   background: var(--papel);
   color: var(--tinta);
-  /* Rayado de planilla, tenue: dos gradientes, cero imagenes que descargar. */
-  background-image:
-    linear-gradient(var(--papel) 0 0),
-    repeating-linear-gradient(var(--papel) 0 27px, #e8e5d8 27px 28px);
+  /* Rayado de planilla, tenue: un gradiente repetido, cero imagenes que descargar. */
+  background-image: repeating-linear-gradient(var(--papel) 0 27px, #eae7da 27px 28px);
   background-attachment: fixed;
+  padding: 0 var(--e3) var(--e5);
 }
 
 h1, h2, h3, .cifra, .boton, button, .eyebrow { font-family: var(--ui); }
@@ -65,13 +64,16 @@ h3 { font-size: 1rem; font-weight: 600; }
   border-left: 3px solid var(--margen);
   border-radius: 0 var(--radio) var(--radio) 0;
   padding: var(--e5) var(--e4);
-  margin: var(--e4) auto;
+  margin: var(--e4) auto 0;
   max-width: 34rem;
   box-shadow: 0 1px 0 rgba(20, 32, 26, .06);
 }
 
 .login { display: flex; flex-direction: column; gap: var(--e2); margin-top: 8vh; }
 .login h1 { font-size: 1.75rem; }
+.pie { display: flex; flex-wrap: wrap; gap: var(--e2); margin-top: var(--e4); }
+.pie button { flex: 1 1 10rem; }
+
 .login label { font-size: .85rem; font-weight: 600; color: var(--tinta-suave); margin-top: var(--e2); }
 
 .marca { display: flex; align-items: center; gap: var(--e3); margin-bottom: var(--e4); }

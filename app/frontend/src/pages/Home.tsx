@@ -60,12 +60,14 @@ export default function Home() {
         Datos descargados: {ultima ? new Date(ultima).toLocaleString('es-CO') : 'nunca'}
       </p>
       {error && <p role="alert" className="error">{error}</p>}
-      <button type="button" onClick={() => void actualizar()}>Actualizar datos</button>
-      <BotonInstalar />
-      <button type="button" className="secundario"
-              onClick={() => { clearSession(); location.href = '/login'; }}>
-        Cerrar sesion
-      </button>
+      <div className="pie">
+        <button type="button" onClick={() => void actualizar()}>Actualizar datos</button>
+        <BotonInstalar />
+        <button type="button" className="secundario"
+                onClick={() => { clearSession(); location.href = '/login'; }}>
+          Cerrar sesion
+        </button>
+      </div>
     </main>
   );
 }
