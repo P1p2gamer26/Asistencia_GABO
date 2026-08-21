@@ -78,7 +78,7 @@ Todas las cifras siguientes se ejecutaron y se observaron; ninguna es estimada.
 | Tests de frontend (`npm test`) | **19 de 19** |
 | Compilación del frontend | Limpia · **95,5 KB gzip** el paquete inicial |
 | Integración continua | **Verde entera**: backend, frontend e **imagen Docker construida** |
-| Commits | 55 |
+| Commits | 52 |
 
 El paquete inicial queda por debajo del objetivo de 200 KB. El segundo fragmento de
 107 KB es la librería de escaneo de códigos, que **solo se descarga en teléfonos sin
