@@ -1,7 +1,7 @@
 package co.edu.ggm.asistencia.student;
 
 import co.edu.ggm.asistencia.AbstractIntegrationTest;
-import co.edu.ggm.asistencia.shared.service.JwtService;
+import co.edu.ggm.asistencia.service.JwtService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
