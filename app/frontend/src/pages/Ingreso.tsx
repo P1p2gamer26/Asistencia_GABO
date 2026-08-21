@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { db } from '../db/local';
 import { api, OfflineError } from '../api/client';
 import { abrirCamara, scanOnce } from '../scan/scanner';
+import { parseCarnet } from '../scan/carnet';
 
 export default function Ingreso() {
   const video = useRef<HTMLVideoElement>(null);
@@ -32,10 +33,29 @@ export default function Ingreso() {
     };
   }, []);
 
-  async function registrar(documentId: string) {
-    const estudiante = await db.students.where('documentId').equals(documentId).first();
-    setUltimo(estudiante ? estudiante.fullName : `Carnet ${documentId} no reconocido`);
-    await db.entryOutbox.put({ id: crypto.randomUUID(), documentId, scannedAt: new Date().toISOString() });
+  async function registrar(textoQr: string) {
+    const carnet = parseCarnet(textoQr);
+    if (!carnet) {
+      setError('No se pudo leer el carnet. Intente de nuevo, mas cerca y con mas luz.');
+      return;
+    }
+    setError('');
+    const estudiante = await db.students.where('documentId').equals(carnet.documentId).first();
+    if (!estudiante) {
+      setUltimo(`Carnet ${carnet.documentId} no reconocido`);
+    } else {
+      setUltimo(estudiante.fullName);
+      // El carnet puede estar desactualizado (traslado de curso, reimpresion vieja).
+      // Se registra igual -manda la base- pero la docente tiene que verlo.
+      if (carnet.curso && !carnet.curso.includes(estudiante.grade)) {
+        setError(`Revisar: el carnet dice "${carnet.curso}" y la base dice "${estudiante.grade}".`);
+      }
+    }
+    await db.entryOutbox.put({
+      id: crypto.randomUUID(),
+      documentId: carnet.documentId,
+      scannedAt: new Date().toISOString(),
+    });
     await enviar();
   }
 

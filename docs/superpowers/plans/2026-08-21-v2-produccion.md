@@ -165,7 +165,7 @@ distinto del que tiene la base, la docente tiene que enterarse.
   `grade`) y `db.entryOutbox` de `src/db/local.ts`; `api.post` de `src/api/client.ts`.
 - Produces: nada para otras tareas.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Crear `app/frontend/src/pages/Ingreso.test.tsx`:
 
@@ -227,12 +227,12 @@ describe('Ingreso', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd app/frontend && npx vitest run src/pages/Ingreso.test.tsx`
 Expected: FAIL — el primer test guarda el texto completo como `documentId`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 En `app/frontend/src/pages/Ingreso.tsx`, añadir el import:
 
@@ -281,18 +281,18 @@ para que no pise el aviso de discrepancia:
 
 (queda igual; se deja constancia de que se revisó y no hace falta tocarlo).
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `cd app/frontend && npx vitest run src/pages/Ingreso.test.tsx`
 Expected: PASS, 4 tests.
 
-- [ ] **Step 5: Run the whole frontend suite and build**
+- [x] **Step 5: Run the whole frontend suite and build**
 
 Run: `cd app/frontend && npm test && npm run build`
 Expected: 50 tests previos + 6 de Task 1 + 4 nuevos = 60 en verde; build limpio y el
 chunk principal por debajo de 200 KB gzip. Anotar la cifra exacta en el commit.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add app/frontend/src/pages/Ingreso.tsx app/frontend/src/pages/Ingreso.test.tsx
