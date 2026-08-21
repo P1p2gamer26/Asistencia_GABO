@@ -33,8 +33,8 @@ export type ImportResult = { imported: number; errors: string[] };
 
 /** Orden de apilado y colores de estado. Validado; ver Task C2. No reordenar. */
 export const ESTADOS: { valor: Status; etiqueta: string; color: string }[] = [
-  { valor: 'P', etiqueta: 'Presente', color: '#0ca30c' },
-  { valor: 'T', etiqueta: 'Tarde',    color: '#fab219' },
-  { valor: 'F', etiqueta: 'Falta',    color: '#d03b3b' },
-  { valor: 'E', etiqueta: 'Evasion',  color: '#ec835a' },
+  { valor: 'P', etiqueta: 'Presente', color: '#14663b' },
+  { valor: 'T', etiqueta: 'Tarde',    color: '#d29b16' },
+  { valor: 'F', etiqueta: 'Falta',    color: '#c8503c' },
+  { valor: 'E', etiqueta: 'Evasion',  color: '#7a5ea8' },
 ];

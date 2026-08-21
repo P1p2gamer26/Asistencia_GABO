@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
+import Escudo from '../components/Escudo';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -25,7 +26,14 @@ export default function Login() {
 
   return (
     <form className="card login" onSubmit={submit}>
-      <h1>Asistencia GGM</h1>
+      <header className="marca">
+        <Escudo size={72} />
+        <div>
+          <span className="eyebrow">Planilla de asistencia</span>
+          <h1>Asistencia GGM</h1>
+          <p className="meta">Colegio Gabriel Garcia Marquez</p>
+        </div>
+      </header>
       <label htmlFor="email">Correo institucional</label>
       <input id="email" type="email" autoComplete="username" required
              value={email} onChange={(e) => setEmail(e.target.value)} />
