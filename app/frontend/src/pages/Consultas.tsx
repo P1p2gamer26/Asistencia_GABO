@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { api, getSession } from '../api/client';
+import { api, apiUrl, getSession } from '../api/client';
 
 type Fila = {
   studentId: number; documentId: string; fullName: string; grade: string;
@@ -29,7 +29,7 @@ export default function Consultas() {
   async function descargar() {
     setError('');
     try {
-      const res = await fetch(`/api/reports/excel?${query()}&tipo=${tipo}`, {
+      const res = await fetch(apiUrl(`/api/reports/excel?${query()}&tipo=${tipo}`), {
         headers: { Authorization: `Bearer ${getSession()!.token}` },
       });
       if (!res.ok) throw new Error();

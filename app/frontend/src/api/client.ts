@@ -3,6 +3,17 @@ export type { Session };
 
 const KEY = 'ggm.session';
 
+/**
+ * En desarrollo y en la imagen Docker el backend sirve el frontend, asi que la ruta
+ * relativa funciona. En Vercel la API vive en otro dominio (Fly.io) y hace falta la
+ * URL absoluta. Una sola variable decide las dos situaciones.
+ */
+const BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
+
+export function apiUrl(path: string): string {
+  return BASE + path;
+}
+
 export function getSession(): Session | null {
   const raw = localStorage.getItem(KEY);
   return raw ? (JSON.parse(raw) as Session) : null;
@@ -23,7 +34,7 @@ async function request<T>(path: string, init: RequestInit, retry = true): Promis
   const session = getSession();
   let res: Response;
   try {
-    res = await fetch(path, {
+    res = await fetch(apiUrl(path), {
       ...init,
       headers: {
         'Content-Type': 'application/json',
@@ -46,7 +57,7 @@ async function request<T>(path: string, init: RequestInit, retry = true): Promis
 }
 
 async function refresh(refreshToken: string): Promise<boolean> {
-  const res = await fetch('/api/auth/refresh', {
+  const res = await fetch(apiUrl('/api/auth/refresh'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refreshToken }),
@@ -58,7 +69,7 @@ async function refresh(refreshToken: string): Promise<boolean> {
 
 export const api = {
   async login(email: string, password: string): Promise<Session> {
-    const res = await fetch('/api/auth/login', {
+    const res = await fetch(apiUrl('/api/auth/login'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),

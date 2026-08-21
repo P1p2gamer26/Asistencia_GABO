@@ -1546,7 +1546,7 @@ rutas relativas (`/api/...`), que en Vercel apuntarían a Vercel.
 - Consumes: nada.
 - Produces: `export function apiUrl(path: string): string` desde `src/api/client.ts`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Añadir a `app/frontend/src/api/client.test.ts`:
 
@@ -1575,12 +1575,12 @@ it('ningun modulo llama a fetch con /api sin pasar por apiUrl', async () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd app/frontend && npx vitest run src/api/client.test.ts`
 Expected: FAIL — no existe `apiUrl`, y `Consultas.tsx` llama a `fetch('/api/...')`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 En `src/api/client.ts`, arriba del todo:
 
@@ -1643,18 +1643,18 @@ Crear `vercel.json` en la raíz del repositorio:
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `cd app/frontend && npm test && npm run build`
 Expected: todo en verde; build limpio.
 
-- [ ] **Step 5: Verify the local flow still works**
+- [x] **Step 5: Verify the local flow still works**
 
 Run: `cd app/frontend && npm run dev` con el backend levantado en el 8080, y entrar a
 `http://localhost:5173`. Sin `VITE_API_URL`, el proxy de Vite sigue funcionando igual
 que antes. Comprobar que se puede iniciar sesión.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add app/frontend/src app/frontend/vite.config.ts app/frontend/.env.example vercel.json

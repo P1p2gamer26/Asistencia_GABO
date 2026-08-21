@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { getSession } from '../../api/client';
+import { apiUrl, getSession } from '../../api/client';
 import type { ImportResult } from '../../api/contract';
 
 const CARGAS = [
@@ -20,7 +20,7 @@ export default function PanelCarga() {
     const datos = new FormData();
     datos.append('file', archivo);
     try {
-      const res = await fetch(`/api/admin/import/${clave}`, {
+      const res = await fetch(apiUrl(`/api/admin/import/${clave}`), {
         method: 'POST',
         headers: { Authorization: `Bearer ${getSession()!.token}` },
         body: datos,

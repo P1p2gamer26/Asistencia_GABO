@@ -30,7 +30,11 @@ export default defineConfig({
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
-          { urlPattern: /^\/api\//, handler: 'NetworkOnly' },
+          // La API vive en otro dominio en produccion (Vercel sirve la PWA, Fly.io la
+          // API), asi que la regla no puede ser una ruta relativa. Nunca se cachea:
+          // los datos de asistencia tienen que ser los de ahora, y la cola offline
+          // ya resuelve el caso de no tener senal.
+          { urlPattern: ({ url }) => url.pathname.startsWith('/api/'), handler: 'NetworkOnly' },
         ],
       },
     }),
