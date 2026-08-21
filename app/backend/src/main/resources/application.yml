@@ -28,3 +28,12 @@ server:
     enabled: true
     mime-types: application/json
     min-response-size: 512
+
+management:
+  health:
+    # El indicador de correo intenta conectarse al SMTP y, si no responde, marca TODA
+    # la aplicacion como caida (503). Un orquestador o balanceador la reiniciaria en
+    # bucle aunque tomar asistencia -que es lo critico- funcione perfectamente.
+    # Los fallos de envio ya quedan registrados con su motivo en la tabla
+    # notifications, que es donde hay que mirarlos, no en una sonda de vida.
+    mail.enabled: false
