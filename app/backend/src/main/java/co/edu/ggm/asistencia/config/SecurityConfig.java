@@ -1,5 +1,6 @@
 package co.edu.ggm.asistencia.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -25,12 +26,14 @@ public class SecurityConfig {
     PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
 
     @Bean
-    SecurityFilterChain filterChain(HttpSecurity http, JwtFilter jwtFilter) throws Exception {
+    SecurityFilterChain filterChain(
+            HttpSecurity http, JwtFilter jwtFilter,
+            @Value("${app.cors.origins}") List<String> origenes) throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)   // API stateless con JWT, sin cookies de sesion
             .cors(cors -> cors.configurationSource(request -> {
                 var config = new CorsConfiguration();
-                config.setAllowedOriginPatterns(List.of("http://localhost:5173", "https://*.ggm.edu.co"));
+                config.setAllowedOriginPatterns(origenes);
                 config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));
                 config.setAllowedHeaders(List.of("*"));
                 return config;

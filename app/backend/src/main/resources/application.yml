@@ -15,6 +15,10 @@ spring:
     password: ${MAIL_PASSWORD:}
     properties.mail.smtp.starttls.enable: ${MAIL_TLS:false}
 app:
+  cors:
+    # Separados por comas. En produccion el frontend (Vercel) vive en otro dominio
+    # que la API (Fly.io), asi que el dominio real no se sabe hasta desplegar.
+    origins: ${APP_CORS_ORIGINS:http://localhost:5173,https://*.ggm.edu.co}
   jwt:
     secret: ${JWT_SECRET:cambiar-en-produccion-minimo-32-bytes-de-entropia}
     access-ttl-minutes: 60

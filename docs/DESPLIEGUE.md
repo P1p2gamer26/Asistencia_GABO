@@ -120,6 +120,80 @@ settings > Change visibility). Publicarlo no expone el código fuente, pero sí 
 aplicación compilada: si el colegio prefiere no hacerlo, el `docker login` con un
 token de solo lectura es la opción correcta.
 
+## Opción C — Vercel + Supabase + Fly.io (la de esta versión)
+
+El frontend en Vercel (HTTPS y CDN gratis, que la PWA necesita para instalarse en el
+teléfono), la base en Supabase (PostgreSQL 16 gestionado, con copias de seguridad) y
+el backend Java en Fly.io, porque Vercel no ejecuta Java.
+
+Son tres proveedores en vez de uno. A cambio, no hay que administrar ningún servidor
+y el backend de 56 tests ya verificado se conserva entero.
+
+### 1. Supabase
+
+Crear el proyecto y copiar la cadena de **Session pooler** (puerto **5432**), no la de
+Transaction pooler (6543): el *pooler* de transacciones no conserva las sentencias
+preparadas de JDBC, y Hibernate empieza a fallar de forma intermitente y muy difícil
+de diagnosticar. Es el error más caro de este despliegue.
+
+```
+DB_URL=jdbc:postgresql://aws-0-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require
+DB_USER=postgres.<referencia-del-proyecto>
+DB_PASSWORD=<la del proyecto>
+```
+
+Flyway aplica las migraciones solo al arrancar el backend. Comprobar después, desde el
+editor SQL de Supabase:
+
+```sql
+select version, description, success from flyway_schema_history order by installed_rank;
+```
+
+Las cinco migraciones (V1, V2, V3, V20, V30) tienen que aparecer con `success = true`.
+
+### 2. Backend en Fly.io
+
+`fly.toml` ya está en la raíz del repositorio.
+
+```bash
+fly launch --no-deploy            # usa el fly.toml que ya existe
+fly secrets set \
+  DB_URL='jdbc:postgresql://aws-0-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require' \
+  DB_USER='postgres.xxxx' \
+  DB_PASSWORD='...' \
+  JWT_SECRET="$(openssl rand -base64 48)" \
+  APP_CORS_ORIGINS='https://asistencia-ggm.vercel.app'
+fly deploy
+curl https://asistencia-ggm.fly.dev/actuator/health     # {"status":"UP"}
+```
+
+`APP_CORS_ORIGINS` es obligatoria: sin ella el navegador bloquea todas las llamadas
+del frontend y la aplicación parece caída sin que aparezca un solo error en el
+servidor. Va sin barra final y con el esquema `https://` completo.
+
+### 3. Frontend en Vercel
+
+Importar el repositorio. El `vercel.json` de la raíz ya trae el comando de compilación
+y las rutas de la SPA. Añadir una variable de entorno:
+
+```
+VITE_API_URL = https://asistencia-ggm.fly.dev
+```
+
+**Es de compilación, no de ejecución**: Vite la incrusta en el paquete al compilar.
+Cambiarla obliga a volver a desplegar; editarla sin redesplegar no hace nada.
+
+### 4. Comprobación
+
+```bash
+bash tools/humo.sh https://asistencia-ggm.fly.dev
+```
+
+Los invariantes de rutas de la SPA van a fallar, y está bien: en este despliegue la
+SPA la sirve Vercel, no el backend. Todos los demás tienen que pasar. Después, abrir
+la URL de Vercel, iniciar sesión y mirar la consola del navegador: un fallo de CORS
+solo se ve ahí.
+
 ## Variables de entorno
 
 Obligatorias. Sin ellas el sistema no arranca, o arranca y no manda correos sin avisar.
@@ -128,6 +202,7 @@ Obligatorias. Sin ellas el sistema no arranca, o arranca y no manda correos sin 
 |---|---|---|
 | `DB_URL` | `jdbc:postgresql://host:5432/asistencia` | no arranca |
 | `DB_USER`, `DB_PASSWORD` | credenciales de la base | no arranca |
+| `APP_CORS_ORIGINS` | Origenes permitidos para CORS, separados por comas. Obligatoria si el frontend no lo sirve el propio backend (Vercel). | `https://asistencia-ggm.vercel.app` |
 | `JWT_SECRET` | **32 bytes o más, aleatorios** | arranca con el valor de desarrollo: cualquiera podría fabricar tokens |
 | `MAIL_HOST`, `MAIL_PORT` | servidor SMTP institucional | no manda correos |
 | `MAIL_USER`, `MAIL_PASSWORD` | credenciales SMTP | no manda correos |

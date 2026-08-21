@@ -11,6 +11,8 @@ spring:
     clean-disabled: false
     clean-on-validation-error: true
 app:
+  cors:
+    origins: http://localhost:5173,https://asistencia-ggm.vercel.app
   jwt:
     secret: secreto-solo-para-tests-con-mas-de-32-bytes-de-entropia
     access-ttl-minutes: 60
