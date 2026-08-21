@@ -57,4 +57,45 @@ describe('PanelCalendario', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/no se pudo actualizar/i);
   });
+
+  it('marca un rango completo con un solo PUT', async () => {
+    const llamadas: { url: string; body: unknown }[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === 'PUT') {
+        llamadas.push({ url, body: JSON.parse(String(init.body)) });
+        return respuesta({ cambiados: 3 });
+      }
+      return respuesta(DIAS);
+    }));
+
+    render(<PanelCalendario />);
+    await userEvent.click(await screen.findByRole('button', { name: /marcar un rango/i }));
+    await userEvent.type(screen.getByLabelText('Rango desde'), '2026-09-07');
+    await userEvent.type(screen.getByLabelText('Rango hasta'), '2026-09-09');
+    await userEvent.selectOptions(screen.getByLabelText('Tipo del rango'), 'SUSPENDIDO');
+    await userEvent.type(screen.getByLabelText('Motivo del rango'), 'Paro');
+    await userEvent.click(screen.getByRole('button', { name: /aplicar al rango/i }));
+
+    await waitFor(() => expect(llamadas).toHaveLength(1));
+    expect(llamadas[0].url).toContain('/api/calendar/school-days');
+    expect(llamadas[0].body).toEqual({
+      from: '2026-09-07', to: '2026-09-09',
+      dayType: 'SUSPENDIDO', description: 'Paro', soloHabiles: true,
+    });
+  });
+
+  it('dice cuantos dias cambio, para que el rector vea si fueron los que esperaba', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.method === 'PUT') return respuesta({ cambiados: 3 });
+      return respuesta(DIAS);
+    }));
+
+    render(<PanelCalendario />);
+    await userEvent.click(await screen.findByRole('button', { name: /marcar un rango/i }));
+    await userEvent.type(screen.getByLabelText('Rango desde'), '2026-09-07');
+    await userEvent.type(screen.getByLabelText('Rango hasta'), '2026-09-09');
+    await userEvent.click(screen.getByRole('button', { name: /aplicar al rango/i }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent(/3 dias/i);
+  });
 });

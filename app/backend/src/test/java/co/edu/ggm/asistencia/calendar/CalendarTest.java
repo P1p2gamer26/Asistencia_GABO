@@ -72,4 +72,58 @@ class CalendarTest extends AbstractIntegrationTest {
                         .header("Authorization", token("fpalacios@ggm.edu.co", "DOCENTE")))
            .andExpect(status().isForbidden());
     }
+
+    // ---- marcar un rango completo ----
+
+    private String rango(String desde, String hasta, String tipo, String motivo) {
+        return """
+               {"from":"%s","to":"%s","dayType":"%s","description":"%s","soloHabiles":true}
+               """.formatted(desde, hasta, tipo, motivo);
+    }
+
+    @Test
+    void marca_un_rango_completo_de_una_vez() throws Exception {
+        // 2026-09-07 lunes a 2026-09-09 miercoles
+        mvc.perform(put("/api/calendar/school-days").header("Authorization", token("admin@ggm.edu.co", "ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(rango("2026-09-07", "2026-09-09", "SUSPENDIDO", "Paro")))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.cambiados").value(3));
+
+        mvc.perform(get("/api/calendar/school-days")
+                .param("from", "2026-09-07").param("to", "2026-09-09")
+                .header("Authorization", token("admin@ggm.edu.co", "ADMIN")))
+           .andExpect(jsonPath("$[0].dayType").value("SUSPENDIDO"))
+           .andExpect(jsonPath("$[2].dayType").value("SUSPENDIDO"));
+
+        // Y la cache en memoria tambien se entero: sin esto el servidor seguiria
+        // aceptando asistencia en un dia que el calendario ya dice suspendido.
+        assertThat(service.isSchoolDay(LocalDate.of(2026, 9, 8))).isFalse();
+    }
+
+    @Test
+    void con_solo_habiles_no_toca_el_fin_de_semana() throws Exception {
+        // 2026-09-11 viernes a 2026-09-14 lunes: sabado y domingo en medio
+        mvc.perform(put("/api/calendar/school-days").header("Authorization", token("admin@ggm.edu.co", "ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(rango("2026-09-11", "2026-09-14", "INSTITUCIONAL", "Jornada")))
+           .andExpect(jsonPath("$.cambiados").value(2));
+    }
+
+    @Test
+    void un_docente_no_puede_cambiar_el_calendario_por_rango() throws Exception {
+        mvc.perform(put("/api/calendar/school-days")
+                .header("Authorization", token("fpalacios@ggm.edu.co", "DOCENTE"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(rango("2026-09-07", "2026-09-09", "SUSPENDIDO", "Paro")))
+           .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void el_rango_al_reves_se_rechaza() throws Exception {
+        mvc.perform(put("/api/calendar/school-days").header("Authorization", token("admin@ggm.edu.co", "ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(rango("2026-09-09", "2026-09-07", "SUSPENDIDO", "")))
+           .andExpect(status().isBadRequest());
+    }
 }

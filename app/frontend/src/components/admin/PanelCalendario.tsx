@@ -10,6 +10,12 @@ export default function PanelCalendario() {
   const [hasta, setHasta] = useState(hoyISO());
   const [dias, setDias] = useState<SchoolDay[]>([]);
   const [error, setError] = useState('');
+  const [aviso, setAviso] = useState('');
+  const [abierto, setAbierto] = useState(false);
+  const [rDesde, setRDesde] = useState('');
+  const [rHasta, setRHasta] = useState('');
+  const [rTipo, setRTipo] = useState<DayType>('SUSPENDIDO');
+  const [rMotivo, setRMotivo] = useState('');
 
   async function cargar() {
     setError('');
@@ -33,6 +39,19 @@ export default function PanelCalendario() {
     }
   }
 
+  async function aplicarRango() {
+    setError('');
+    setAviso('');
+    try {
+      const res = await api.put<{ cambiados: number }>('/api/calendar/school-days',
+        { from: rDesde, to: rHasta, dayType: rTipo, description: rMotivo, soloHabiles: true });
+      setAviso(`Se cambiaron ${res.cambiados} dias.`);
+      await cargar();
+    } catch {
+      setError('No se pudo aplicar el rango.');
+    }
+  }
+
   return (
     <section>
       <div className="filtros">
@@ -42,7 +61,31 @@ export default function PanelCalendario() {
         <input id="ch" type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} />
       </div>
       <button type="button" onClick={() => void cargar()}>Ver rango</button>
+      <button type="button" className="secundario" onClick={() => setAbierto((v) => !v)}>
+        Marcar un rango
+      </button>
       {error && <p role="alert" className="error">{error}</p>}
+      {aviso && <p role="status" className="meta">{aviso}</p>}
+
+      {abierto && (
+        <div className="filtros">
+          <label htmlFor="r-desde">Rango desde</label>
+          <input id="r-desde" type="date" value={rDesde} onChange={(e) => setRDesde(e.target.value)} />
+          <label htmlFor="r-hasta">Rango hasta</label>
+          <input id="r-hasta" type="date" value={rHasta} onChange={(e) => setRHasta(e.target.value)} />
+          <label htmlFor="r-tipo">Tipo del rango</label>
+          <select id="r-tipo" value={rTipo} onChange={(e) => setRTipo(e.target.value as DayType)}>
+            {TIPOS.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <label htmlFor="r-motivo">Motivo del rango</label>
+          <input id="r-motivo" value={rMotivo} onChange={(e) => setRMotivo(e.target.value)}
+                 placeholder="Paro, jornada pedagogica..." />
+          <button type="button" disabled={!rDesde || !rHasta} onClick={() => void aplicarRango()}>
+            Aplicar al rango
+          </button>
+          <p className="meta">Solo se cambian los dias de lunes a viernes.</p>
+        </div>
+      )}
 
       <p className="meta">
         Cambiar un dia a algo distinto de LECTIVO impide registrar asistencia ese dia,

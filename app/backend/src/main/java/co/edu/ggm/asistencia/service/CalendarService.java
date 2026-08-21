@@ -60,4 +60,22 @@ public class CalendarService {
         if (type == DayType.LECTIVO) lectivos.add(date); else lectivos.remove(date);
         return guardado;
     }
+
+    /**
+     * Un paro o un receso movido son rangos, no dias sueltos: hacerlo dia por dia es
+     * donde la gente se equivoca. Con soloHabiles se saltan sabados y domingos,
+     * porque nadie quiere marcar el fin de semana como jornada pedagogica.
+     * Devuelve cuantos dias cambio.
+     */
+    @Transactional
+    public int updateRange(LocalDate from, LocalDate to, DayType type,
+                           String description, boolean soloHabiles, Long userId) {
+        int n = 0;
+        for (LocalDate d = from; !d.isAfter(to); d = d.plusDays(1)) {
+            if (soloHabiles && d.getDayOfWeek().getValue() > 5) continue;
+            update(d, type, description, userId);
+            n++;
+        }
+        return n;
+    }
 }
