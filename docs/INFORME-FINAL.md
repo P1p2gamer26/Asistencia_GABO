@@ -75,10 +75,10 @@ Todas las cifras siguientes se ejecutaron y se observaron; ninguna es estimada.
 | Comprobación | Resultado |
 |---|---|
 | Tests de backend (`mvn test`) | **56 de 56**, contra PostgreSQL 16 real, en tres órdenes de ejecución |
-| Tests de frontend (`npm test`) | **19 de 19** |
+| Tests de frontend (`npm test`) | **35 de 35** |
 | Compilación del frontend | Limpia · **95,5 KB gzip** el paquete inicial |
 | Integración continua | **Verde entera**: backend, frontend e **imagen Docker construida** |
-| Commits | 52 |
+| Commits | 58 |
 
 El paquete inicial queda por debajo del objetivo de 200 KB. El segundo fragmento de
 107 KB es la librería de escaneo de códigos, que **solo se descarga en teléfonos sin
@@ -214,6 +214,38 @@ la única forma de detectarlo. Corregido y **la imagen ya se construye en verde*
 | COORDINADOR | administrar usuarios | 403 |
 
 Capturas: `docs/e2e-admin-calendario.png`.
+
+---
+
+## 6.c Tercera iteración: tests de interfaz y un driver que verifica
+
+**El frontend pasó de 0 a 16 tests de interfaz.** Las 19 pruebas anteriores cubrían
+solo los módulos sin pantalla; 17 componentes no tenían ninguna. Se cubrieron los
+cuatro con más lógica y más riesgo: el bloqueo por día no lectivo, el estado de
+conexión, la pantalla de toma de asistencia y el panel de calendario del rector.
+
+### Un test inestable y un mensaje falso
+
+El test de `SelectorFecha` fallaba de forma intermitente. La causa no era el
+componente: `findByRole` leía el **primer render**, antes de que resolviera la consulta
+a IndexedDB, así que el resultado dependía de lo rápido que respondiera la base.
+Corregido con `waitFor`.
+
+Pero al investigarlo apareció algo real: el componente afirmaba *"esa fecha no está en
+el calendario descargado"* **antes de haberlo consultado**. En un teléfono lento el
+docente veía ese mensaje alarmante y falso durante un instante. Ahora no dice nada
+hasta saberlo.
+
+### El driver no verificaba nada
+
+Dos veces una tarea se dio por completa sin dejar el entregable o dejando un test en
+rojo, porque el driver solo miraba el código de salida de el agente. **Que un agente
+diga "listo" no es evidencia de nada.** Ahora el driver ejecuta los tests del backend y
+del frontend y comprueba que haya commit antes de marcar la tarea; si algo falla, la
+reintenta.
+
+Se probó en los dos sentidos —aprueba un worktree verde y detecta uno con un test roto
+a propósito—, porque un chequeo que nunca falla no sirve de nada.
 
 ---
 
