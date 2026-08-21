@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { getSession, clearSession } from '../api/client';
 import { downloadBootstrap } from '../sync/engine';
 import { db } from '../db/local';
+import BotonInstalar from '../components/BotonInstalar';
 
 export default function Home() {
   const session = getSession()!;
@@ -37,6 +38,7 @@ export default function Home() {
       </p>
       {error && <p role="alert" className="error">{error}</p>}
       <button type="button" onClick={() => void actualizar()}>Actualizar datos</button>
+      <BotonInstalar />
       <button type="button" className="secundario"
               onClick={() => { clearSession(); location.href = '/login'; }}>
         Cerrar sesion
