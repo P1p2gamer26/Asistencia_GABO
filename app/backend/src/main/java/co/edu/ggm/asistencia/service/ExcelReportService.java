@@ -50,6 +50,37 @@ public class ExcelReportService {
         }
     }
 
+    private static final String[] CABECERAS_INASISTENCIA =
+            {"Documento", "Estudiante", "Curso", "Faltas", "Evasiones", "Fechas"};
+
+    /** Solo quien tiene faltas o evasiones, de mas a menos, con los dias concretos. */
+    public byte[] buildInasistencias(List<ReportRepository.AbsenceRow> filas,
+                                     LocalDate from, LocalDate to) {
+        try (var wb = new SXSSFWorkbook(100); var out = new ByteArrayOutputStream()) {
+            var hoja = wb.createSheet("Inasistencias " + from + " a " + to);
+
+            Row cabecera = hoja.createRow(0);
+            for (int i = 0; i < CABECERAS_INASISTENCIA.length; i++) {
+                cabecera.createCell(i).setCellValue(CABECERAS_INASISTENCIA[i]);
+            }
+            int n = 1;
+            for (var f : filas) {
+                Row r = hoja.createRow(n++);
+                r.createCell(0).setCellValue(f.getDocumentId());
+                r.createCell(1).setCellValue(f.getFullName());
+                r.createCell(2).setCellValue(f.getGrade());
+                r.createCell(3).setCellValue(f.getAbsences());
+                r.createCell(4).setCellValue(f.getEvasions());
+                r.createCell(5).setCellValue(f.getDates() == null ? "" : f.getDates());
+            }
+            wb.write(out);
+            wb.dispose();
+            return out.toByteArray();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
     /**
      * Matriz estudiantes x dias lectivos. Una celda vacia significa "sin registro",
      * que no es lo mismo que una falta: si la docente no paso lista, decir "F" seria

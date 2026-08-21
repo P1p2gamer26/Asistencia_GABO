@@ -94,6 +94,40 @@ class ExcelTest extends AbstractIntegrationTest {
         }
     }
 
+    // ---- consolidado de inasistencias ----
+
+    @Test
+    void el_consolidado_solo_trae_estudiantes_con_faltas_o_evasiones() throws Exception {
+        try (var wb = new XSSFWorkbook(new ByteArrayInputStream(descargar("tipo", "inasistencias")))) {
+            Sheet hoja = wb.getSheetAt(0);
+            assertThat(hoja.getRow(0).getCell(3).getStringCellValue()).isEqualTo("Faltas");
+            assertThat(hoja.getLastRowNum()).isGreaterThanOrEqualTo(1);
+            for (int i = 1; i <= hoja.getLastRowNum(); i++) {
+                double faltas = hoja.getRow(i).getCell(3).getNumericCellValue();
+                double evasiones = hoja.getRow(i).getCell(4).getNumericCellValue();
+                assertThat(faltas + evasiones).isGreaterThan(0);
+            }
+            // El estudiante sin ningun registro no puede aparecer aqui
+            for (int i = 1; i <= hoja.getLastRowNum(); i++) {
+                assertThat(hoja.getRow(i).getCell(0).getStringCellValue()).isNotEqualTo("1010101011");
+            }
+        }
+    }
+
+    @Test
+    void el_consolidado_dice_en_que_dias_falto() throws Exception {
+        // Sin las fechas el informe no sirve para el proceso de seguimiento:
+        // "3 faltas" no le dice a nadie a que clase hay que ir a preguntar.
+        try (var wb = new XSSFWorkbook(new ByteArrayInputStream(descargar("tipo", "inasistencias")))) {
+            Row fila = filaDe(wb.getSheetAt(0), ALUMNO);
+            assertThat(fila.getCell(3).getNumericCellValue()).isEqualTo(1.0);   // una F
+            assertThat(fila.getCell(4).getNumericCellValue()).isEqualTo(1.0);   // una E
+            assertThat(fila.getCell(5).getStringCellValue())
+                    .contains("2026-06-02").contains("2026-06-03")
+                    .doesNotContain("2026-06-01");                              // el dia que asistio no
+        }
+    }
+
     @Test
     void una_celda_vacia_no_es_una_falta() throws Exception {
         // El otro estudiante de 601 no tiene ningun registro: sus tres dias van en
