@@ -1080,7 +1080,7 @@ Los tres informes existen en la API pero nadie los puede pedir desde la interfaz
   `/api/reports/summary`, ya existente.
 - Produces: nada para otras tareas.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Crear `app/frontend/src/pages/Consultas.test.tsx`:
 
@@ -1133,12 +1133,12 @@ describe('Consultas', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd app/frontend && npx vitest run src/pages/Consultas.test.tsx`
 Expected: FAIL — no existe ningún control etiquetado "Informe".
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 En `Consultas.tsx`, añadir el estado y meterlo en la query de descarga:
 
@@ -1183,12 +1183,12 @@ Y en el bloque `<div className="filtros">`, después del campo "Hasta":
 El informe individual no va aquí: se pide desde la ficha de un estudiante y aún no hay
 pantalla de ficha. Queda expuesto en la API para la siguiente versión.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `cd app/frontend && npx vitest run src/pages/Consultas.test.tsx`
 Expected: PASS, 3 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/frontend/src/pages/Consultas.tsx app/frontend/src/pages/Consultas.test.tsx
