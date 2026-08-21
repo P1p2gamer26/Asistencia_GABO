@@ -1,6 +1,7 @@
 package co.edu.ggm.asistencia.controller;
 
 import co.edu.ggm.asistencia.repository.StudentRepository;
+import co.edu.ggm.asistencia.service.ImportService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,10 +23,26 @@ import java.util.List;
 public class ImportController {
 
     private final StudentRepository students;
+    private final ImportService importService;
 
-    public ImportController(StudentRepository students) { this.students = students; }
+    public ImportController(StudentRepository students, ImportService importService) {
+        this.students = students;
+        this.importService = importService;
+    }
 
     public record ImportResult(int imported, List<String> errors) {}
+
+    @PostMapping("/schedule")
+    public ImportService.Resultado schedule(@RequestParam("file") MultipartFile file)
+            throws IOException {
+        return importService.importarHorario(file.getInputStream());
+    }
+
+    @PostMapping("/guardians")
+    public ImportService.Resultado guardians(@RequestParam("file") MultipartFile file)
+            throws IOException {
+        return importService.importarAcudientes(file.getInputStream());
+    }
 
     @PostMapping("/students")
     @Transactional
