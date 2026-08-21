@@ -46,6 +46,32 @@ public interface ReportRepository extends Repository<Student, Long> {
                       @Param("from") LocalDate from,
                       @Param("to") LocalDate to);
 
+    interface MatrixRow {
+        Long getStudentId();
+        String getDocumentId();
+        String getFullName();
+        String getGrade();
+        LocalDate getClassDate();
+        String getStatus();
+    }
+
+    @Query(value = """
+            SELECT s.id AS studentId,
+                   s.document_id AS documentId,
+                   trim(regexp_replace(concat_ws(' ', s.first_name, s.middle_name,
+                        s.last_name, s.second_surname), '\\s+', ' ', 'g')) AS fullName,
+                   s.grade AS grade,
+                   a.class_date AS classDate,
+                   a.status AS status
+            FROM students s
+            LEFT JOIN attendance a ON a.student_id = s.id AND a.class_date BETWEEN :from AND :to
+            WHERE s.active AND (:grade IS NULL OR s.grade = :grade)
+            ORDER BY s.grade, s.last_name, s.first_name, a.class_date
+            """, nativeQuery = true)
+    List<MatrixRow> matrix(@Param("grade") String grade,
+                           @Param("from") LocalDate from,
+                           @Param("to") LocalDate to);
+
     interface PendingBlock {
         Long getBlockId();
         String getGrade();

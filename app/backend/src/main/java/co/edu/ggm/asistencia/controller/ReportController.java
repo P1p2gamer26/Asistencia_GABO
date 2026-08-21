@@ -1,5 +1,8 @@
 package co.edu.ggm.asistencia.controller;
 
+import co.edu.ggm.asistencia.model.DayType;
+import co.edu.ggm.asistencia.model.SchoolDay;
+import co.edu.ggm.asistencia.repository.CalendarRepository;
 import co.edu.ggm.asistencia.repository.ReportRepository;
 import co.edu.ggm.asistencia.service.DashboardService;
 import co.edu.ggm.asistencia.service.ExcelReportService;
@@ -25,9 +28,12 @@ public class ReportController {
     private final ReportRepository repo;
     private final ExcelReportService excel;
     private final DashboardService dashboardService;
+    private final CalendarRepository calendar;
 
-    public ReportController(ReportRepository repo, ExcelReportService excel, DashboardService dashboardService) {
-        this.repo = repo; this.excel = excel; this.dashboardService = dashboardService;
+    public ReportController(ReportRepository repo, ExcelReportService excel,
+                            DashboardService dashboardService, CalendarRepository calendar) {
+        this.repo = repo; this.excel = excel;
+        this.dashboardService = dashboardService; this.calendar = calendar;
     }
 
     @GetMapping("/summary")
@@ -41,10 +47,30 @@ public class ReportController {
     @GetMapping("/excel")
     public ResponseEntity<byte[]> excel(
             @RequestParam(required = false) String grade,
+            @RequestParam(required = false, defaultValue = "resumen") String tipo,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        byte[] libro = excel.build(repo.summary(grade, from, to), from, to);
-        String nombre = "asistencia_%s_%s_%s.xlsx".formatted(grade == null ? "todos" : grade, from, to);
+
+        String curso = grade == null ? "todos" : grade;
+        byte[] libro;
+        String nombre;
+        switch (tipo) {
+            case "matriz" -> {
+                var lectivos = calendar
+                        .findByDayTypeAndCalendarDateBetweenOrderByCalendarDate(DayType.LECTIVO, from, to)
+                        .stream().map(SchoolDay::getCalendarDate).toList();
+                libro = excel.buildMatriz(repo.matrix(grade, from, to), lectivos, from, to);
+                nombre = "asistencia_matriz_%s_%s_%s.xlsx".formatted(curso, from, to);
+            }
+            default -> {
+                libro = excel.build(repo.summary(grade, from, to), from, to);
+                nombre = "asistencia_%s_%s_%s.xlsx".formatted(curso, from, to);
+            }
+        }
+        return descarga(libro, nombre);
+    }
+
+    private ResponseEntity<byte[]> descarga(byte[] libro, String nombre) {
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + nombre + "\"")
                 .contentType(MediaType.parseMediaType(
