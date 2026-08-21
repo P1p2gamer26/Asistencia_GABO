@@ -60,4 +60,13 @@ class BootstrapTest extends AbstractIntegrationTest {
         nodo.fieldNames().forEachRemaining(nombres::add);
         return nombres;
     }
+
+    @Test
+    void la_hora_del_bloque_no_se_desplaza_por_zona_horaria() throws Exception {
+        // La semilla tiene 06:30. Una hora de clase no tiene zona horaria: si
+        // aparece 01:30 es que alguien volvio a poner hibernate.jdbc.time_zone.
+        mvc.perform(get("/api/sync/bootstrap").header("Authorization", tokenDocente()))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.blocks[0].startTime").value("06:30"));
+    }
 }
