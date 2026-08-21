@@ -70,3 +70,35 @@ jobs:
           docker tag asistencia-ggm:sha-${{ github.sha }} "$IMG:${{ github.sha }}"
           docker push "$IMG:latest"
           docker push "$IMG:${{ github.sha }}"
+
+  humo:
+    runs-on: ubuntu-latest
+    needs: [imagen]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: asistencia
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      # Se levanta la imagen de verdad, con el frontend dentro, para que la prueba
+      # cubra tambien las rutas de la SPA. Los tres bugs mas serios del proyecto no
+      # los vio ningun test unitario: los vio la aplicacion corriendo.
+      - name: Construir y levantar la aplicacion
+        run: |
+          docker build -t asistencia-humo .
+          docker run -d --name app --network host             -e DB_URL=jdbc:postgresql://localhost:5432/asistencia             -e DB_USER=postgres -e DB_PASSWORD=postgres             -e JWT_SECRET=secreto-de-integracion-continua-con-mas-de-32-bytes             -e NOTIFY_ENABLED=false             asistencia-humo
+
+      - name: Prueba de humo
+        run: bash tools/humo.sh http://localhost:8080
+
+      - name: Registro de la aplicacion si algo fallo
+        if: failure()
+        run: docker logs app | tail -100
