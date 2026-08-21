@@ -9,6 +9,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 @Service
@@ -38,6 +41,57 @@ public class ExcelReportService {
                 int total = f.getPresent() + f.getLate() + f.getAbsent() + f.getEvasion();
                 r.createCell(8).setCellValue(total == 0 ? 0
                         : Math.round((f.getPresent() + f.getLate()) * 1000.0 / total) / 10.0);
+            }
+            wb.write(out);
+            wb.dispose();
+            return out.toByteArray();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /**
+     * Matriz estudiantes x dias lectivos. Una celda vacia significa "sin registro",
+     * que no es lo mismo que una falta: si la docente no paso lista, decir "F" seria
+     * inventarse una inasistencia que nadie marco.
+     */
+    public byte[] buildMatriz(List<ReportRepository.MatrixRow> filas,
+                              List<LocalDate> lectivos, LocalDate from, LocalDate to) {
+        try (var wb = new SXSSFWorkbook(100); var out = new ByteArrayOutputStream()) {
+            var hoja = wb.createSheet("Asistencia " + from + " a " + to);
+
+            Row cabecera = hoja.createRow(0);
+            cabecera.createCell(0).setCellValue("Documento");
+            cabecera.createCell(1).setCellValue("Estudiante");
+            cabecera.createCell(2).setCellValue("Curso");
+            for (int i = 0; i < lectivos.size(); i++) {
+                cabecera.createCell(3 + i).setCellValue(lectivos.get(i).toString());
+            }
+            int colPorcentaje = 3 + lectivos.size();
+            cabecera.createCell(colPorcentaje).setCellValue("% Asistencia");
+
+            var porEstudiante = new LinkedHashMap<Long, List<ReportRepository.MatrixRow>>();
+            for (var f : filas) porEstudiante.computeIfAbsent(f.getStudentId(), k -> new ArrayList<>()).add(f);
+
+            int n = 1;
+            for (var grupo : porEstudiante.values()) {
+                var primera = grupo.get(0);
+                Row r = hoja.createRow(n++);
+                r.createCell(0).setCellValue(primera.getDocumentId());
+                r.createCell(1).setCellValue(primera.getFullName());
+                r.createCell(2).setCellValue(primera.getGrade());
+
+                var porDia = new HashMap<LocalDate, String>();
+                for (var f : grupo) if (f.getClassDate() != null) porDia.put(f.getClassDate(), f.getStatus());
+
+                int asistidos = 0;
+                for (int i = 0; i < lectivos.size(); i++) {
+                    String estado = porDia.getOrDefault(lectivos.get(i), "");
+                    r.createCell(3 + i).setCellValue(estado);
+                    if ("P".equals(estado) || "T".equals(estado)) asistidos++;
+                }
+                r.createCell(colPorcentaje).setCellValue(lectivos.isEmpty() ? 0
+                        : Math.round(asistidos * 1000.0 / lectivos.size()) / 10.0);
             }
             wb.write(out);
             wb.dispose();

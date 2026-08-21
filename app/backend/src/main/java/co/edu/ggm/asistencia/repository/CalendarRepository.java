@@ -12,4 +12,7 @@ public interface CalendarRepository extends JpaRepository<SchoolDay, LocalDate> 
     List<SchoolDay> findByCalendarDateBetweenOrderByCalendarDate(LocalDate from, LocalDate to);
 
     List<SchoolDay> findByDayType(DayType dayType);
+
+    List<SchoolDay> findByDayTypeAndCalendarDateBetweenOrderByCalendarDate(
+            DayType dayType, LocalDate from, LocalDate to);
 }

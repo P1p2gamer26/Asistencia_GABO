@@ -454,7 +454,7 @@ devuelve exactamente lo de hoy.
   - `CalendarRepository.findByDayTypeAndCalendarDateBetweenOrderByCalendarDate(DayType, LocalDate, LocalDate) : List<SchoolDay>`
   - `ExcelReportService.buildMatriz(List<MatrixRow> filas, List<LocalDate> lectivos, LocalDate from, LocalDate to) : byte[]`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Crear `app/backend/src/test/java/co/edu/ggm/asistencia/report/ExcelTest.java`. Copiar
 la cabecera de paquete, anotaciones e imports de `ReportTest.java` que ya existe en esa
@@ -549,12 +549,12 @@ Si `AbstractIntegrationTest` no expone un `JdbcTemplate` llamado `jdbc`, añadir
 con `@Autowired protected JdbcTemplate jdbc;` — es infraestructura de test compartida
 y varios tests futuros la van a querer.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd app/backend && mvn -B test -Dtest=ExcelTest`
 Expected: FAIL — el parámetro `tipo` se ignora y la cabecera tiene 9 columnas.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 En `ReportRepository.java`, añadir la proyección y la consulta:
 
@@ -694,12 +694,12 @@ reemplazar el método `excel` por:
 Añadir los imports `co.edu.ggm.asistencia.model.DayType`,
 `co.edu.ggm.asistencia.model.SchoolDay` y `co.edu.ggm.asistencia.repository.CalendarRepository`.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `cd app/backend && mvn -B test -Dtest=ExcelTest`
 Expected: PASS, 3 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/backend/src/main/java/co/edu/ggm/asistencia app/backend/src/test/java/co/edu/ggm/asistencia
