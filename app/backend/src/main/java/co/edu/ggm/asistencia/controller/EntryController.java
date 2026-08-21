@@ -1,6 +1,7 @@
 package co.edu.ggm.asistencia.controller;
 
 import co.edu.ggm.asistencia.repository.EntryRepository;
+import co.edu.ggm.asistencia.service.CarnetParser;
 import co.edu.ggm.asistencia.service.JwtService;
 import co.edu.ggm.asistencia.repository.StudentRepository;
 import jakarta.validation.Valid;
@@ -50,7 +51,15 @@ public class EntryController {
         int accepted = 0;
 
         for (EntryDto e : req.entries()) {
-            var student = students.findByDocumentIdAndActiveTrue(e.documentId().trim());
+            // El QR del carnet trae el texto completo, no solo el numero. Se extrae
+            // aqui y no solo en el navegador porque la cola offline puede llevar
+            // semanas de escaneos hechos con la version anterior.
+            String documento = CarnetParser.documento(e.documentId());
+            if (documento == null) {
+                rejected.add(new Rejection(e.id(), "Carnet ilegible"));
+                continue;
+            }
+            var student = students.findByDocumentIdAndActiveTrue(documento);
             if (student.isEmpty()) {
                 rejected.add(new Rejection(e.id(), "Carnet no registrado"));
                 continue;

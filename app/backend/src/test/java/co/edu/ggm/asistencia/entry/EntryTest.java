@@ -65,4 +65,25 @@ class EntryTest extends AbstractIntegrationTest {
            .andExpect(jsonPath("$.accepted").value(0))
            .andExpect(jsonPath("$.rejected[0].reason").value("Carnet no registrado"));
     }
+
+    @Test
+    void acepta_el_texto_completo_del_carnet() throws Exception {
+        String uuid = "88888888-8888-4888-8888-888888888888";
+        String cuerpo = lote(uuid, "DANIEL ALEJANDRO BARRIOS PARATES 1010101012 Sexto - 602");
+        mvc.perform(post("/api/entry/sync").header("Authorization", token())
+                .contentType(MediaType.APPLICATION_JSON).content(cuerpo))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.accepted").value(1))
+           .andExpect(jsonPath("$.names." + uuid).value("DANIEL ALEJANDRO BARRIOS PARATES"));
+    }
+
+    @Test
+    void un_carnet_ilegible_se_rechaza_con_motivo_propio() throws Exception {
+        String uuid = "99999999-9999-4999-8999-999999999999";
+        mvc.perform(post("/api/entry/sync").header("Authorization", token())
+                .contentType(MediaType.APPLICATION_JSON).content(lote(uuid, "carnet borroso")))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.accepted").value(0))
+           .andExpect(jsonPath("$.rejected[0].reason").value("Carnet ilegible"));
+    }
 }
