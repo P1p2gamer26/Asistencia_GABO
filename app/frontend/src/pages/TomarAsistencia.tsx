@@ -96,6 +96,9 @@ export default function TomarAsistencia() {
     <main className="card">
       <BannerEstado online={online} pendientes={pendientes} onSincronizar={enviar} />
 
+      <span className="eyebrow">Planilla del dia</span>
+      <h1>Asistencia a clase</h1>
+
       <div className="filtros">
         <label htmlFor="grado">Curso</label>
         <select id="grado" value={grade} onChange={(e) => { setGrade(e.target.value); setBlockId(null); }}>
