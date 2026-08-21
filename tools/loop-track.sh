@@ -65,6 +65,36 @@ segundos_hasta_reset() {
 
 hecha() { [ -f "$ESTADO" ] && grep -qx "$1" "$ESTADO"; }
 
+# Verificacion propia del driver. Dos veces un agente termino con exito sin dejar el
+# entregable o dejando un test en rojo, y el driver lo dio por bueno porque solo miraba
+# el codigo de salida de `claude -p`. Un agente que dice "listo" no es evidencia de nada.
+verificar() {
+  local salida rc=0
+  if [ -d app/backend ]; then
+    salida="$(cd app/backend && TEST_DB_URL="jdbc:postgresql://localhost:5432/$DB"       TEST_DB_USER=postgres TEST_DB_PASSWORD=postgres       mvn -B -q test -Dsurefire.runOrder=alphabetical 2>&1)" || rc=1
+    if [ $rc -ne 0 ]; then
+      log "VERIFICACION FALLIDA: los tests del backend no pasan"
+      echo "$salida" | grep -aE "Tests run:|\[ERROR\]" | tail -12 >>"$LOG"
+      return 1
+    fi
+  fi
+  if [ -d app/frontend ]; then
+    salida="$(cd app/frontend && npm test 2>&1)" || rc=1
+    if [ $rc -ne 0 ]; then
+      log "VERIFICACION FALLIDA: los tests del frontend no pasan"
+      printf '%s
+' "$salida" | sed 's/\[[0-9;]*m//g' | grep -E "Tests |FAIL" | tail -10 >>"$LOG"
+      return 1
+    fi
+  fi
+  if [ -z "$(git log --oneline -1 --since='2 hours ago' 2>/dev/null)" ]; then
+    log "VERIFICACION FALLIDA: la tarea no dejo ningun commit reciente"
+    return 1
+  fi
+  return 0
+}
+
+
 prompt_de() {
   local t="$1"
   cat <<EOF
@@ -100,13 +130,18 @@ CONTEXTO DE ESTA MAQUINA (difiere del plan, respetalo):
 - No toques ficheros de otros tracks. La tabla de propiedad esta en el plan,
   seccion "Propiedad de ficheros".
 
-AL TERMINAR:
+AL TERMINAR (el driver VERIFICA esto por su cuenta; decir que terminaste no basta):
 1. Los tests de la tarea deben pasar. Si no pasan, arregla el codigo (no el test)
    hasta que pasen, salvo que el test este mal segun el plan.
 2. Anade una linea a docs/ESTADO.md describiendo lo que quedo hecho.
 3. Haz UN commit local con mensaje en espanol, formato Conventional Commits,
    terminando con:
    Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+
+El driver ejecuta los tests del backend y del frontend despues de que termines, y
+comprueba que dejaste un commit. Si algo de eso falla, tu tarea se reintenta. No
+declares una tarea terminada dejando tests en rojo ni "esperando a que dispare algo":
+si no puedes completarla, dilo explicitamente.
 
 Si algo te bloquea de verdad y no puedes avanzar, escribelo en docs/ESTADO.md
 bajo "## Bloqueos", haz commit de esa nota y termina explicando el bloqueo.
@@ -146,8 +181,18 @@ for TAREA in $TAREAS; do
          --permission-mode acceptEdits \
          --allowedTools Bash Read Write Edit Glob Grep \
          --model claude-sonnet-5 >"$SALIDA" 2>&1; then
-      log "Task $TAREA OK"
       tail -30 "$SALIDA" >>"$LOG"
+      if ! verificar; then
+        fallos=$((fallos + 1))
+        rm -f "$SALIDA"
+        if [ "$fallos" -ge "$MAX_FALLOS" ]; then
+          log "Task $TAREA no supera la verificacion tras $MAX_FALLOS intentos. Track $TRACK detenido."
+          exit 4
+        fi
+        log "El agente dijo que termino pero la verificacion fallo. Reintento $fallos/$MAX_FALLOS."
+        continue
+      fi
+      log "Task $TAREA OK (verificada)"
       echo "$TAREA" >>"$ESTADO"
       rm -f "$SALIDA"
       # Respaldo en el repo propio (privado). Solo la rama del track, nunca main.
