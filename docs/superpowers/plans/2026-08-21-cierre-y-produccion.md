@@ -17,7 +17,7 @@
 - **PostgreSQL 16**. No hay Docker en la maquina de desarrollo: los tests usan el Postgres local.
   Backend: `cd app/backend && TEST_DB_URL=jdbc:postgresql://localhost:5432/asistencia_test TEST_DB_USER=postgres TEST_DB_PASSWORD=postgres mvn -B test`
 - **Rango de versiones Flyway reservado para este plan: `V30`-`V39`.**
-- **Estructura MVC** descrita en `app/README.md`: cada funcionalidad es un paquete y dentro se separan `controller/`, `service/`, `repository/`, `model/`.
+- **Estructura MVC** descrita en `app/README.md`: MVC clasico por capas: `controller/`, `service/`, `repository/`, `model/`, `config/`, cada una con todas sus clases.
 - **Nunca `hibernate.jdbc.time_zone`.** Se quito porque desplazaba los `LocalTime` cinco horas. Hay un test de regresion que falla si vuelve.
 - **Estados** `P`, `T`, `F`, `E`. **Orden de apilado y colores fijos:** `P #0ca30c`, `T #fab219`, `F #d03b3b`, `E #ec835a`. Validado; no reordenar.
 - **Sin librerias de graficas ni de componentes.** Paquete inicial por debajo de 200 KB gzip.
@@ -29,7 +29,7 @@
 
 ```
 app/backend/src/main/java/co/edu/ggm/asistencia/
-├── shared/config/SpaConfig.java              (nuevo) rutas de la SPA
+├── config/SpaConfig.java              (nuevo) rutas de la SPA
 ├── admin/
 │   ├── controller/ImportController.java      (modificar) + horario y acudientes
 │   └── service/ImportService.java            (nuevo) parseo y carga, sacado del controlador
@@ -191,8 +191,8 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ### Task 3: Rutas de la SPA servidas por Spring Boot
 
 **Files:**
-- Create: `app/backend/src/main/java/co/edu/ggm/asistencia/shared/config/SpaConfig.java`
-- Test: `app/backend/src/test/java/co/edu/ggm/asistencia/shared/SpaRoutingTest.java`
+- Create: `app/backend/src/main/java/co/edu/ggm/asistencia/config/SpaConfig.java`
+- Test: `app/backend/src/test/java/co/edu/ggm/asistencia/config/SpaRoutingTest.java`
 
 **Interfaces:**
 - Consumes: `AbstractIntegrationTest` de `co.edu.ggm.asistencia`.
@@ -203,7 +203,7 @@ En produccion el frontend compilado se sirve desde el propio Spring Boot. Sin es
 - [ ] **Step 1: Escribir el test que falla**
 
 ```java
-package co.edu.ggm.asistencia.shared;
+package co.edu.ggm.asistencia.config;
 
 import co.edu.ggm.asistencia.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
@@ -252,7 +252,7 @@ Expected: FAIL en los dos primeros — no hay reenvio, la respuesta es 404.
 - [ ] **Step 3: Escribir `SpaConfig`**
 
 ```java
-package co.edu.ggm.asistencia.shared.config;
+package co.edu.ggm.asistencia.config;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
@@ -436,8 +436,8 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ### Task 5: Importar horario y acudientes por CSV
 
 **Files:**
-- Create: `app/backend/src/main/java/co/edu/ggm/asistencia/admin/service/ImportService.java`
-- Modify: `app/backend/src/main/java/co/edu/ggm/asistencia/admin/controller/ImportController.java`
+- Create: `app/backend/src/main/java/co/edu/ggm/asistencia/service/ImportService.java`
+- Modify: `app/backend/src/main/java/co/edu/ggm/asistencia/controller/ImportController.java`
 - Create: `app/backend/src/main/resources/db/migration/V30__indices_importacion.sql`
 - Test: `app/backend/src/test/java/co/edu/ggm/asistencia/admin/ImportHorarioTest.java`
 
@@ -467,7 +467,7 @@ Cada test repite el mismo bloque para fabricarse un token. Se centraliza:
 
 ```java
     @org.springframework.beans.factory.annotation.Autowired
-    protected co.edu.ggm.asistencia.shared.service.JwtService jwt;
+    protected co.edu.ggm.asistencia.service.JwtService jwt;
 
     @org.springframework.beans.factory.annotation.Autowired
     protected org.springframework.jdbc.core.JdbcTemplate jdbcBase;
@@ -480,7 +480,7 @@ Cada test repite el mismo bloque para fabricarse un token. Se centraliza:
     }
 ```
 
-Si el paquete de `JwtService` no es `shared.service`, ajustarlo al real: los tests ya existentes lo importan correctamente.
+`JwtService` vive en `co.edu.ggm.asistencia.service`.
 
 - [ ] **Step 3: Escribir el test que falla**
 
@@ -608,7 +608,7 @@ Expected: FAIL con 404 en `/api/admin/import/schedule`.
 Toda la logica de parseo sale del controlador. El controlador se queda con recibir el fichero y devolver el resultado, que es lo que le toca en MVC.
 
 ```java
-package co.edu.ggm.asistencia.admin.service;
+package co.edu.ggm.asistencia.service;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;

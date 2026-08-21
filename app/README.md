@@ -14,30 +14,26 @@ app/
 └── docker-compose.yml
 ```
 
-## Convención de paquetes del backend (MVC por funcionalidad)
+## Arquitectura del backend (MVC por capas)
 
-Cada funcionalidad es un paquete, y **dentro** de cada funcionalidad se separan las
-capas MVC. Así el código de una misma feature vive junto (se lee y se borra de una
-pieza) y a la vez cada clase tiene su capa explícita.
+Estructura clásica en capas: cada capa es un paquete y ahí viven **todas** las
+clases de esa capa.
 
 ```
 co.edu.ggm.asistencia
 ├── AsistenciaApplication.java
-├── shared/
-│   ├── config/          SecurityConfig, JwtFilter, SpaConfig, TestDatabaseConfig
-│   └── service/         JwtService y utilidades transversales
-├── calendar/
-│   ├── controller/      CalendarController      ← C de MVC (capa web)
-│   ├── service/         CalendarService         ← lógica de negocio
-│   ├── repository/      CalendarRepository      ← acceso a datos
-│   └── model/           SchoolDay, DayType      ← M de MVC (entidades)
-├── user/                misma división
-├── student/             misma división
-├── schedule/            misma división
-├── attendance/          misma división
-├── entry/               misma división
-├── report/              misma división
-└── notify/              misma división
+├── config/       SecurityConfig, JwtFilter        ← configuración transversal
+├── controller/   AuthController, CalendarController, AttendanceController,
+│                 BootstrapController, EntryController, ReportController,
+│                 GuardianController, ImportController        ← C de MVC
+├── service/      AuthService, CalendarService, SyncService, DashboardService,
+│                 ExcelReportService, NotificationService, NotificationJob,
+│                 JwtService                                  ← lógica de negocio
+├── repository/   UserRepository, StudentRepository, AttendanceRepository,
+│                 CalendarRepository, ScheduleRepository, EntryRepository,
+│                 ReportRepository, NotificationRepository    ← acceso a datos
+└── model/        User, Role, Student, Attendance, SchoolDay, DayType,
+                  ScheduleBlock, Subject, EntryLog, Notification   ← M de MVC
 ```
 
 Reglas que no se negocian:
@@ -46,12 +42,15 @@ Reglas que no se negocian:
    La única excepción son las consultas de solo lectura ya proyectadas a DTO, y aun
    así se prefiere un servicio si hay alguna decisión de por medio.
 2. **Las entidades JPA no salen del backend.** Los controladores devuelven `record`
-   DTO declarados en el propio controlador o en `model/dto/`. Nunca se serializa una
-   entidad directamente: expondría columnas internas y ataría la API al esquema.
+   DTO declarados en el propio controlador. Nunca se serializa una entidad
+   directamente: expondría columnas internas y ataría la API al esquema.
 3. **La "V" de MVC es el frontend.** El backend no renderiza vistas: expone JSON.
    La capa de presentación es React, y ahí la separación es página / componente.
 4. **Nada de lógica de negocio en el repositorio** más allá de la consulta. Si hay
    un `if`, va en el servicio.
+5. **Una clase nueva va a la capa que dice su sufijo**: `*Controller` a
+   `controller/`, `*Service` y `*Job` a `service/`, `*Repository` a `repository/`,
+   `*Config` y `*Filter` a `config/`, y todo lo demás a `model/`.
 
 ## Puesta en marcha
 
