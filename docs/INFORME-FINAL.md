@@ -74,10 +74,10 @@ Todas las cifras siguientes se ejecutaron y se observaron; ninguna es estimada.
 
 | Comprobación | Resultado |
 |---|---|
-| Tests de backend (`mvn test`) | **41 de 41**, contra PostgreSQL 16 real |
-| Tests de frontend (`npm test`) | **14 de 14** |
+| Tests de backend (`mvn test`) | **50 de 50**, contra PostgreSQL 16 real |
+| Tests de frontend (`npm test`) | **19 de 19** |
 | Compilación del frontend | Limpia · **95,5 KB gzip** el paquete inicial |
-| Clases de test backend | 13 |
+| Commits | 40 |
 
 El paquete inicial queda por debajo del objetivo de 200 KB. El segundo fragmento de
 107 KB es la librería de escaneo de códigos, que **solo se descarga en teléfonos sin
@@ -147,13 +147,54 @@ regresión que falla si alguien vuelve a poner ese ajuste.
 
 ---
 
-## 6. Lo que falta
+## 6. Cierre ejecutado
 
-Detallado, con plan de ejecución, en
-`docs/superpowers/plans/2026-08-21-cierre-y-produccion.md`.
+El plan `docs/superpowers/plans/2026-08-21-cierre-y-produccion.md` se ejecutó
+completo, con sus seis tareas:
 
-En resumen: empaquetado y despliegue (Dockerfile, integración continua, HTTPS),
-carga de los datos reales del colegio (1.200 estudiantes, horario y acudientes),
-pantalla de administración para que el colegio se maneje solo, y las pruebas que
-solo se pueden hacer con hardware y datos reales — escanear un carnet de verdad e
-instalar la PWA en un teléfono.
+1. El gráfico de tendencia ya no queda plano cuando solo hay un día registrado.
+2. El docente ya tiene enlace a Consultas, y coordinación al Tablero (no lo tenía nadie).
+3. `SpaConfig`: recargar `/asistencia` en producción ya no da 404.
+4. `Dockerfile` de tres etapas y flujo de integración continua con PostgreSQL.
+5. Importación de horario y acudientes por CSV, además de la de estudiantes.
+6. **Envío de correos verificado de verdad** contra un servidor SMTP: 6 de 6
+   entregados, 0 errores. Constancia en `docs/VERIFICACION-CORREO.md`.
+
+### Además, tres defectos de proceso corregidos
+
+- El backend estaba en *package-by-feature* y no en **MVC por capas**, que era lo
+  pedido. Se reestructuró: 36 clases movidas, 45 ficheros reescritos, tests en verde.
+- El *driver* que gobierna a los agentes permitía **tres instancias simultáneas** sobre
+  el mismo worktree, que se pisaban los commits y duplicaban tareas. Ahora usa un
+  bloqueo por worktree y exige árbol de trabajo limpio antes de arrancar.
+- El *driver* marcó la tarea 6 como completada **sin que produjera su entregable**: el
+  agente decidió "esperar a que el planificador dispare" y terminó con éxito. La
+  verificación humana lo detectó y la tarea se rehízo a mano. Un agente que reporta
+  éxito no es evidencia de éxito.
+
+## 7. Lo que sigue faltando
+
+Requieren su propio plan:
+
+- **Pantalla de administración** de usuarios, horario y calendario. Hoy todo eso se
+  hace con los importadores CSV y la API del calendario, que alcanza para arrancar,
+  pero el colegio no puede depender de `curl` para siempre.
+- **Días institucionales A/B** y separación de laboratorios, como pidió Miguel Bacca.
+- **Calendario de 2027 en adelante** (hoy está sembrado 2026).
+- **Notificación de llegada tarde**: falta que el colegio defina desde qué hora una
+  tardanza se reporta. Es decisión de la institución, no técnica.
+
+Requieren una persona, hardware o datos que no tenemos:
+
+- **Construir el Dockerfile de verdad.** Sin Docker en esta máquina no se pudo; hasta
+  que la integración continua lo construya, es una hipótesis razonable, no un
+  entregable verificado.
+- **Escanear un carnet real** y comprobar que el código impreso coincide con
+  `document_id`. Si no coincide, el problema son los datos, y es mejor descubrirlo con
+  un carnet en la mano que el primer día de clases.
+- **Instalar la PWA en un teléfono**, lo que exige HTTPS.
+- **Los datos reales**: 1.200 estudiantes, horario completo y contactos. El archivo
+  `legacy/Toma de asistencia.xlsx` tiene corrupción de codificación visible
+  (`CASTA?EDA`) que hay que corregir **antes** de importar.
+- **Confirmar el calendario con la rectoría**: los festivos nacionales son correctos,
+  los recesos son los típicos del calendario A.
