@@ -261,7 +261,8 @@ Requieren su propio plan:
 **Cómo desplegarlo está escrito en `docs/DESPLIEGUE.md`**: dos opciones (Fly.io o un
 VPS con Caddy), las variables de entorno obligatorias, el orden de carga de los datos,
 las copias de seguridad y la lista de comprobaciones posteriores. La integración
-continua publica la imagen en GHCR desde `main`.
+continua publica la imagen en GHCR desde `main`, verificado:
+`ghcr.io/p1p2gamer26/asistencia-ggm:latest`, digest `sha256:8a23834a…`.
 
 Requieren una persona, hardware o datos que no tenemos:
 
