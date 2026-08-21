@@ -105,6 +105,9 @@ curl -X POST http://localhost:8080/api/admin/import/guardians -H "Authorization:
 
 ## Documentación
 
+- **Despliegue en producción: `../docs/DESPLIEGUE.md`**
+- Informe del proyecto: `../docs/INFORME-FINAL.md`
+- Verificación del envío de correos: `../docs/VERIFICACION-CORREO.md`
 - Plan de implementación: `../docs/superpowers/plans/2026-08-20-sistema-asistencia-paralelo.md`
 - Contrato de API: `contracts/api.md`
 - Estado de los tracks: `../docs/ESTADO.md`
