@@ -10,6 +10,7 @@ Formato: `- [<tarea>] <estado> <fecha> — <nota>`
 - [0.2] hecho — esquema con calendario academico
 - [0.3] hecho — contratos congelados; los tres tracks pueden arrancar
 - [A1] hecho 2026-08-20 — POST /api/auth/login y /api/auth/refresh operativos (SecurityConfig, JwtFilter/JwtService en shared/, AuthService+AuthController en user/); se corrigio el hash bcrypt de la semilla V3 (no correspondia a "cambiar123")
+- [A2] hecho 2026-08-20 — GET/PUT /api/calendar/school-days e isSchoolDay operativos (paquete calendar/ con controller, service, repository, model)
 
 ## Cambios al contrato (requiere acuerdo de los tres)
 _(vacio)_
