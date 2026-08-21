@@ -25,7 +25,7 @@ jobs:
           TEST_DB_URL: jdbc:postgresql://localhost:5432/asistencia_test
           TEST_DB_USER: postgres
           TEST_DB_PASSWORD: postgres
-        run: mvn -B verify
+        run: mvn -B verify -Dsurefire.runOrder=random
 
   frontend:
     runs-on: ubuntu-latest

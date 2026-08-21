@@ -21,8 +21,14 @@ class SchemaTest extends AbstractIntegrationTest {
 
     @Test
     void la_semilla_carga_los_estudiantes() {
-        Integer total = jdbc.queryForObject("SELECT count(*) FROM students", Integer.class);
-        assertThat(total).isEqualTo(3);
+        // Se comprueba que la semilla esta, no cuantos estudiantes hay en total:
+        // otras clases de test importan estudiantes legitimamente y un conteo global
+        // convertiria esta prueba en dependiente del orden de ejecucion.
+        Integer semilla = jdbc.queryForObject("""
+                SELECT count(*) FROM students
+                WHERE document_id IN ('1010101010', '1010101011', '1010101012')
+                """, Integer.class);
+        assertThat(semilla).isEqualTo(3);
     }
 
     @Test

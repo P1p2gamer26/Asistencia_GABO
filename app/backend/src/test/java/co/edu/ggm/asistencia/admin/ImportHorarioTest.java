@@ -14,6 +14,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * Regla de estos tests: NUNCA mutar los datos de la semilla (V3__datos_semilla.sql).
+ * El contexto de Spring se comparte entre clases y la base se limpia una sola vez por
+ * corrida, asi que un test que le cambia el curso a un estudiante de la semilla o le
+ * anade bloques a su docente rompe a BootstrapTest, SchemaTest o ReportTest segun el
+ * orden en que Surefire ejecute las clases. Cada test usa sus propios documentos y
+ * correos; el importador crea docentes y materias que no existen, asi que no cuesta nada.
+ */
 @AutoConfigureMockMvc
 class ImportHorarioTest extends AbstractIntegrationTest {
 
@@ -52,7 +60,7 @@ class ImportHorarioTest extends AbstractIntegrationTest {
     void reimportar_el_mismo_horario_actualiza_y_no_duplica() throws Exception {
         String contenido = """
                 grade,weekday,block_no,start_time,end_time,subject,teacher_email
-                702,1,1,06:30,07:20,Fisica,fpalacios@ggm.edu.co
+                702,1,1,06:30,07:20,Fisica,docente.import@ggm.edu.co
                 """;
         mvc.perform(multipart("/api/admin/import/schedule").file(csv(contenido))
                 .header("Authorization", admin())).andExpect(status().isOk());
@@ -67,8 +75,8 @@ class ImportHorarioTest extends AbstractIntegrationTest {
     void una_linea_de_horario_mal_formada_se_reporta_sin_abortar_el_resto() throws Exception {
         String contenido = """
                 grade,weekday,block_no,start_time,end_time,subject,teacher_email
-                703,1,1,06:30,07:20,Quimica,fpalacios@ggm.edu.co
-                703,9,1,06:30,07:20,Quimica,fpalacios@ggm.edu.co
+                703,1,1,06:30,07:20,Quimica,docente.import@ggm.edu.co
+                703,9,1,06:30,07:20,Quimica,docente.import@ggm.edu.co
                 """;
         mvc.perform(multipart("/api/admin/import/schedule").file(csv(contenido))
                         .header("Authorization", admin()))
