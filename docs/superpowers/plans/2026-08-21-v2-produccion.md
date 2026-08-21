@@ -1216,7 +1216,7 @@ cambiar día por día, que es donde la gente se equivoca.
   - `PUT /api/calendar/school-days` con cuerpo
     `{from, to, dayType, description, soloHabiles}` → `{"cambiados": n}`
 
-- [ ] **Step 1: Write the failing test (backend)**
+- [x] **Step 1: Write the failing test (backend)**
 
 Añadir a `CalendarTest.java`:
 
@@ -1280,12 +1280,12 @@ Añadir a `CalendarTest.java`:
 
 Usar el correo de ADMIN que exista realmente en `V3__datos_semilla.sql`.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd app/backend && mvn -B test -Dtest=CalendarTest`
 Expected: FAIL — 405 o 404: no hay `PUT` en `/api/calendar/school-days` sin fecha.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 En `CalendarService.java`:
 
@@ -1335,12 +1335,12 @@ En `CalendarController.java`:
 Añadir los imports `java.util.Map`, `org.springframework.http.HttpStatus` y
 `org.springframework.web.server.ResponseStatusException`.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `cd app/backend && mvn -B test -Dtest=CalendarTest`
 Expected: PASS, todos los de `CalendarTest`.
 
-- [ ] **Step 5: Write the failing frontend test**
+- [x] **Step 5: Write the failing frontend test**
 
 Añadir a `app/frontend/src/components/admin/PanelCalendario.test.tsx`, siguiendo el
 patrón de simulación de `api` que ya usa ese fichero:
@@ -1363,12 +1363,12 @@ patrón de simulación de `api` que ya usa ese fichero:
   });
 ```
 
-- [ ] **Step 6: Run it to verify it fails**
+- [x] **Step 6: Run it to verify it fails**
 
 Run: `cd app/frontend && npx vitest run src/components/admin/PanelCalendario.test.tsx`
 Expected: FAIL — no hay botón "Marcar un rango".
 
-- [ ] **Step 7: Write the panel implementation**
+- [x] **Step 7: Write the panel implementation**
 
 En `PanelCalendario.tsx`, añadir el estado del formulario de rango y el bloque, encima
 de la tabla de días. Seguir el estilo y el manejo de errores que ya tiene el
@@ -1426,12 +1426,12 @@ Si el componente no tiene una función `recargar` reutilizable, extraer la carga
 días que ya hace el `useEffect` a una función con ese nombre y llamarla desde los dos
 sitios. No duplicar la petición.
 
-- [ ] **Step 8: Run tests to verify they pass**
+- [x] **Step 8: Run tests to verify they pass**
 
 Run: `cd app/frontend && npm test`
 Expected: todo en verde, con el test de rango incluido.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add app/backend/src app/frontend/src/components/admin
