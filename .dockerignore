@@ -1,0 +1,8 @@
+**/node_modules
+**/target
+**/dist
+.git
+.worktrees
+legacy
+docs
+*.log
