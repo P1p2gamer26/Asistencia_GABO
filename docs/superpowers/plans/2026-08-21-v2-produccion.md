@@ -912,7 +912,7 @@ desde el JWT.
 - Produces:
   `ExcelReportService.buildIndividual(String documento, String nombre, String curso, List<StudentRepository.RecentMark> marcas, LocalDate from, LocalDate to) : byte[]`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Añadir a `ExcelTest.java`:
 
@@ -962,12 +962,12 @@ Añadir a `ExcelTest.java`:
 Comprobar en `V3__datos_semilla.sql` el correo real del acudiente sembrado y usar ese
 en el tercer test; si no hay ninguno, crearlo con `tokenDe` como hacen los demás tests.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd app/backend && mvn -B test -Dtest=ExcelTest`
 Expected: FAIL — `tipo=individual` cae en el `default`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 En `ExcelReportService.java`:
 
@@ -1046,19 +1046,19 @@ y la rama del `switch`:
 
 Añadir el import `org.springframework.http.HttpStatus`.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `cd app/backend && mvn -B test -Dtest=ExcelTest`
 Expected: PASS, 8 tests.
 
-- [ ] **Step 5: Run the whole backend suite in random order**
+- [x] **Step 5: Run the whole backend suite in random order**
 
 Run: `cd app/backend && mvn -B verify -Dsurefire.runOrder=random`
 Expected: 66 de 66 en verde (56 previos + 2 de Task 3 + 8 de Excel). Si falla al
 repetir, el problema es el aislamiento de `sembrarFalta`: usa `ON CONFLICT` a
 propósito para poder correr dos veces.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add app/backend/src

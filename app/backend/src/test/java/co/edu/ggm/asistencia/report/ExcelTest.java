@@ -128,6 +128,52 @@ class ExcelTest extends AbstractIntegrationTest {
         }
     }
 
+    // ---- informe individual ----
+
+    @Test
+    void el_informe_individual_trae_la_cabecera_del_estudiante_y_sus_registros() throws Exception {
+        Long id = jdbc.queryForObject("SELECT id FROM students WHERE document_id = ?", Long.class, ALUMNO);
+        try (var wb = new XSSFWorkbook(new ByteArrayInputStream(
+                descargar("tipo", "individual", "studentId", String.valueOf(id))))) {
+            Sheet hoja = wb.getSheetAt(0);
+            assertThat(hoja.getRow(0).getCell(0).getStringCellValue()).isEqualTo("Estudiante");
+            assertThat(hoja.getRow(0).getCell(1).getStringCellValue())
+                    .isEqualTo("LINDA ISABELLA AREVALO FIGUEROA");
+            assertThat(hoja.getRow(1).getCell(1).getStringCellValue()).isEqualTo(ALUMNO);
+            assertThat(hoja.getRow(3).getCell(0).getStringCellValue()).isEqualTo("Fecha");
+            // recentAttendance ordena por fecha descendente: el mas reciente primero
+            assertThat(hoja.getRow(4).getCell(0).getStringCellValue()).isEqualTo("2026-06-03");
+        }
+    }
+
+    @Test
+    void el_informe_individual_traduce_el_estado_a_algo_que_se_entienda() throws Exception {
+        // Va a manos del acudiente: nadie de fuera del colegio sabe que significa "E".
+        Long id = jdbc.queryForObject("SELECT id FROM students WHERE document_id = ?", Long.class, ALUMNO);
+        try (var wb = new XSSFWorkbook(new ByteArrayInputStream(
+                descargar("tipo", "individual", "studentId", String.valueOf(id))))) {
+            assertThat(wb.getSheetAt(0).getRow(4).getCell(2).getStringCellValue()).isEqualTo("Evasion");
+        }
+    }
+
+    @Test
+    void el_informe_individual_exige_studentId() throws Exception {
+        mvc.perform(get("/api/reports/excel")
+                        .header("Authorization", tokenDe("coord@ggm.edu.co", "COORDINADOR"))
+                        .param("tipo", "individual")
+                        .param("from", "2026-06-01").param("to", "2026-06-03"))
+           .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void un_acudiente_no_puede_descargar_el_informe_individual_de_nadie() throws Exception {
+        mvc.perform(get("/api/reports/excel")
+                        .header("Authorization", tokenDe("coord@ggm.edu.co", "ACUDIENTE"))
+                        .param("tipo", "individual").param("studentId", "1")
+                        .param("from", "2026-06-01").param("to", "2026-06-03"))
+           .andExpect(status().isForbidden());
+    }
+
     @Test
     void una_celda_vacia_no_es_una_falta() throws Exception {
         // El otro estudiante de 601 no tiene ningun registro: sus tres dias van en
