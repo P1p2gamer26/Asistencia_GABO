@@ -42,6 +42,31 @@ jobs:
   imagen:
     runs-on: ubuntu-latest
     needs: [backend, frontend]
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
-      - run: docker build -t asistencia-ggm:sha-${{ github.sha }} .
+
+      # En ramas y pull requests solo se construye, para saber si el Dockerfile sigue
+      # sano. Solo main publica: asi nadie despliega por error una rama a medias.
+      - name: Construir
+        run: docker build -t asistencia-ggm:sha-${{ github.sha }} .
+
+      - name: Entrar al registro
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publicar
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          IMG=ghcr.io/${{ github.repository_owner }}/asistencia-ggm
+          IMG=$(echo "$IMG" | tr '[:upper:]' '[:lower:]')
+          docker tag asistencia-ggm:sha-${{ github.sha }} "$IMG:latest"
+          docker tag asistencia-ggm:sha-${{ github.sha }} "$IMG:${{ github.sha }}"
+          docker push "$IMG:latest"
+          docker push "$IMG:${{ github.sha }}"
