@@ -4,6 +4,7 @@ import { getSession, clearSession } from '../api/client';
 import { downloadBootstrap } from '../sync/engine';
 import { db } from '../db/local';
 import BotonInstalar from '../components/BotonInstalar';
+import Escudo from '../components/Escudo';
 
 export default function Home() {
   const session = getSession()!;
@@ -26,16 +27,34 @@ export default function Home() {
 
   return (
     <main className="card">
-      <h1>Asistencia GGM</h1>
+      <header className="marca">
+        <Escudo />
+        <div>
+          <span className="eyebrow">{session.role}</span>
+          <h1>Asistencia GGM</h1>
+        </div>
+      </header>
       <p>Bienvenido, {session.fullName}</p>
       <nav className="acciones">
-        <Link className="boton" to="/asistencia">Asistencia a clase</Link>
-        <Link className="boton" to="/ingreso">Ingreso al colegio</Link>
-        <Link className="boton" to="/consultas">Consultas</Link>
+        <Link className="boton" to="/asistencia">
+          Asistencia a clase<small>Marcar P, T, F o E por bloque. Funciona sin senal.</small>
+        </Link>
+        <Link className="boton" to="/ingreso">
+          Ingreso al colegio<small>Escanear el carnet en la porteria.</small>
+        </Link>
+        <Link className="boton" to="/consultas">
+          Consultas<small>Resumen por curso e informes en Excel.</small>
+        </Link>
         {(session.role === 'COORDINADOR' || session.role === 'ADMIN') && (
-          <Link className="boton" to="/dashboard">Tablero</Link>
+          <Link className="boton" to="/dashboard">
+            Tablero<small>Tasa de asistencia, ausentes de hoy y tendencia.</small>
+          </Link>
         )}
-        {session.role === 'ADMIN' && <Link className="boton" to="/admin">Administracion</Link>}
+        {session.role === 'ADMIN' && (
+          <Link className="boton" to="/admin">
+            Administracion<small>Usuarios, calendario academico y carga de CSV.</small>
+          </Link>
+        )}
       </nav>
       <p className="meta">
         Datos descargados: {ultima ? new Date(ultima).toLocaleString('es-CO') : 'nunca'}

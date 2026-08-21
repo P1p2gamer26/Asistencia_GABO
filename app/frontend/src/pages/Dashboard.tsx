@@ -38,22 +38,21 @@ export default function Dashboard() {
 
   return (
     <main className="card">
+      <span className="eyebrow">Periodo de {dias} dias{grade ? ` | curso ${grade}` : ''}</span>
       <h1>Tablero de asistencia</h1>
 
       {/* Los filtros van en una sola fila arriba, antes de las graficas */}
-      <div className="leyenda" style={{ marginBottom: 16 }}>
+      <div className="filtros-tablero">
         {RANGOS.map((r) => (
           <button key={r.dias} type="button"
                   className={dias === r.dias ? undefined : 'secundario'}
-                  style={{ minHeight: 36, padding: '6px 12px' }}
                   aria-pressed={dias === r.dias}
                   onClick={() => setDias(r.dias)}>
             {r.etiqueta}
           </button>
         ))}
         <input aria-label="Filtrar por curso" placeholder="Curso (vacio = todos)"
-               value={grade} onChange={(e) => setGrade(e.target.value)}
-               style={{ minHeight: 36, padding: '6px 12px' }} />
+               value={grade} onChange={(e) => setGrade(e.target.value)} />
       </div>
 
       {error && <p role="alert" className="error">{error}</p>}
@@ -62,7 +61,7 @@ export default function Dashboard() {
       {datos && (
         <>
           <div className="kpis">
-            <Kpi valor={datos.kpi.attendanceRate.toFixed(1)} sufijo="%"
+            <Kpi valor={datos.kpi.attendanceRate.toFixed(1)} sufijo="%" principal
                  etiqueta="Asistencia del periodo" />
             <Kpi valor={datos.kpi.absentToday} etiqueta="Ausentes hoy"
                  alerta={datos.kpi.absentToday > 0} />

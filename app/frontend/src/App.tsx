@@ -12,9 +12,7 @@ import Dashboard from './pages/Dashboard';
 import Padre from './pages/Padre';
 import Admin from './pages/Admin';
 
-function Protegida({ children }: { children: React.ReactNode }) {
-  return getSession() ? <>{children}</> : <Navigate to="/login" replace />;
-}
+const PERSONAL = ['DOCENTE', 'COORDINADOR', 'ADMIN'];
 
 function SoloRoles({ roles, children }: { roles: string[]; children: React.ReactNode }) {
   const session = getSession();
@@ -34,10 +32,14 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<Inicio />} />
-      <Route path="/asistencia" element={<Protegida><TomarAsistencia /></Protegida>} />
-      <Route path="/ingreso" element={<Protegida><Ingreso /></Protegida>} />
+      {/* El acudiente tiene sesion valida pero no puede ver el curso completo de
+          nadie: estas dos rutas son de personal del colegio, no de familias. */}
+      <Route path="/asistencia"
+             element={<SoloRoles roles={PERSONAL}><TomarAsistencia /></SoloRoles>} />
+      <Route path="/ingreso"
+             element={<SoloRoles roles={PERSONAL}><Ingreso /></SoloRoles>} />
       <Route path="/consultas"
-             element={<SoloRoles roles={['DOCENTE', 'COORDINADOR', 'ADMIN']}><Consultas /></SoloRoles>} />
+             element={<SoloRoles roles={PERSONAL}><Consultas /></SoloRoles>} />
       <Route path="/dashboard"
              element={<SoloRoles roles={['COORDINADOR', 'ADMIN']}><Dashboard /></SoloRoles>} />
       <Route path="/admin" element={<SoloRoles roles={['ADMIN']}><Admin /></SoloRoles>} />

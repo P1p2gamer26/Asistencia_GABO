@@ -47,7 +47,7 @@ export default function LineaTendencia({ serie }: Props) {
             </g>
           ))}
 
-          <path d={trazo} fill="none" stroke="var(--azul)" strokeWidth={2}
+          <path d={trazo} fill="none" stroke="var(--verde)" strokeWidth={2}
                 strokeLinecap="round" strokeLinejoin="round" />
 
           {activo !== null && (
@@ -62,7 +62,7 @@ export default function LineaTendencia({ serie }: Props) {
                     aria-label={`${fecha(p.fecha)}: ${p.valor} por ciento`}
                     onMouseEnter={() => setActivo(i)} onFocus={() => setActivo(i)} />
               <circle cx={p.x} cy={p.y} r={activo === i ? 6 : 4}
-                      fill="var(--azul)" stroke="var(--superficie)" strokeWidth={2} />
+                      fill="var(--verde)" stroke="var(--superficie)" strokeWidth={2} />
             </g>
           ))}
 

@@ -65,7 +65,7 @@ export default function BarrasPorCurso({ datos }: { datos: GradeBreakdown[] }) {
                       {ancho > 34 && (
                         <text x={ANCHO_ETIQUETA + s.x + ancho / 2} y={y + ALTO_BARRA - 5}
                               fontSize={11} textAnchor="middle"
-                              fill={s.estado === 'T' || s.estado === 'E' ? '#0b0b0b' : '#ffffff'}
+                              fill={s.estado === 'T' ? '#0b0b0b' : '#ffffff'}
                               style={{ pointerEvents: 'none' }}>
                           {s.estado}
                         </text>
