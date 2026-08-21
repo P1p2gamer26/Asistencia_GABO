@@ -258,6 +258,11 @@ Requieren su propio plan:
 - **Notificación de llegada tarde**: falta que el colegio defina desde qué hora una
   tardanza se reporta. Es decisión de la institución, no técnica.
 
+**Cómo desplegarlo está escrito en `docs/DESPLIEGUE.md`**: dos opciones (Fly.io o un
+VPS con Caddy), las variables de entorno obligatorias, el orden de carga de los datos,
+las copias de seguridad y la lista de comprobaciones posteriores. La integración
+continua publica la imagen en GHCR desde `main`.
+
 Requieren una persona, hardware o datos que no tenemos:
 
 - **Escanear un carnet real** y comprobar que el código impreso coincide con
