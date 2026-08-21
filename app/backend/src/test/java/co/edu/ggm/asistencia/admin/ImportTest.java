@@ -37,7 +37,7 @@ class ImportTest extends AbstractIntegrationTest {
         String contenido = """
                 document_id,first_name,middle_name,last_name,second_surname,grade
                 2020202020,MARIA,JOSE,GOMEZ,PEREZ,701
-                1010101010,LINDA,ISABELLA,AREVALO,FIGUEROA,602
+                2020202021,CARLOS,ANDRES,MORA,DIAZ,702
                 """;
         mvc.perform(multipart("/api/admin/import/students").file(csv(contenido))
                         .header("Authorization", tokenAdmin()))
@@ -45,7 +45,9 @@ class ImportTest extends AbstractIntegrationTest {
            .andExpect(jsonPath("$.imported").value(2))
            .andExpect(jsonPath("$.errors.length()").value(0));
 
-        // el estudiante ya existente cambio de curso, no se duplico
+        // Reimportar actualiza en vez de duplicar. Se usan documentos propios del test
+        // y NO los de la semilla: mutar la semilla rompia a SchemaTest y ReportTest
+        // segun el orden en que Surefire ejecutara las clases.
         mvc.perform(multipart("/api/admin/import/students").file(csv(contenido))
                         .header("Authorization", tokenAdmin()))
            .andExpect(jsonPath("$.imported").value(2));
