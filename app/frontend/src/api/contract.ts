@@ -26,6 +26,11 @@ export type Dashboard = {
   trend: { classDate: string; attendanceRate: number }[];
 };
 
+export type AdminUser = {
+  id: number; email: string; fullName: string; role: Role; active: boolean;
+};
+export type ImportResult = { imported: number; errors: string[] };
+
 /** Orden de apilado y colores de estado. Validado; ver Task C2. No reordenar. */
 export const ESTADOS: { valor: Status; etiqueta: string; color: string }[] = [
   { valor: 'P', etiqueta: 'Presente', color: '#0ca30c' },

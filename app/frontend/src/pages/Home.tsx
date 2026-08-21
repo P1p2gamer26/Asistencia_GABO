@@ -35,6 +35,7 @@ export default function Home() {
         {(session.role === 'COORDINADOR' || session.role === 'ADMIN') && (
           <Link className="boton" to="/dashboard">Tablero</Link>
         )}
+        {session.role === 'ADMIN' && <Link className="boton" to="/admin">Administracion</Link>}
       </nav>
       <p className="meta">
         Datos descargados: {ultima ? new Date(ultima).toLocaleString('es-CO') : 'nunca'}
