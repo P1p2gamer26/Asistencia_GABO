@@ -125,6 +125,13 @@ for TAREA in $TAREAS; do
       tail -30 "$SALIDA" >>"$LOG"
       echo "$TAREA" >>"$ESTADO"
       rm -f "$SALIDA"
+      # Respaldo en el repo propio (privado). Solo la rama del track, nunca main.
+      RAMA="$(git rev-parse --abbrev-ref HEAD)"
+      if git push -u origin "$RAMA" >>"$LOG" 2>&1; then
+        log "rama $RAMA respaldada en origin"
+      else
+        log "aviso: no se pudo hacer push de $RAMA (el trabajo esta commiteado local)"
+      fi
       break
     fi
 
