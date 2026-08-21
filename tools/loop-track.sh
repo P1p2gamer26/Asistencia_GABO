@@ -80,12 +80,15 @@ CONTEXTO DE ESTA MAQUINA (difiere del plan, respetalo):
       TEST_DB_USER=postgres TEST_DB_PASSWORD=postgres mvn -B test
   Esa base ya existe. No uses otra: es la tuya y no la comparten los demas tracks.
 - Frontend: cd app/frontend && npm test  (y npm run build)
-- Estructura MVC obligatoria del backend, descrita en app/README.md: cada
-  funcionalidad es un paquete y dentro se separan controller/ service/
-  repository/ model/. Ajusta la linea 'package' de cada clase en consecuencia.
-  Ejemplo: co.edu.ggm.asistencia.calendar.controller.CalendarController.
-  Las clases transversales (SecurityConfig, JwtFilter, JwtService) van en
-  co.edu.ggm.asistencia.shared.config y .shared.service.
+- Estructura MVC CLASICA POR CAPAS, descrita en app/README.md. Cada capa es un
+  paquete con TODAS sus clases dentro:
+    co.edu.ggm.asistencia.controller  -> *Controller
+    co.edu.ggm.asistencia.service     -> *Service y *Job
+    co.edu.ggm.asistencia.repository  -> *Repository
+    co.edu.ggm.asistencia.model       -> entidades y enums
+    co.edu.ggm.asistencia.config      -> *Config y *Filter
+  El sufijo de la clase decide su capa. Ajusta 'package' e imports en consecuencia.
+  NO crees paquetes por funcionalidad (nada de calendar/, user/, shared/...).
 - NUNCA hagas 'git push'. El remoto es de otra persona y esta deshabilitado.
   Solo commits locales.
 - No toques ficheros de otros tracks. La tabla de propiedad esta en el plan,
@@ -106,6 +109,22 @@ EOF
 
 log "=== arranca driver. Tareas: $TAREAS"
 cd "$WT" || { log "no existe el worktree $WT"; exit 1; }
+
+# Una sola instancia por worktree. Tres drivers a la vez sobre el mismo worktree
+# se pisan los commits y duplican tareas: paso de verdad y costo un merge sucio.
+LOCK="$WT/.loop-$TRACK.lock"
+if [ -e "$LOCK" ] && kill -0 "$(cat "$LOCK" 2>/dev/null)" 2>/dev/null; then
+  echo "Ya hay un driver $TRACK vivo (pid $(cat "$LOCK")). Salgo."; exit 5
+fi
+echo $$ > "$LOCK"
+trap 'rm -f "$LOCK"' EXIT INT TERM
+
+# El worktree debe estar limpio antes de empezar: si quedo trabajo a medias de una
+# corrida anterior, el merge con main aborta y el driver trabaja sobre codigo viejo.
+if [ -n "$(git -C "$WT" status --porcelain --untracked-files=no)" ]; then
+  echo "El worktree $WT tiene cambios sin commitear. Reviselo antes de relanzar."; exit 6
+fi
+
 
 for TAREA in $TAREAS; do
   if hecha "$TAREA"; then log "Task $TAREA ya estaba hecha, la salto"; continue; fi

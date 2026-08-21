@@ -14,7 +14,7 @@ public class NotificationJob {
 
     public NotificationJob(NotificationService service) { this.service = service; }
 
-    @Scheduled(cron = "0 */15 * * * *", zone = "America/Bogota")
+    @Scheduled(cron = "${app.notify.cron:0 */15 * * * *}", zone = "America/Bogota")
     public void ejecutar() {
         int encolados = service.enqueuePending();
         int enviados = service.dispatchPending();
