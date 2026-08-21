@@ -1,8 +1,12 @@
 # 1. Frontend: se compila aparte y su salida entra al jar como recurso estatico
 FROM node:22-alpine AS frontend
-WORKDIR /app
+# Se respeta la ruta app/frontend porque src/api/mock.ts importa los fixtures del
+# contrato con ../../../contracts/fixtures. Compilar desde una carpeta plana rompe
+# esos imports y el build falla solo dentro de la imagen, no en local.
+WORKDIR /build/app/frontend
 COPY app/frontend/package*.json ./
 RUN npm ci
+COPY app/contracts/ /build/app/contracts/
 COPY app/frontend/ ./
 RUN npm run build
 
@@ -13,7 +17,7 @@ WORKDIR /app
 COPY app/backend/pom.xml ./
 RUN mvn -B dependency:go-offline
 COPY app/backend/src ./src
-COPY --from=frontend /app/dist ./src/main/resources/static
+COPY --from=frontend /build/app/frontend/dist ./src/main/resources/static
 RUN mvn -B clean package -DskipTests
 
 # 3. Imagen final: solo el jre y el jar
