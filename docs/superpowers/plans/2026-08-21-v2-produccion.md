@@ -1680,7 +1680,7 @@ transacciones rompe las sentencias preparadas de JDBC.
 - Consumes: nada.
 - Produces: variable de entorno `APP_CORS_ORIGINS` (lista separada por comas).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Crear `app/backend/src/test/java/co/edu/ggm/asistencia/config/CorsTest.java`, copiando
 la cabecera y anotaciones de `SpaRoutingTest.java` que ya está en esa carpeta:
@@ -1713,12 +1713,12 @@ app:
     origins: http://localhost:5173,https://asistencia-ggm.vercel.app
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd app/backend && mvn -B test -Dtest=CorsTest`
 Expected: FAIL — el origen de Vercel no está en la lista fija del código.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 En `SecurityConfig.java`, inyectar la lista y usarla:
 
@@ -1839,18 +1839,18 @@ Los invariantes de rutas de la SPA fallarán, y está bien: en este despliegue l
 sirve Vercel, no el backend. Los demás tienen que pasar.
 ````
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `cd app/backend && mvn -B test -Dtest=CorsTest`
 Expected: PASS, 2 tests.
 
-- [ ] **Step 5: Run the whole backend suite**
+- [x] **Step 5: Run the whole backend suite**
 
 Run: `cd app/backend && mvn -B verify -Dsurefire.runOrder=random`
 Expected: todo en verde. Comprobar en particular que `SpaRoutingTest` sigue pasando: la
 imagen Docker sigue sirviendo la SPA y ese camino no se ha tocado.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add app/backend/src fly.toml docs/DESPLIEGUE.md

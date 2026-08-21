@@ -1,0 +1,29 @@
+app = "asistencia-ggm"
+primary_region = "bog"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NOTIFY_ENABLED = "false"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  # A proposito, no por gasto: el arranque en frio de Spring Boot con Flyway tarda
+  # decenas de segundos, y la docente que abre la aplicacion en el salon no puede
+  # quedarse esperando delante de 40 estudiantes.
+  min_machines_running = 1
+
+  [http_service.checks]
+    [[http_service.checks.http]]
+      path = "/actuator/health"
+      interval = "30s"
+      timeout = "5s"
+      grace_period = "60s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"
