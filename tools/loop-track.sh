@@ -12,17 +12,23 @@ TRACK="${1:?falta el track: A, B o C}"
 WT="${2:?falta la ruta del worktree}"
 DB="${3:?falta el nombre de la base de datos}"
 
-PLAN="docs/superpowers/plans/2026-08-20-sistema-asistencia-paralelo.md"
+# Plan y lista de tareas: opcionales. Sin ellos usa los tracks del plan paralelo.
+#   ./loop-track.sh E "$WT" bd_test "docs/.../otro-plan.md" "1 2 3"
+PLAN="${4:-docs/superpowers/plans/2026-08-20-sistema-asistencia-paralelo.md}"
 LOG="$WT/.loop-$TRACK.log"
 ESTADO="$WT/.loop-estado"
 
-# Orden de tareas por track. C empieza por C2: es la unica que no depende de A.
-case "$TRACK" in
-  A) TAREAS="A1 A2 A3 A4" ;;
-  B) TAREAS="B1 B2 B3 B4" ;;
-  C) TAREAS="C2 C1 C3 C4" ;;
-  *) echo "Track invalido: $TRACK" >&2; exit 2 ;;
-esac
+if [ -n "${5:-}" ]; then
+  TAREAS="$5"
+else
+  # Orden de tareas por track. C empieza por C2: es la unica que no depende de A.
+  case "$TRACK" in
+    A) TAREAS="A1 A2 A3 A4" ;;
+    B) TAREAS="B1 B2 B3 B4" ;;
+    C) TAREAS="C2 C1 C3 C4" ;;
+    *) echo "Track invalido sin lista de tareas: $TRACK" >&2; exit 2 ;;
+  esac
+fi
 
 ESPERA_CUOTA=900        # 15 min entre reintentos cuando se agota la cuota
 MAX_ESPERAS=96          # hasta 24 h esperando renovacion
