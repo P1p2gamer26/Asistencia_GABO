@@ -57,7 +57,7 @@ se replica en el servidor en la Task 3.
 - Produces: `export type Carnet = { documentId: string; nombre: string; curso: string }`
   y `export function parseCarnet(raw: string): Carnet | null`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Crear `app/frontend/src/scan/carnet.test.ts`:
 
@@ -107,12 +107,12 @@ describe('parseCarnet', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd app/frontend && npx vitest run src/scan/carnet.test.ts`
 Expected: FAIL — `Failed to resolve import "./carnet"`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Crear `app/frontend/src/scan/carnet.ts`:
 
@@ -136,12 +136,12 @@ export function parseCarnet(raw: string): Carnet | null {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `cd app/frontend && npx vitest run src/scan/carnet.test.ts`
 Expected: PASS, 6 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/frontend/src/scan/carnet.ts app/frontend/src/scan/carnet.test.ts
