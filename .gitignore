@@ -6,3 +6,7 @@ dist/
 *.tsbuildinfo
 .loop-estado
 .loop-*.log
+
+# Frontend compilado dentro del jar. Lo genera el Dockerfile (o una copia
+# manual para probar en local); nunca se versiona.
+app/backend/src/main/resources/static/
