@@ -74,10 +74,11 @@ Todas las cifras siguientes se ejecutaron y se observaron; ninguna es estimada.
 
 | Comprobación | Resultado |
 |---|---|
-| Tests de backend (`mvn test`) | **50 de 50**, contra PostgreSQL 16 real |
+| Tests de backend (`mvn test`) | **56 de 56**, contra PostgreSQL 16 real, en tres órdenes de ejecución |
 | Tests de frontend (`npm test`) | **19 de 19** |
 | Compilación del frontend | Limpia · **95,5 KB gzip** el paquete inicial |
-| Commits | 40 |
+| Integración continua | **Verde entera**: backend, frontend e **imagen Docker construida** |
+| Commits | 55 |
 
 El paquete inicial queda por debajo del objetivo de 200 KB. El segundo fragmento de
 107 KB es la librería de escaneo de códigos, que **solo se descarga en teléfonos sin
@@ -172,13 +173,54 @@ completo, con sus seis tareas:
   verificación humana lo detectó y la tarea se rehízo a mano. Un agente que reporta
   éxito no es evidencia de éxito.
 
+## 6.b Segunda iteración: administración y verificación en CI
+
+**Pantalla de administración** (`/admin`, solo rol ADMIN), con tres pestañas:
+
+- **Usuarios**: alta, búsqueda por rol y nombre, baja lógica y reseteo de contraseña.
+  Las bajas no borran: un docente tiene asistencias con su `recorded_by`, y borrarlo
+  rompería la trazabilidad de quién marcó qué.
+- **Calendario**: cambiar el tipo de cualquier día con su motivo.
+- **Carga de datos**: los tres CSV con sus cabeceras y el orden correcto a la vista.
+
+Verificado de punta a punta en navegador real: el administrador cambió el 21 de agosto
+a `SUSPENDIDO` desde la pantalla, quedó en la base con `updated_by = 1`, y el servidor
+pasó a rechazar la asistencia de ese día con "La fecha no es un dia lectivo".
+**El rector puede cerrar un día sin que nadie toque SQL**, que era el objetivo.
+
+### Dos bugs que solo apareció la integración continua
+
+**La suite dependía del orden de ejecución.** Tres tests fallaban en CI y pasaban en
+local. Varios tests mutaban los datos de la semilla —uno le cambiaba el curso a una
+estudiante, otro le añadía bloques al docente— y rompían a sus vecinos según el orden
+en que Surefire ejecutara las clases. **En local pasaba por suerte.** Corregido: cada
+test usa sus propios datos, verificado en tres órdenes distintos, y la CI ahora corre
+con `-Dsurefire.runOrder=random` para que no vuelva a pasar inadvertido.
+
+**La imagen Docker no compilaba el frontend.** `mock.ts` importa los fixtures del
+contrato con `../../../contracts/`, y la etapa de compilación usaba una carpeta plana
+donde esa ruta no existe. El fallo **solo se manifestaba dentro de la imagen**. Como
+Docker Desktop exige elevación de administrador y no se pudo instalar aquí, la CI fue
+la única forma de detectarlo. Corregido y **la imagen ya se construye en verde**.
+
+### Matriz de roles verificada contra la API real
+
+| Rol | Acción | Resultado |
+|---|---|---|
+| ACUDIENTE | consultar sus hijos | solo el suyo |
+| ACUDIENTE | tablero de coordinación | 403 |
+| DOCENTE | importar datos | 403 |
+| DOCENTE | portal de acudientes | 403 |
+| COORDINADOR | administrar usuarios | 403 |
+
+Capturas: `docs/e2e-admin-calendario.png`.
+
+---
+
 ## 7. Lo que sigue faltando
 
 Requieren su propio plan:
 
-- **Pantalla de administración** de usuarios, horario y calendario. Hoy todo eso se
-  hace con los importadores CSV y la API del calendario, que alcanza para arrancar,
-  pero el colegio no puede depender de `curl` para siempre.
 - **Días institucionales A/B** y separación de laboratorios, como pidió Miguel Bacca.
 - **Calendario de 2027 en adelante** (hoy está sembrado 2026).
 - **Notificación de llegada tarde**: falta que el colegio defina desde qué hora una
@@ -186,9 +228,6 @@ Requieren su propio plan:
 
 Requieren una persona, hardware o datos que no tenemos:
 
-- **Construir el Dockerfile de verdad.** Sin Docker en esta máquina no se pudo; hasta
-  que la integración continua lo construya, es una hipótesis razonable, no un
-  entregable verificado.
 - **Escanear un carnet real** y comprobar que el código impreso coincide con
   `document_id`. Si no coincide, el problema son los datos, y es mejor descubrirlo con
   un carnet en la mano que el primer día de clases.
