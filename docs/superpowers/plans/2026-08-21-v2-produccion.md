@@ -1453,7 +1453,7 @@ va escrita en un test, no en la memoria de nadie.
 - Consumes: `GET /api/guardian/children`, `StudentRepository.findChildren`.
 - Produces: nada.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Añadir a `GuardianTest.java`:
 
@@ -1510,7 +1510,7 @@ Los dos acudientes con un hijo cada uno se crean al principio del test con el
 mecanismo que la clase ya use (semilla o inserción directa). Si `GuardianTest` ya
 tiene un montaje con acudientes, reutilizarlo en vez de crear otro.
 
-- [ ] **Step 2: Run test to verify it fails or passes for the right reason**
+- [x] **Step 2: Run test to verify it fails or passes for the right reason**
 
 Run: `cd app/backend && mvn -B test -Dtest=GuardianTest`
 Expected: PASS a la primera. **Esto está bien**: es un test de regresión sobre
@@ -1520,7 +1520,7 @@ revés: añadir temporalmente a `GuardianController.children` un
 correr el test y ver que **falla**; deshacer el cambio. Un test que no puede fallar no
 prueba nada.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add app/backend/src/test/java/co/edu/ggm/asistencia/student/GuardianTest.java
