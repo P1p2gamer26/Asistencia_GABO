@@ -1,6 +1,7 @@
 package co.edu.ggm.asistencia.service;
 
 import co.edu.ggm.asistencia.repository.ReportRepository;
+import co.edu.ggm.asistencia.repository.StudentRepository;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.springframework.stereotype.Service;
@@ -13,6 +14,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class ExcelReportService {
@@ -41,6 +43,50 @@ public class ExcelReportService {
                 int total = f.getPresent() + f.getLate() + f.getAbsent() + f.getEvasion();
                 r.createCell(8).setCellValue(total == 0 ? 0
                         : Math.round((f.getPresent() + f.getLate()) * 1000.0 / total) / 10.0);
+            }
+            wb.write(out);
+            wb.dispose();
+            return out.toByteArray();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private static final Map<String, String> ESTADO_LEGIBLE = Map.of(
+            "P", "Presente", "T", "Tarde", "F", "Falta", "E", "Evasion");
+
+    /** Una hoja para entregarle al acudiente: se lee sin saber que significa "T". */
+    public byte[] buildIndividual(String documento, String nombre, String curso,
+                                  List<StudentRepository.RecentMark> marcas,
+                                  LocalDate from, LocalDate to) {
+        try (var wb = new SXSSFWorkbook(100); var out = new ByteArrayOutputStream()) {
+            var hoja = wb.createSheet("Informe individual");
+
+            Row r0 = hoja.createRow(0);
+            r0.createCell(0).setCellValue("Estudiante");
+            r0.createCell(1).setCellValue(nombre);
+            Row r1 = hoja.createRow(1);
+            r1.createCell(0).setCellValue("Documento");
+            r1.createCell(1).setCellValue(documento);
+            Row r2 = hoja.createRow(2);
+            r2.createCell(0).setCellValue("Curso");
+            r2.createCell(1).setCellValue(curso);
+            r2.createCell(2).setCellValue("Periodo");
+            r2.createCell(3).setCellValue(from + " a " + to);
+
+            Row cab = hoja.createRow(3);
+            cab.createCell(0).setCellValue("Fecha");
+            cab.createCell(1).setCellValue("Asignatura");
+            cab.createCell(2).setCellValue("Estado");
+            cab.createCell(3).setCellValue("Observacion");
+
+            int n = 4;
+            for (var m : marcas) {
+                Row r = hoja.createRow(n++);
+                r.createCell(0).setCellValue(m.getClassDate().toString());
+                r.createCell(1).setCellValue(m.getSubject() == null ? "" : m.getSubject());
+                r.createCell(2).setCellValue(ESTADO_LEGIBLE.getOrDefault(m.getStatus(), m.getStatus()));
+                r.createCell(3).setCellValue(m.getComment() == null ? "" : m.getComment());
             }
             wb.write(out);
             wb.dispose();
