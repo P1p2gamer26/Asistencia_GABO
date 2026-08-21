@@ -10,6 +10,7 @@ export default function Consultas() {
   const [grade, setGrade] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [tipo, setTipo] = useState('resumen');
   const [filas, setFilas] = useState<Fila[]>([]);
   const [error, setError] = useState('');
 
@@ -28,14 +29,14 @@ export default function Consultas() {
   async function descargar() {
     setError('');
     try {
-      const res = await fetch(`/api/reports/excel?${query()}`, {
+      const res = await fetch(`/api/reports/excel?${query()}&tipo=${tipo}`, {
         headers: { Authorization: `Bearer ${getSession()!.token}` },
       });
       if (!res.ok) throw new Error();
       const url = URL.createObjectURL(await res.blob());
       const a = document.createElement('a');
       a.href = url;
-      a.download = `asistencia_${grade || 'todos'}_${from}_${to}.xlsx`;
+      a.download = `${tipo}_${grade || 'todos'}_${from}_${to}.xlsx`;
       a.click();
       URL.revokeObjectURL(url);
     } catch {
@@ -53,6 +54,12 @@ export default function Consultas() {
         <input id="desde" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
         <label htmlFor="hasta">Hasta</label>
         <input id="hasta" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+        <label htmlFor="tipo">Informe</label>
+        <select id="tipo" value={tipo} onChange={(e) => setTipo(e.target.value)}>
+          <option value="resumen">Resumen por estudiante</option>
+          <option value="matriz">Asistencia dia por dia</option>
+          <option value="inasistencias">Consolidado de inasistencias</option>
+        </select>
       </div>
       <button type="button" onClick={() => void buscar()} disabled={!from || !to}>Consultar</button>
       <button type="button" className="secundario" onClick={() => void descargar()} disabled={!from || !to}>
