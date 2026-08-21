@@ -12,9 +12,10 @@ Formato: `- [<tarea>] <estado> <fecha> — <nota>`
 - [B1] hecho 2026-08-20 — cliente HTTP, login y modo mock (VITE_MOCK=1)
 - [B2] hecho 2026-08-20 — IndexedDB con calendario; markAttendance bloquea dias no lectivos
 - [B3] hecho 2026-08-20 — pantalla de asistencia con selector de fecha y bloqueo de no lectivos
+- [B4] hecho 2026-08-20 — PWA instalable (manifest, iconos, service worker, BotonInstalar) y pantalla de ingreso por escaneo de carnet (BarcodeDetector nativo con respaldo @zxing/browser diferido); bundle inicial 92.3 KB gzip. TRACK B COMPLETO
 
 ## Cambios al contrato (requiere acuerdo de los tres)
-_(vacio)_
+- `index.html` (congelado en Fase 0) recibio las 3 etiquetas del manifest PWA (`link rel=manifest`, `link rel=apple-touch-icon`, `meta apple-mobile-web-app-capable`) requeridas por la Task 9 de v1, Step 3. No cambia ningun contrato de datos.
 
 ## Bloqueos
 _(vacio)_
