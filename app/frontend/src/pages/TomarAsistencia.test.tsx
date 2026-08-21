@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../db/local';
+import { MemoryRouter } from 'react-router-dom';
 import TomarAsistencia from './TomarAsistencia';
 
 const HOY = new Date().toLocaleDateString('en-CA');
@@ -27,12 +28,12 @@ describe('TomarAsistencia', () => {
   });
 
   it('sin curso elegido no muestra estudiantes', async () => {
-    render(<TomarAsistencia />);
+    render(<MemoryRouter><TomarAsistencia /></MemoryRouter>);
     expect(await screen.findByText(/elija curso y bloque/i)).toBeInTheDocument();
   });
 
   it('al elegir curso y bloque muestra solo los estudiantes de ese curso', async () => {
-    render(<TomarAsistencia />);
+    render(<MemoryRouter><TomarAsistencia /></MemoryRouter>);
     await waitFor(() => expect(
       screen.getByLabelText(/curso/i).querySelectorAll('option').length).toBeGreaterThan(1));
 
@@ -46,7 +47,7 @@ describe('TomarAsistencia', () => {
   });
 
   it('marcar una falta la deja en la cola local, sin tocar la red', async () => {
-    render(<TomarAsistencia />);
+    render(<MemoryRouter><TomarAsistencia /></MemoryRouter>);
     await waitFor(() => expect(
       screen.getByLabelText(/curso/i).querySelectorAll('option').length).toBeGreaterThan(1));
     await userEvent.selectOptions(screen.getByLabelText(/curso/i), '601');
@@ -65,7 +66,7 @@ describe('TomarAsistencia', () => {
   });
 
   it('el curso ofrecido es solo el del horario del docente', async () => {
-    render(<TomarAsistencia />);
+    render(<MemoryRouter><TomarAsistencia /></MemoryRouter>);
     await waitFor(() => expect(
       screen.getByLabelText(/curso/i).querySelectorAll('option').length).toBeGreaterThan(1));
     const opciones = Array.from(screen.getByLabelText(/curso/i).querySelectorAll('option'))
