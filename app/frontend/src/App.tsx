@@ -10,6 +10,7 @@ import Ingreso from './pages/Ingreso';
 import Consultas from './pages/Consultas';
 import Dashboard from './pages/Dashboard';
 import Padre from './pages/Padre';
+import Admin from './pages/Admin';
 
 function Protegida({ children }: { children: React.ReactNode }) {
   return getSession() ? <>{children}</> : <Navigate to="/login" replace />;
@@ -39,6 +40,7 @@ export default function App() {
              element={<SoloRoles roles={['DOCENTE', 'COORDINADOR', 'ADMIN']}><Consultas /></SoloRoles>} />
       <Route path="/dashboard"
              element={<SoloRoles roles={['COORDINADOR', 'ADMIN']}><Dashboard /></SoloRoles>} />
+      <Route path="/admin" element={<SoloRoles roles={['ADMIN']}><Admin /></SoloRoles>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
