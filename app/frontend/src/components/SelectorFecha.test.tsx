@@ -23,20 +23,27 @@ describe('SelectorFecha', () => {
 
   it('en un festivo avisa y dice el motivo', async () => {
     render(<SelectorFecha valor="2026-08-17" onChange={() => {}} max="2026-08-20" />);
-    const aviso = await screen.findByRole('alert');
-    expect(aviso).toHaveTextContent(/festivo/i);
-    expect(aviso).toHaveTextContent(/Asuncion/i);
-    expect(aviso).toHaveTextContent(/no se toma asistencia/i);
+    // waitFor y no findByRole: el componente consulta IndexedDB en un efecto, asi que
+    // el primer render aun no sabe que dia es. findByRole devuelve ese primer estado
+    // y el test se vuelve inestable segun lo rapido que resuelva la base.
+    await waitFor(() => {
+      const aviso = screen.getByRole('alert');
+      expect(aviso).toHaveTextContent(/festivo/i);
+      expect(aviso).toHaveTextContent(/Asuncion/i);
+      expect(aviso).toHaveTextContent(/no se toma asistencia/i);
+    });
   });
 
   it('en un dia suspendido tambien avisa', async () => {
     render(<SelectorFecha valor="2026-08-19" onChange={() => {}} max="2026-08-20" />);
-    expect(await screen.findByRole('alert')).toHaveTextContent(/suspendido|Paro/i);
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent(/suspendido|Paro/i));
   });
 
   it('una fecha que no esta en el calendario descargado pide actualizar', async () => {
     render(<SelectorFecha valor="2027-03-01" onChange={() => {}} max="2027-12-31" />);
-    expect(await screen.findByRole('alert')).toHaveTextContent(/no esta en el calendario/i);
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent(/no esta en el calendario/i));
   });
 
   it('los atajos solo ofrecen dias lectivos, nunca festivos ni suspendidos', async () => {
