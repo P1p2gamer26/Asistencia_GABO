@@ -75,10 +75,10 @@ Todas las cifras siguientes se ejecutaron y se observaron; ninguna es estimada.
 | Comprobación | Resultado |
 |---|---|
 | Tests de backend (`mvn test`) | **56 de 56**, contra PostgreSQL 16 real, en tres órdenes de ejecución |
-| Tests de frontend (`npm test`) | **35 de 35** |
+| Tests de frontend (`npm test`) | **50 de 50** |
 | Compilación del frontend | Limpia · **95,5 KB gzip** el paquete inicial |
 | Integración continua | **Verde entera**: backend, frontend e **imagen Docker construida** |
-| Commits | 58 |
+| Commits | 66 |
 
 El paquete inicial queda por debajo del objetivo de 200 KB. El segundo fragmento de
 107 KB es la librería de escaneo de códigos, que **solo se descarga en teléfonos sin
@@ -246,6 +246,38 @@ reintenta.
 
 Se probó en los dos sentidos —aprueba un worktree verde y detecta uno con un test roto
 a propósito—, porque un chequeo que nunca falla no sirve de nada.
+
+---
+
+## 6.d Cuarta iteración: cobertura y cadena de despliegue verificada
+
+**El frontend pasó de 0 a 31 tests de interfaz** en dos tandas. La segunda cubrió los
+tres componentes que quedaban con lógica y riesgo: el portal del acudiente (datos de
+menores), el panel de usuarios (si el aviso de la contraseña temporal no aparece, el
+administrador crea a alguien que no sabe cómo entrar) y el de carga (un importador que
+dice "0 filas cargadas" sin decir por qué es inservible con 1.200 estudiantes).
+
+**El driver corregido funcionó.** Fue el primer track que corrió con verificación
+propia: las dos tareas quedaron marcadas como "OK (verificada)" y cero verificaciones
+fallidas. La comprobación independiente lo confirmó.
+
+**La cadena de despliegue está verificada de extremo a extremo.** La integración
+continua construye y publica la imagen: `ghcr.io/p1p2gamer26/asistencia-ggm:latest`,
+digest `sha256:8a23834a…`. Al comprobarlo apareció un detalle que habría frenado el
+despliegue el primer día: la imagen **es privada**, porque hereda la visibilidad del
+repositorio, así que el servidor tiene que autenticarse contra el registro. Documentado
+en `docs/DESPLIEGUE.md` con las dos salidas posibles.
+
+### Prueba de humo final, sobre el código ya integrado
+
+Tras todas las fusiones, los cuatro invariantes del sistema siguen en pie:
+
+| Invariante | Comprobación |
+|---|---|
+| Sin duplicados | mismo lote dos veces → `accepted: 1` las dos, **1 fila** en la base |
+| Calendario | marcar en festivo → `"La fecha no es un dia lectivo"` |
+| Horas sin desfase | el bloque sigue siendo `06:30`, no `01:30` |
+| Roles | el docente ve Consultas y **no** ve Tablero ni Administración |
 
 ---
 
