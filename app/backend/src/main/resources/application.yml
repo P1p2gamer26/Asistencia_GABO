@@ -6,7 +6,6 @@ spring:
   jpa:
     hibernate.ddl-auto: validate
     open-in-view: false
-    properties.hibernate.jdbc.time_zone: UTC
   flyway.enabled: true
   jackson.default-property-inclusion: non_null
 app:
