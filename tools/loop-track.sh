@@ -32,8 +32,29 @@ log() { printf '%s [%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$TRACK" "$*" | tee
 
 # Reconoce el mensaje de cuota agotada. Si aparece cualquiera de estos, no es un
 # error del codigo: es que hay que esperar.
+# El mensaje real observado es: "You've hit your session limit · resets 10:30pm (America/Bogota)".
+# Ante la duda, mejor esperar de mas que matar el track: un falso positivo cuesta
+# una espera; un falso negativo mata el driver, que es justo lo que paso la primera vez.
 sin_cuota() {
-  grep -qiE 'usage limit|rate limit|rate_limit|quota|too many requests|429|limit reached|overloaded' "$1"
+  grep -qiE "session limit|usage limit|rate.?limit|quota|too many requests|429|limit reached|hit your|resets [0-9]|overloaded|capacity" "$1"
+}
+
+# Si el mensaje dice a que hora se renueva, espera hasta esa hora en vez de
+# reintentar a ciegas cada 15 minutos.
+segundos_hasta_reset() {
+  local h t now
+  h=$(grep -oiE "resets[[:space:]]+[0-9]{1,2}(:[0-9]{2})?[[:space:]]*[ap]m" "$1" | head -1 \
+      | sed -E "s/.*[Rr]esets[[:space:]]+//")
+  [ -z "$h" ] && { echo 0; return; }
+  t=$(date -d "$h" +%s 2>/dev/null) || { echo 0; return; }
+  now=$(date +%s)
+  if [ "$t" -le "$now" ]; then
+    # Si la hora de renovacion acaba de pasar (menos de una hora), la cuota ya
+    # se renovo: reintenta enseguida en vez de dormir un dia entero.
+    if [ $((now - t)) -lt 3600 ]; then echo 120; return; fi
+    t=$((t + 86400))                           # paso hace rato: es la de manana
+  fi
+  echo $((t - now + 120))                      # dos minutos de colchon
 }
 
 hecha() { [ -f "$ESTADO" ] && grep -qx "$1" "$ESTADO"; }
@@ -113,9 +134,16 @@ for TAREA in $TAREAS; do
         log "24 h esperando cuota sin exito. Me detengo en $TAREA."
         rm -f "$SALIDA"; exit 3
       fi
-      log "Cuota agotada. Espero ${ESPERA_CUOTA}s y reintento (intento $esperas/$MAX_ESPERAS)."
+      dormir=$(segundos_hasta_reset "$SALIDA")
+      if [ "${dormir:-0}" -gt 0 ] 2>/dev/null; then
+        log "Cuota agotada. El mensaje dice que se renueva en $((dormir / 60)) min; espero hasta entonces."
+      else
+        dormir="$ESPERA_CUOTA"
+        log "Cuota agotada, sin hora de renovacion en el mensaje. Espero ${dormir}s (intento $esperas/$MAX_ESPERAS)."
+      fi
+      grep -iE "session limit|usage limit|resets" "$SALIDA" | head -2 >>"$LOG"
       rm -f "$SALIDA"
-      sleep "$ESPERA_CUOTA"
+      sleep "$dormir"
       continue
     fi
 
