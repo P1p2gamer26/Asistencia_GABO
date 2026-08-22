@@ -54,6 +54,17 @@ export default function TomarAsistencia() {
 
   useEffect(() => { void isSchoolDay(fecha).then(setLectivo); }, [fecha]);
 
+  // Se llega aqui desde el horario con ?bloque=N. Se preselecciona el curso y el bloque
+  // para que el docente no tenga que buscarlos otra vez.
+  useEffect(() => {
+    const pedido = Number(params.get('bloque'));
+    if (!pedido || blocks.length === 0) return;
+    const b = blocks.find((x) => x.id === pedido);
+    if (!b) return;
+    setGrade(b.grade);
+    setBlockId(b.id);
+  }, [params, blocks]);
+
   const grados = useMemo(
     () => [...new Set(blocks.map((b) => b.grade))].sort(),
     [blocks],
