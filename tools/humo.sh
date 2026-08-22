@@ -129,14 +129,16 @@ comprobar "sin token no se cambia la clave de nadie" "401" \
      -H 'Content-Type: application/json' \
      -d '{"currentPassword":"x","newPassword":"yyyyyyyy"}')"
 
-LOTE_ENORME=$(python -c "
+# El lote va por fichero, no por argumento: 501 registros en la linea de comandos
+# superan el limite de longitud del sistema y curl falla antes de enviar nada.
+LOTE_ENORME=$(mktemp)
+python -c "
 import json
 print(json.dumps({'records': [{'id': f'00000000-0000-4000-8000-{i:012d}', 'studentId': 1,
   'scheduleBlockId': 1, 'classDate': '2026-04-06', 'status': 'P',
-  'recordedAt': '2026-04-06T11:30:00Z'} for i in range(501)]}))")
-comprobar "un lote desmesurado se rechaza" "400" \
-  "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/api/attendance/sync" \
-     -H "$AUTH" -H 'Content-Type: application/json' -d "$LOTE_ENORME")"
+  'recordedAt': '2026-04-06T11:30:00Z'} for i in range(501)]}))" > "$LOTE_ENORME"
+comprobar "un lote desmesurado se rechaza" "400"   "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/api/attendance/sync"      -H "$AUTH" -H 'Content-Type: application/json' --data-binary "@$LOTE_ENORME")"
+rm -f "$LOTE_ENORME"
 
 # --- Resultado ----------------------------------------------------------------
 echo
