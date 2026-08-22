@@ -33,9 +33,9 @@ export async function markAttendance(mark: Mark): Promise<void> {
 
 export const pendingCount = () => db.outbox.count();
 
-export async function flushOutbox(): Promise<{ sent: number; pending: number }> {
+export async function flushOutbox(): Promise<{ sent: number; pending: number; alcanzable: boolean }> {
   const records = await db.outbox.toArray();
-  if (records.length === 0) return { sent: 0, pending: 0 };
+  if (records.length === 0) return { sent: 0, pending: 0, alcanzable: true };
 
   let result: { accepted: number; rejected: { id: string; reason: string }[] };
   try {
@@ -43,7 +43,10 @@ export async function flushOutbox(): Promise<{ sent: number; pending: number }> 
       records: records.map(({ key, error, ...r }) => r),
     });
   } catch (e) {
-    if (e instanceof OfflineError) return { sent: 0, pending: records.length };
+    // OfflineError significa que la peticion no llego a ninguna parte. Es la unica
+    // senal fiable: navigator.onLine dice true con WiFi sin internet, que es
+    // exactamente lo que pasa en el colegio.
+    if (e instanceof OfflineError) return { sent: 0, pending: records.length, alcanzable: false };
     throw e;
   }
 
@@ -56,7 +59,7 @@ export async function flushOutbox(): Promise<{ sent: number; pending: number }> 
     }
   });
 
-  return { sent: result.accepted, pending: await pendingCount() };
+  return { sent: result.accepted, pending: await pendingCount(), alcanzable: true };
 }
 
 export async function downloadBootstrap(): Promise<void> {
@@ -74,10 +77,10 @@ export async function downloadBootstrap(): Promise<void> {
 }
 
 /** Intenta vaciar el outbox cuando el navegador recupera la conexion. */
-export function startAutoSync(onChange?: (pending: number) => void) {
+export function startAutoSync(onChange?: (pending: number, alcanzable: boolean) => void) {
   const intentar = async () => {
-    const { pending } = await flushOutbox().catch(() => ({ pending: -1 }));
-    if (pending >= 0) onChange?.(pending);
+    const r = await flushOutbox().catch(() => null);
+    if (r) onChange?.(r.pending, r.alcanzable);
   };
   window.addEventListener('online', intentar);
   const timer = window.setInterval(intentar, 60_000);
