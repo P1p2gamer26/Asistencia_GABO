@@ -45,7 +45,7 @@ describe('Consultas', () => {
   });
 
   it('con curso y fechas si consulta y pinta las filas', async () => {
-    const f = vi.fn(async () => respuesta(FILAS));
+    const f = vi.fn(async (_url: string) => respuesta(FILAS));
     vi.stubGlobal('fetch', f);
     render(<Consultas />);
 
@@ -56,7 +56,7 @@ describe('Consultas', () => {
     await userEvent.click(screen.getByRole('button', { name: /^consultar/i }));
 
     await waitFor(() => expect(screen.getByText('ANA LOPEZ')).toBeInTheDocument());
-    const ultimaLlamada = f.mock.calls[f.mock.calls.length - 1][0];
+    const ultimaLlamada = f.mock.lastCall![0];
     expect(String(ultimaLlamada)).toContain('grade=601');
   });
 

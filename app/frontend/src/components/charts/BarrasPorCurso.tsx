@@ -16,7 +16,10 @@ export default function BarrasPorCurso({ datos }: { datos: GradeBreakdown[] }) {
   return (
     <figure className="grafica">
       <h3>Asistencia por curso</h3>
-      <figcaption>Distribucion de registros en el periodo seleccionado</figcaption>
+      <figcaption>
+        Distribucion de registros en el periodo seleccionado
+        {datos.length > 8 && ` · ${datos.length} cursos, desplace para ver todos`}
+      </figcaption>
 
       {tabla ? (
         <div className="tabla-scroll">
@@ -36,8 +39,9 @@ export default function BarrasPorCurso({ datos }: { datos: GradeBreakdown[] }) {
           </table>
         </div>
       ) : (
+        <div className="grafica-scroll">
         <svg viewBox={`0 0 1000 ${alto}`} width="100%" height={alto} role="img"
-             aria-label="Barras apiladas de asistencia por curso">
+             aria-label={`Barras apiladas de asistencia por curso, ${datos.length} cursos`}>
           {datos.map((d, fila) => {
             const y = fila * ALTO_FILA;
             const segs = segmentosApilados(d, anchoUtil);
@@ -77,6 +81,7 @@ export default function BarrasPorCurso({ datos }: { datos: GradeBreakdown[] }) {
             );
           })}
         </svg>
+        </div>
       )}
 
       <div className="leyenda">
