@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
+import LimiteDeError from './components/LimiteDeError';
 import './styles.css';
 
 async function iniciar() {
@@ -11,7 +12,11 @@ async function iniciar() {
 
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
-      <BrowserRouter><App /></BrowserRouter>
+      <BrowserRouter>
+        <LimiteDeError>
+          <App />
+        </LimiteDeError>
+      </BrowserRouter>
     </StrictMode>,
   );
 }
