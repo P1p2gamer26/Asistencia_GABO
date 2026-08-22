@@ -36,8 +36,17 @@ describe('Calendario', () => {
     // Distinguir festivo de vacaciones solo por el tono es el error que ya se corrigio
     // en las graficas: cada dia especial lleva su etiqueta.
     await waitFor(() =>
-      expect(screen.getByLabelText(/7 de agosto.*festivo/i)).toBeInTheDocument());
-    expect(screen.getByLabelText(/19 de agosto.*suspendido/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/^7 de agosto.*festivo/i)).toBeInTheDocument());
+    expect(screen.getByLabelText(/^19 de agosto.*suspendido/i)).toBeInTheDocument();
+  });
+
+  it('no confunde el 7 de agosto con el 17 al buscar por etiqueta', async () => {
+    // Los dos son festivos: sin ancla, un regex como /7 de agosto/ tambien casa con
+    // "17 de agosto" y getByLabelText revienta con multiples coincidencias.
+    render(<Calendario />);
+    const dia7 = await waitFor(() => screen.getByLabelText(/^7 de agosto: festivo/i));
+    const dia17 = screen.getByLabelText(/^17 de agosto: festivo/i);
+    expect(dia7).not.toBe(dia17);
   });
 
   it('muestra el motivo cuando lo hay', async () => {
