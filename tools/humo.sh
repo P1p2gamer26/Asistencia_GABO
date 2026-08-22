@@ -174,6 +174,19 @@ rm -f "$LOTE_M"
 MOTIVO=$(curl -s "$BASE/api/attendance?blockId=1&date=$FECHA_M" -H "$AUTH")
 contiene "el motivo de la tardanza se guarda" 'El bus se demoro' "$MOTIVO"
 
+# --- La porteria resuelve nombres ----------------------------------------------
+# Coordinacion no dicta cursos, asi que su copia local esta vacia: el servidor tiene
+# que resolver el nombre o la pantalla dice "no reconocido" a todo el colegio.
+ENTRADA=$(curl -s -X POST "$BASE/api/entry/sync" -H "Authorization: Bearer $COORD" \
+  -H 'Content-Type: application/json' \
+  -d '{"entries":[{"id":"22222222-0000-4000-8000-000000000002","documentId":"1010101010","scannedAt":"2026-05-04T07:00:00Z"}]}')
+contiene "el ingreso devuelve el nombre del estudiante" 'LINDA' "$ENTRADA"
+
+ENTRADA_MALA=$(curl -s -X POST "$BASE/api/entry/sync" -H "Authorization: Bearer $COORD" \
+  -H 'Content-Type: application/json' \
+  -d '{"entries":[{"id":"33333333-0000-4000-8000-000000000003","documentId":"0000000000","scannedAt":"2026-05-04T07:00:00Z"}]}')
+contiene "un carnet desconocido se rechaza con motivo" 'no registrado' "$ENTRADA_MALA"
+
 # --- Resultado ----------------------------------------------------------------
 echo
 if [ "$FALLOS" -eq 0 ]; then

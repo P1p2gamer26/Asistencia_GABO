@@ -726,6 +726,59 @@ y avisa explícitamente cuando sin conexión no se puede comprobar.
 
 ---
 
+## 6.l La portería decía "no reconocido" a todo el colegio
+
+Verificación del 22 de agosto de 2026 contra la base de carga. La pantalla de ingreso
+busca al estudiante en la copia local del dispositivo, que viene de
+`GET /api/sync/bootstrap` y trae **solo los estudiantes de los cursos que dicta quien
+entró**. Medido con el usuario que de verdad está en la portería —coordinación, que no
+dicta ningún curso—:
+
+```
+bootstrap de coordinacion:  bloques: 0 | estudiantes: 0 | dias: 88
+```
+
+Cero estudiantes en la copia local. La pantalla decía **"Carnet no reconocido"** a los
+1.200 estudiantes del colegio, uno por uno, cada mañana. El registro se guardaba igual,
+pero quien estaba en la puerta perdía la única señal que le servía para algo: distinguir
+un carnet realmente malo de uno que simplemente no estaba en su copia.
+
+Lo llamativo es que el dato correcto llegaba desde el primer día. El servidor ya
+responde con el nombre resuelto:
+
+```json
+{"accepted":1,"rejected":[],"names":{"aaaa-...-0009":"NOMBRE500 SEGUNDO500 APELLIDO500 SEGUNDOAP500"}}
+```
+
+y la pantalla declaraba el tipo de la respuesta **sin el campo `names`**, así que
+TypeScript lo descartaba en silencio al deserializar. Ninguna comprobación de tipos avisa
+de un campo que sobra: solo de uno que falta.
+
+### La corrección
+
+Ahora la pantalla distingue los tres casos que antes se confundían en uno:
+
+| Situación | Antes | Ahora |
+|---|---|---|
+| El servidor confirma y da el nombre | "Carnet no reconocido" | El nombre del estudiante |
+| El servidor rechaza el carnet | "Carnet no reconocido" | "Carnet no registrado", en rojo |
+| Sin conexión y sin copia local | "Carnet no reconocido" | "Carnet registrado, se verificará al sincronizar" |
+
+El tercer caso es el que más importa: el ingreso queda guardado igual, y decir lo
+contrario haría que alguien lo escaneara tres veces pensando que falló.
+
+### Verificado con datos reales
+
+```
+curl -X POST /api/entry/sync ... {"documentId":"1010101010", ...}
+-> names contiene "LINDA AREVALO"
+```
+
+Y el invariante quedó en `tools/humo.sh`: un carnet real resuelve el nombre, uno
+inexistente se rechaza con motivo "no registrado".
+
+---
+
 ## 7. Lo que sigue faltando
 
 Requieren su propio plan:
