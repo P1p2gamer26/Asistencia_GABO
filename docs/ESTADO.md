@@ -20,6 +20,8 @@ Formato: `- [<tarea>] <estado> <fecha> — <nota>`
 
 - [Pantalla-fiel-Task3] hecho 2026-08-22 — invariante del motivo de tardanza en `tools/humo.sh` (envia T con comentario y comprueba que `GET /api/attendance` lo devuelve) y seccion 6.k de `docs/INFORME-FINAL.md` con los dos defectos de la pantalla de asistencia (motivo perdido al enviar, clase registrada mostrada en blanco al reabrir) y la leccion: la cola local es un buzon de salida, no la memoria de la pantalla. No se ejecuto `humo.sh` en esta sesion por no tener la aplicacion levantada; solo se verifico la sintaxis del script.
 
+- [Portal-acudiente-Task2] hecho 2026-08-22 — `Padre.tsx` distingue los tres estados: sin registros ("Todavia no hay registros de este periodo"), con registros y sin novedades ("Asistio a las N clases registradas, sin novedades"), y con novedades (lista como antes). Antes "0 novedades" cubria tanto "todo bien" como "nadie registro nada". `contract.ts` no tenia un tipo `Child` que extender (es local a `Padre.tsx`), asi que los campos `schoolDays`/`recordedDays` se anadieron ahi. 11 tests frontend en verde, build 100.75 KB gzip.
+
 ## Cambios al contrato (requiere acuerdo de los tres)
 _(vacio)_
 ## Bloqueos
