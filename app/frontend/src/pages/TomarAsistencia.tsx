@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { db } from '../db/local';
 import { isSchoolDay } from '../db/local';
+import { api } from '../api/client';
 import type { Block, StudentDto, Status } from '../api/contract';
 import { ESTADOS } from '../api/contract';
 import { flushOutbox, markAttendance, pendingCount, startAutoSync } from '../sync/engine';
@@ -35,6 +36,7 @@ export default function TomarAsistencia() {
   const [alcanzable, setAlcanzable] = useState(true);
   const [pendientes, setPendientes] = useState(0);
   const [error, setError] = useState('');
+  const [avisoCarga, setAvisoCarga] = useState('');
 
   useEffect(() => {
     void db.blocks.toArray().then(setBlocks);
@@ -80,14 +82,47 @@ export default function TomarAsistencia() {
     }
   }, [bloquesDelGrado, blockId]);
 
-  // Al cambiar de curso, bloque o fecha se recupera lo ya marcado localmente para ese contexto.
+  // Al abrir un bloque se pinta lo que realmente hay registrado. La cola local no puede
+  // ser la unica memoria: se vacia al sincronizar, y a partir de ahi la pantalla mostraba
+  // todo en "P" aunque hubiera faltas guardadas. Enviar entonces las sobrescribia.
   useEffect(() => {
-    if (!blockId) { setMarcas({}); setMotivos({}); return; }
-    void db.outbox.where('classDate').equals(fecha).toArray().then((pend) => {
-      const previas: Record<number, Status> = {};
-      for (const r of pend) if (r.scheduleBlockId === blockId) previas[r.studentId] = r.status;
-      setMarcas(previas);
-    });
+    if (!blockId) { setMarcas({}); setMotivos({}); setAvisoCarga(''); return; }
+
+    let vigente = true;
+    (async () => {
+      const nuevasMarcas: Record<number, Status> = {};
+      const nuevosMotivos: Record<number, string> = {};
+
+      // 1. Lo que el servidor tiene guardado.
+      try {
+        const guardados = await api.get<{ studentId: number; status: Status; comment?: string }[]>(
+          `/api/attendance?blockId=${blockId}&date=${fecha}`);
+        for (const g of guardados) {
+          nuevasMarcas[g.studentId] = g.status;
+          if (g.comment) nuevosMotivos[g.studentId] = g.comment;
+        }
+        if (vigente) setAvisoCarga('');
+      } catch {
+        if (vigente) {
+          setAvisoCarga('Sin conexion no se puede comprobar lo ya registrado: '
+                      + 'puede que no vea todo lo que hay guardado.');
+        }
+      }
+
+      // 2. Encima, lo que aun no ha salido del telefono: es mas reciente.
+      const pendientesLocales = await db.outbox.where('classDate').equals(fecha).toArray();
+      for (const r of pendientesLocales) {
+        if (r.scheduleBlockId !== blockId) continue;
+        nuevasMarcas[r.studentId] = r.status;
+        if (r.comment) nuevosMotivos[r.studentId] = r.comment;
+      }
+
+      if (!vigente) return;
+      setMarcas(nuevasMarcas);
+      setMotivos(nuevosMotivos);
+    })();
+
+    return () => { vigente = false; };
   }, [blockId, fecha]);
 
   async function marcar(studentId: number, status: Status) {
@@ -166,6 +201,7 @@ export default function TomarAsistencia() {
       </div>
 
       {error && <p role="alert" className="error">{error}</p>}
+      {avisoCarga && <p className="banner no-lectivo" role="status">{avisoCarga}</p>}
 
       {!lectivo
         ? <p className="meta">Elija un dia lectivo para tomar asistencia.</p>

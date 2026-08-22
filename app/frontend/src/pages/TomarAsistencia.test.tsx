@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../db/local';
 import { MemoryRouter } from 'react-router-dom';
 import TomarAsistencia from './TomarAsistencia';
@@ -265,5 +265,53 @@ describe('TomarAsistencia', () => {
       // Un motivo de tardanza en alguien que llego a tiempo confunde al acudiente.
       expect(ana?.comment).toBeFalsy();
     });
+  });
+
+  it('al abrir un bloque ya registrado muestra lo que hay guardado', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (String(url).includes('/api/attendance?')) {
+        return new Response(JSON.stringify([
+          { id: 'a1', studentId: 10, status: 'F', comment: 'Cita medica' },
+          { id: 'a2', studentId: 11, status: 'T', comment: null },
+        ]), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }));
+
+    await elegirCursoYBloque();
+
+    await waitFor(() => {
+      const ana = screen.getByRole('group', { name: /ANA LOPEZ/i });
+      expect(within(ana).getByRole('button', { name: 'F' })).toHaveAttribute('aria-pressed', 'true');
+    });
+    expect(screen.getByDisplayValue('Cita medica')).toBeInTheDocument();
+  });
+
+  it('lo que hay sin enviar en el telefono gana sobre lo guardado', async () => {
+    // El servidor tiene F; el docente lo corrigio a P y aun no ha salido.
+    const FECHA_B = '2026-08-17';
+    await db.outbox.put({
+      key: '10:1:' + FECHA_B, id: 'local-1', studentId: 10, scheduleBlockId: 1,
+      classDate: FECHA_B, status: 'P', recordedAt: new Date().toISOString(),
+    });
+    vi.stubGlobal('fetch', vi.fn(async (url: string) =>
+      String(url).includes('/api/attendance?')
+        ? new Response(JSON.stringify([{ id: 'a1', studentId: 10, status: 'F', comment: null }]),
+            { status: 200, headers: { 'Content-Type': 'application/json' } })
+        : new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } })));
+
+    await elegirCursoYBloque();
+
+    await waitFor(() => {
+      const ana = screen.getByRole('group', { name: /ANA LOPEZ/i });
+      expect(within(ana).getByRole('button', { name: 'P' })).toHaveAttribute('aria-pressed', 'true');
+    });
+  });
+
+  it('sin conexion avisa de que puede no estar viendo todo', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('network'); }));
+    await elegirCursoYBloque();
+    await waitFor(() =>
+      expect(screen.getByText(/sin conexion no se puede comprobar/i)).toBeInTheDocument());
   });
 });
