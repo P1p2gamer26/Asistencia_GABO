@@ -644,6 +644,46 @@ el que se salta parece cobertura.
 
 ---
 
+## 6.k La pantalla debe reflejar lo que está guardado
+
+Se recorrió el escenario exacto de un docente con el curso real de 40 estudiantes:
+marcar una llegada tarde, escribir el motivo y enviar. Aparecieron dos defectos, misma
+causa.
+
+**El motivo se perdía.** Tras escribir "El bus se demoro" y pulsar Enviar, en la base
+quedaba `comment: NULL`. La sincronización automática enviaba el registro con su motivo
+y vaciaba la cola; al pulsar Enviar, la pantalla reconstruía los 40 registros sin nada
+de donde conservar el motivo, y el `upsert` del servidor sobrescribía el motivo bueno
+con vacío. Anulaba un requisito explícito del feedback de los docentes: *"permitir
+agregar comentarios de porque llego tarde o falto"*.
+
+**Reabrir una clase ya registrada la mostraba en blanco.** La pantalla nunca llamaba a
+`GET /api/attendance?blockId=&date=`, que existe justo para eso. Solo leía la cola
+local, y la cola se vacía al sincronizar. Un docente que revisaba una clase de ayer veía
+a los 40 estudiantes en "P", sin rastro de las faltas que puso, y si pulsaba Enviar
+—razonable, porque la pantalla parecía vacía— sobrescribía las faltas reales con
+presentes.
+
+Los dos eran la misma causa: la cola local no puede ser la única memoria de la
+pantalla. Es un buzón de salida, no un registro.
+
+**Corregido por las dos caras**: los motivos pasaron a vivir en el estado del componente
+y viajan con el envío, no con la cola; y al abrir un bloque la pantalla consulta primero
+lo que el servidor tiene guardado, y encima aplica lo que quede sin enviar en la cola
+local, que es más reciente. Sin conexión no se puede consultar el servidor: se usa solo
+la cola y se avisa explícitamente de que la pantalla puede no mostrar todo lo guardado.
+
+El invariante quedó comprobado en `tools/humo.sh`: un lote con una tardanza y su motivo
+debe devolver ese mismo motivo al consultar `GET /api/attendance`.
+
+### La lección
+
+Un buzón de salida sirve para saber qué falta por enviar, no para saber qué hay. Cada
+vez que la pantalla usó la cola como memoria —las marcas al reabrir, el motivo al
+enviar— acabó mintiendo en cuanto la cola se vació.
+
+---
+
 ## 7. Lo que sigue faltando
 
 Requieren su propio plan:

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { db } from '../db/local';
 import { isSchoolDay } from '../db/local';
+import { api } from '../api/client';
 import type { Block, StudentDto, Status } from '../api/contract';
 import { ESTADOS } from '../api/contract';
 import { flushOutbox, markAttendance, pendingCount, startAutoSync } from '../sync/engine';
@@ -30,10 +31,12 @@ export default function TomarAsistencia() {
   const [fecha, setFecha] = useState(hoyISO());
   const [lectivo, setLectivo] = useState(true);
   const [marcas, setMarcas] = useState<Record<number, Status>>({});
+  const [motivos, setMotivos] = useState<Record<number, string>>({});
   const [online, setOnline] = useState(navigator.onLine);
   const [alcanzable, setAlcanzable] = useState(true);
   const [pendientes, setPendientes] = useState(0);
   const [error, setError] = useState('');
+  const [avisoCarga, setAvisoCarga] = useState('');
 
   useEffect(() => {
     void db.blocks.toArray().then(setBlocks);
@@ -79,14 +82,47 @@ export default function TomarAsistencia() {
     }
   }, [bloquesDelGrado, blockId]);
 
-  // Al cambiar de curso, bloque o fecha se recupera lo ya marcado localmente para ese contexto.
+  // Al abrir un bloque se pinta lo que realmente hay registrado. La cola local no puede
+  // ser la unica memoria: se vacia al sincronizar, y a partir de ahi la pantalla mostraba
+  // todo en "P" aunque hubiera faltas guardadas. Enviar entonces las sobrescribia.
   useEffect(() => {
-    if (!blockId) { setMarcas({}); return; }
-    void db.outbox.where('classDate').equals(fecha).toArray().then((pend) => {
-      const previas: Record<number, Status> = {};
-      for (const r of pend) if (r.scheduleBlockId === blockId) previas[r.studentId] = r.status;
-      setMarcas(previas);
-    });
+    if (!blockId) { setMarcas({}); setMotivos({}); setAvisoCarga(''); return; }
+
+    let vigente = true;
+    (async () => {
+      const nuevasMarcas: Record<number, Status> = {};
+      const nuevosMotivos: Record<number, string> = {};
+
+      // 1. Lo que el servidor tiene guardado.
+      try {
+        const guardados = await api.get<{ studentId: number; status: Status; comment?: string }[]>(
+          `/api/attendance?blockId=${blockId}&date=${fecha}`);
+        for (const g of guardados) {
+          nuevasMarcas[g.studentId] = g.status;
+          if (g.comment) nuevosMotivos[g.studentId] = g.comment;
+        }
+        if (vigente) setAvisoCarga('');
+      } catch {
+        if (vigente) {
+          setAvisoCarga('Sin conexion no se puede comprobar lo ya registrado: '
+                      + 'puede que no vea todo lo que hay guardado.');
+        }
+      }
+
+      // 2. Encima, lo que aun no ha salido del telefono: es mas reciente.
+      const pendientesLocales = await db.outbox.where('classDate').equals(fecha).toArray();
+      for (const r of pendientesLocales) {
+        if (r.scheduleBlockId !== blockId) continue;
+        nuevasMarcas[r.studentId] = r.status;
+        if (r.comment) nuevosMotivos[r.studentId] = r.comment;
+      }
+
+      if (!vigente) return;
+      setMarcas(nuevasMarcas);
+      setMotivos(nuevosMotivos);
+    })();
+
+    return () => { vigente = false; };
   }, [blockId, fecha]);
 
   async function marcar(studentId: number, status: Status) {
@@ -94,19 +130,13 @@ export default function TomarAsistencia() {
     try {
       await markAttendance({ studentId, scheduleBlockId: blockId, classDate: fecha, status });
       setMarcas((prev) => ({ ...prev, [studentId]: status }));
-      setPendientes(await pendingCount());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo registrar');
-    }
-  }
-
-  async function comentar(studentId: number, comment: string) {
-    if (!blockId) return;
-    try {
-      await markAttendance({
-        studentId, scheduleBlockId: blockId, classDate: fecha,
-        status: marcas[studentId] ?? 'P', comment,
-      });
+      if (status === 'P') {
+        // Un motivo de tardanza en alguien que llego a tiempo confunde al acudiente.
+        setMotivos((prev) => {
+          const { [studentId]: _, ...resto } = prev;
+          return resto;
+        });
+      }
       setPendientes(await pendingCount());
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo registrar');
@@ -131,6 +161,7 @@ export default function TomarAsistencia() {
           scheduleBlockId: blockId,
           classDate: fecha,
           status: marcas[s.id] ?? 'P',
+          comment: motivos[s.id] ?? '',
         });
       }
       const { pending, alcanzable: hay } = await flushOutbox();
@@ -170,6 +201,7 @@ export default function TomarAsistencia() {
       </div>
 
       {error && <p role="alert" className="error">{error}</p>}
+      {avisoCarga && <p className="banner no-lectivo" role="status">{avisoCarga}</p>}
 
       {!lectivo
         ? <p className="meta">Elija un dia lectivo para tomar asistencia.</p>
@@ -196,8 +228,11 @@ export default function TomarAsistencia() {
                   </div>
                   {(marcas[s.id] === 'T' || marcas[s.id] === 'F') && (
                     <input className="comentario" type="text" maxLength={280}
+                           aria-label={`Motivo para ${s.fullName}`}
                            placeholder="Motivo (opcional)"
-                           onBlur={(ev) => void comentar(s.id, ev.target.value)} />
+                           value={motivos[s.id] ?? ''}
+                           onChange={(ev) =>
+                             setMotivos((prev) => ({ ...prev, [s.id]: ev.target.value }))} />
                   )}
                 </li>
               ))}

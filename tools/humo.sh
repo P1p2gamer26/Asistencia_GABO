@@ -159,6 +159,21 @@ GUARDADOS=$(curl -s "$BASE/api/attendance?blockId=1&date=$FECHA_LIBRE" -H "$AUTH
   | grep -o '"studentId"' | wc -l | tr -d ' ')
 comprobar "el curso se guarda completo" "2" "$GUARDADOS"
 
+# --- El motivo de una tardanza sobrevive ---------------------------------------
+FECHA_M="2026-03-17"
+LOTE_M=$(mktemp)
+python -c "
+import json, uuid
+print(json.dumps({'records': [{'id': str(uuid.uuid4()), 'studentId': 1, 'scheduleBlockId': 1,
+  'classDate': '$FECHA_M', 'status': 'T', 'comment': 'El bus se demoro',
+  'recordedAt': '${FECHA_M}T12:00:00Z'}]}))" > "$LOTE_M"
+curl -s -o /dev/null -X POST "$BASE/api/attendance/sync" -H "$AUTH" \
+  -H 'Content-Type: application/json' --data-binary "@$LOTE_M"
+rm -f "$LOTE_M"
+
+MOTIVO=$(curl -s "$BASE/api/attendance?blockId=1&date=$FECHA_M" -H "$AUTH")
+contiene "el motivo de la tardanza se guarda" 'El bus se demoro' "$MOTIVO"
+
 # --- Resultado ----------------------------------------------------------------
 echo
 if [ "$FALLOS" -eq 0 ]; then
