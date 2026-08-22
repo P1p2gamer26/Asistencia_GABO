@@ -1,47 +1,72 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Consultas from './Consultas';
 
-vi.mock('../api/client', () => ({
-  api: { get: vi.fn(async () => []) },
-  apiUrl: (p: string) => p,
-  getSession: () => ({ token: 't' }),
-}));
+const FILAS = [
+  { studentId: 1, documentId: '111', fullName: 'ANA LOPEZ', grade: '601',
+    present: 18, late: 1, absent: 2, evasion: 0, schoolDays: 21 },
+  { studentId: 2, documentId: '222', fullName: 'BETO RUIZ', grade: '601',
+    present: 15, late: 3, absent: 2, evasion: 1, schoolDays: 21 },
+];
 
-beforeEach(() => {
-  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, blob: async () => new Blob(['x']) })));
-  URL.createObjectURL = vi.fn(() => 'blob:x');
-  URL.revokeObjectURL = vi.fn();
-});
-
-async function llenarFechas(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByLabelText('Desde'), '2026-08-18');
-  await user.type(screen.getByLabelText('Hasta'), '2026-08-20');
+function respuesta(datos: unknown) {
+  return new Response(JSON.stringify(datos),
+    { status: 200, headers: { 'Content-Type': 'application/json' } });
 }
 
 describe('Consultas', () => {
-  it('ofrece los tres informes', () => {
-    render(<Consultas />);
-    const tipo = screen.getByLabelText('Informe') as HTMLSelectElement;
-    expect([...tipo.options].map((o) => o.value))
-      .toEqual(['resumen', 'matriz', 'inasistencias']);
+  beforeEach(() => {
+    localStorage.setItem('ggm.session', JSON.stringify({
+      token: 't', refreshToken: 'r', role: 'COORDINADOR',
+      fullName: 'Coordinacion', userId: 2, mustChangePassword: false,
+    }));
   });
 
-  it('descarga el tipo elegido', async () => {
-    const user = userEvent.setup();
+  it('no consulta hasta que se elige un curso', async () => {
+    const f = vi.fn(async () => respuesta(FILAS));
+    vi.stubGlobal('fetch', f);
     render(<Consultas />);
-    await llenarFechas(user);
-    await user.selectOptions(screen.getByLabelText('Informe'), 'inasistencias');
-    await user.click(screen.getByRole('button', { name: /descargar/i }));
-    expect(vi.mocked(fetch).mock.calls[0][0]).toContain('tipo=inasistencias');
+    // El montaje carga la lista de cursos (una llamada); eso no cuenta como consulta.
+    const llamadasAlMontar = f.mock.calls.length;
+
+    await userEvent.type(screen.getByLabelText(/desde/i), '2026-02-01');
+    await userEvent.type(screen.getByLabelText(/hasta/i), '2026-06-30');
+
+    // Con fechas pero sin curso, el boton de consultar sigue deshabilitado.
+    expect(screen.getByRole('button', { name: /^consultar/i })).toBeDisabled();
+    expect(f.mock.calls.length).toBe(llamadasAlMontar);
   });
 
-  it('por defecto descarga el resumen', async () => {
-    const user = userEvent.setup();
+  it('explica por que hay que elegir un curso', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => respuesta(FILAS)));
     render(<Consultas />);
-    await llenarFechas(user);
-    await user.click(screen.getByRole('button', { name: /descargar/i }));
-    expect(vi.mocked(fetch).mock.calls[0][0]).toContain('tipo=resumen');
+    expect(screen.getByText(/elija un curso/i)).toBeInTheDocument();
+  });
+
+  it('con curso y fechas si consulta y pinta las filas', async () => {
+    const f = vi.fn(async () => respuesta(FILAS));
+    vi.stubGlobal('fetch', f);
+    render(<Consultas />);
+
+    await waitFor(() => expect(screen.getByRole('option', { name: '601' })).toBeInTheDocument());
+    await userEvent.selectOptions(screen.getByLabelText(/curso/i), '601');
+    await userEvent.type(screen.getByLabelText(/desde/i), '2026-02-01');
+    await userEvent.type(screen.getByLabelText(/hasta/i), '2026-06-30');
+    await userEvent.click(screen.getByRole('button', { name: /^consultar/i }));
+
+    await waitFor(() => expect(screen.getByText('ANA LOPEZ')).toBeInTheDocument());
+    const ultimaLlamada = f.mock.calls[f.mock.calls.length - 1][0];
+    expect(String(ultimaLlamada)).toContain('grade=601');
+  });
+
+  it('la descarga en Excel si permite todos los cursos', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => respuesta(FILAS)));
+    render(<Consultas />);
+    await userEvent.type(screen.getByLabelText(/desde/i), '2026-02-01');
+    await userEvent.type(screen.getByLabelText(/hasta/i), '2026-06-30');
+    // Sin curso elegido, el Excel sigue disponible: 64 KB y es la herramienta
+    // correcta para analizar el colegio entero.
+    expect(screen.getByRole('button', { name: /excel/i })).not.toBeDisabled();
   });
 });
