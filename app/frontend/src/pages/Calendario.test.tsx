@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -108,10 +110,22 @@ describe('Calendario', () => {
       .toHaveAccessibleName(/agosto de 2026/i));
   });
 
-  it('en una pantalla estrecha el dia festivo sigue diciendo por escrito que lo es', async () => {
-    // El aria-label no sirve aqui: el docente daltonico esta mirando la pantalla,
-    // no usando lector, y 360px es justo el ancho en el que trabaja.
+  it('la etiqueta corta de un dia no lectivo se renderiza en el DOM', async () => {
+    // jsdom no aplica media queries: esto solo confirma que "Fest." existe en el
+    // arbol, no que se vea a 360px en vez del texto largo. Esa parte la comprueba
+    // el test siguiente, leyendo el CSS.
     render(<Calendario hoy={HOY} />);
     await waitFor(() => expect(screen.getAllByText('Fest.').length).toBeGreaterThan(0));
+  });
+
+  it('en pantalla estrecha la etiqueta larga se oculta y la corta se ve', () => {
+    // jsdom no aplica media queries, asi que la regla se comprueba sobre el CSS.
+    // Sin esto, invertir o borrar la media query no rompe ningun test y el tipo
+    // de dia se queda distinguido solo por color justo en el ancho en que se
+    // trabaja (360px), que es exactamente lo que dice evitar el brief.
+    const css = readFileSync(join(__dirname, '../styles.css'), 'utf8');
+    const estrecha = css.slice(css.indexOf('@media (max-width: 560px)'));
+    expect(estrecha).toMatch(/\.calendario-dia \.tipo\s*\{[^}]*display:\s*none/);
+    expect(estrecha).toMatch(/\.calendario-dia \.tipo-corto\s*\{[^}]*display:\s*block/);
   });
 });
