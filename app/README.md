@@ -122,6 +122,32 @@ curl -X POST http://localhost:8080/api/admin/import/schedule  -H "Authorization:
 curl -X POST http://localhost:8080/api/admin/import/guardians -H "Authorization: Bearer $TOKEN" -F "file=@acudientes.csv"
 ```
 
+## Probar el modo sin conexión
+
+**No se puede con `npm run dev`.** El service worker solo se genera en la compilación
+de producción, así que en desarrollo, al cortar la red, el navegador muestra su página
+de error. Eso no es un fallo de la aplicación.
+
+Para probarlo de verdad hay que montar el escenario real, que es el frontend compilado
+servido por Spring Boot:
+
+```bash
+cd app/frontend && npm run build
+mkdir -p ../backend/src/main/resources/static
+cp -r dist/* ../backend/src/main/resources/static/
+
+cd ../backend && DB_URL=jdbc:postgresql://localhost:5432/asistencia \
+  DB_USER=postgres DB_PASSWORD=postgres mvn spring-boot:run
+```
+
+Después, en `http://localhost:8080`: entrar, pulsar "Actualizar datos", cortar la red
+(en el navegador o con `agent-browser set offline on`), recargar y comprobar que la
+aplicación abre y deja marcar asistencia. Al restaurar la red, la cola debe vaciarse
+sola.
+
+**Borrar `app/backend/src/main/resources/static/` al terminar**: es salida de
+compilación y no pertenece al repositorio.
+
 ## Documentación
 
 - **Despliegue en producción: `../docs/DESPLIEGUE.md`**

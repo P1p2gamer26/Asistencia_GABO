@@ -269,9 +269,11 @@ gunzip -c asistencia-2026-08-21.sql.gz | docker exec -i asistencia-db-1 psql -U 
 
 1. `https://asistencia.ggm.edu.co/actuator/health` responde `{"status":"UP"}`.
 2. Entrar como docente y ver que aparecen sus cursos.
-3. **Desde un teléfono**: instalar la aplicación, poner el aparato en modo avión, tomar
-   la asistencia de un curso completo, quitar el modo avión y comprobar que los
-   registros llegan.
+3. **Desde un teléfono**: instalar la aplicación, pulsar "Actualizar datos", poner el
+   aparato en **modo avión**, tomar la asistencia de un curso completo, quitar el modo
+   avión y comprobar que los registros llegan. Probar también el caso más común del
+   colegio: **conectado al WiFi pero sin internet** (desenchufar el router un momento).
+   El banner debe decir "Sin conexion" en los dos casos.
 4. Escanear un carnet real y verificar que el número leído coincide con
    `students.document_id`. Si no coincide, el problema son los datos, no el código, y
    es mucho mejor descubrirlo ahora que el primer día de clases.
