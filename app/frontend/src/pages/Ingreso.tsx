@@ -40,43 +40,74 @@ export default function Ingreso() {
       return;
     }
     setError('');
-    const estudiante = await db.students.where('documentId').equals(carnet.documentId).first();
-    if (!estudiante) {
-      setUltimo(`Carnet ${carnet.documentId} no reconocido`);
-    } else {
-      setUltimo(estudiante.fullName);
-      // El carnet puede estar desactualizado (traslado de curso, reimpresion vieja).
-      // Se registra igual -manda la base- pero la docente tiene que verlo.
-      if (carnet.curso && !carnet.curso.includes(estudiante.grade)) {
-        setError(`Revisar: el carnet dice "${carnet.curso}" y la base dice "${estudiante.grade}".`);
-      }
+    const documentId = carnet.documentId;
+    // El carnet puede estar desactualizado (traslado de curso, reimpresion vieja).
+    // Se registra igual -manda la base- pero la docente tiene que verlo.
+    const local = await db.students.where('documentId').equals(documentId).first();
+    if (local && carnet.curso && !carnet.curso.includes(local.grade)) {
+      setError(`Revisar: el carnet dice "${carnet.curso}" y la base dice "${local.grade}".`);
     }
-    await db.entryOutbox.put({
-      id: crypto.randomUUID(),
-      documentId: carnet.documentId,
-      scannedAt: new Date().toISOString(),
-    });
-    await enviar();
+
+    const id = crypto.randomUUID();
+    await db.entryOutbox.put({ id, documentId, scannedAt: new Date().toISOString() });
+
+    const { nombres, rechazos, alcanzable } = await enviar();
+
+    if (rechazos[id]) {
+      setUltimo('');
+      setError(`Carnet ${documentId} no registrado. Revise el carnet del estudiante.`);
+      return;
+    }
+    if (nombres[id]) {
+      setUltimo(nombres[id]);          // el servidor confirmo y dio el nombre
+      return;
+    }
+    if (!alcanzable) {
+      // Sin conexion: el ingreso queda guardado. Decir "no reconocido" haria que lo
+      // escanearan tres veces pensando que fallo.
+      setUltimo(local
+        ? local.fullName
+        : `Carnet ${documentId} registrado, se verificara al sincronizar`);
+      return;
+    }
+    setUltimo(`Carnet ${documentId} registrado`);
   }
 
-  async function enviar() {
+  /**
+   * Envia la cola y devuelve lo que el servidor dijo de cada ingreso.
+   * El servidor resuelve el nombre aunque el dispositivo no tenga a ese estudiante en
+   * su copia local, que es el caso normal en la porteria: quien esta ahi no dicta
+   * cursos, asi que su copia local esta vacia.
+   */
+  async function enviar(): Promise<{
+    nombres: Record<string, string>;
+    rechazos: Record<string, string>;
+    alcanzable: boolean;
+  }> {
     const cola = await db.entryOutbox.toArray();
     setPendientes(cola.length);
-    if (cola.length === 0) return;
+    if (cola.length === 0) return { nombres: {}, rechazos: {}, alcanzable: true };
+
     try {
-      const res = await api.post<{ accepted: number; rejected: { id: string; reason: string }[] }>(
-        '/api/entry/sync',
-        { entries: cola.map(({ name, error, ...e }) => e) },
-      );
-      const malos = new Map(res.rejected.map((r) => [r.id, r.reason]));
+      const res = await api.post<{
+        accepted: number;
+        rejected: { id: string; reason: string }[];
+        names: Record<string, string>;
+      }>('/api/entry/sync', { entries: cola.map(({ name, error, ...e }) => e) });
+
+      const rechazos: Record<string, string> = {};
+      for (const r of res.rejected) rechazos[r.id] = r.reason;
+
       for (const e of cola) {
-        if (malos.has(e.id)) await db.entryOutbox.update(e.id, { error: malos.get(e.id) });
+        if (rechazos[e.id]) await db.entryOutbox.update(e.id, { error: rechazos[e.id] });
         else await db.entryOutbox.delete(e.id);
       }
+      setPendientes(await db.entryOutbox.count());
+      return { nombres: res.names ?? {}, rechazos, alcanzable: true };
     } catch (e) {
-      if (!(e instanceof OfflineError)) throw e;   // sin senal: la cola se queda para despues
+      if (!(e instanceof OfflineError)) throw e;
+      return { nombres: {}, rechazos: {}, alcanzable: false };
     }
-    setPendientes(await db.entryOutbox.count());
   }
 
   return (

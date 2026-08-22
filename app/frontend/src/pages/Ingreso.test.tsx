@@ -1,55 +1,99 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
 import 'fake-indexeddb/auto';
+import { render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../db/local';
-import Ingreso from './Ingreso';
 
-// La camara no existe en jsdom: se simula el modulo de escaneo entero.
-const siguienteCodigo = vi.hoisted(() => ({ valor: '' }));
+// La camara no existe en jsdom: se sustituye el modulo entero.
+const escaneos: string[] = [];
 vi.mock('../scan/scanner', () => ({
-  abrirCamara: vi.fn(async () => ({ getTracks: () => [] }) as unknown as MediaStream),
+  abrirCamara: vi.fn(async () => ({ getTracks: () => [] })),
   scanOnce: vi.fn(async () => {
-    if (!siguienteCodigo.valor) await new Promise(() => {});   // se queda esperando
-    const v = siguienteCodigo.valor;
-    siguienteCodigo.valor = '';
+    const v = escaneos.shift();
+    if (v === undefined) await new Promise(() => {});   // no vuelve a escanear
     return v;
   }),
 }));
-vi.mock('../api/client', () => ({
-  api: { post: vi.fn(async () => ({ accepted: 1, rejected: [] })) },
-  OfflineError: class extends Error {},
-}));
 
-beforeEach(async () => {
-  await db.students.clear();
-  await db.entryOutbox.clear();
-  await db.students.put({ id: 1, documentId: '1013696566', fullName: 'Alvaro Orozco Lara', grade: '103' });
-});
+import Ingreso from './Ingreso';
+
+function respuesta(datos: unknown) {
+  return new Response(JSON.stringify(datos),
+    { status: 200, headers: { 'Content-Type': 'application/json' } });
+}
 
 describe('Ingreso', () => {
-  it('encola el documento extraido del carnet, no el texto completo', async () => {
-    siguienteCodigo.valor = 'Alvaro Mathias Orozco Lara 1013696566 Primero - 103';
-    render(<Ingreso />);
-    await waitFor(async () =>
-      expect((await db.entryOutbox.toArray())[0]?.documentId).toBe('1013696566'));
+  beforeEach(async () => {
+    escaneos.length = 0;
+    await db.entryOutbox.clear();
+    await db.students.clear();
+    localStorage.setItem('ggm.session', JSON.stringify({
+      token: 't', refreshToken: 'r', role: 'COORDINADOR',
+      fullName: 'Coordinacion', userId: 2, mustChangePassword: false,
+    }));
   });
 
-  it('muestra el nombre que tiene la base de datos', async () => {
-    siguienteCodigo.valor = 'Alvaro Mathias Orozco Lara 1013696566 Primero - 103';
+  it('muestra el nombre que devuelve el servidor, aunque no este en la copia local', async () => {
+    // El caso de la porteria: coordinacion no dicta cursos, asi que su copia local
+    // esta vacia y antes decia "no reconocido" a todos los estudiantes del colegio.
+    escaneos.push('1000000500');
+    // El servidor responde con el nombre asociado al id real que se le envio
+    // (crypto.randomUUID no es predecible, asi que el mock lo lee del cuerpo).
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, init: RequestInit) => {
+      const { entries } = JSON.parse(init.body as string);
+      return respuesta({
+        accepted: 1, rejected: [],
+        names: { [entries[0].id]: 'NOMBRE500 APELLIDO500' },
+      });
+    }));
+
     render(<Ingreso />);
-    expect(await screen.findByText(/Alvaro Orozco Lara/)).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent(/NOMBRE500 APELLIDO500/));
   });
 
-  it('avisa si el curso del carnet no coincide con el de la base', async () => {
-    siguienteCodigo.valor = 'Alvaro Mathias Orozco Lara 1013696566 Segundo - 204';
+  it('un carnet que el servidor rechaza se avisa como no registrado', async () => {
+    escaneos.push('0000000000');
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, init: RequestInit) => {
+      const { entries } = JSON.parse(init.body as string);
+      return respuesta({
+        accepted: 0,
+        rejected: [{ id: entries[0].id, reason: 'Carnet no registrado' }],
+        names: {},
+      });
+    }));
+
     render(<Ingreso />);
-    expect(await screen.findByRole('alert')).toHaveTextContent(/carnet dice.*204.*base.*103/i);
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent(/no registrado/i));
   });
 
-  it('avisa cuando el QR no trae ningun documento', async () => {
-    siguienteCodigo.valor = 'carnet borroso';
+  it('sin conexion dice que quedo guardado, no que no se reconoce', async () => {
+    escaneos.push('1000000500');
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('network'); }));
+
     render(<Ingreso />);
-    expect(await screen.findByRole('alert')).toHaveTextContent(/no se pudo leer/i);
-    expect(await db.entryOutbox.count()).toBe(0);
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent(/se verificara al sincronizar/i));
+    // Y el ingreso queda en la cola: decir lo contrario haria que lo escanearan tres veces.
+    await waitFor(async () => expect(await db.entryOutbox.count()).toBe(1));
+  });
+
+  it('sin conexion, si el estudiante esta en la copia local, muestra su nombre', async () => {
+    await db.students.put({ id: 7, documentId: '1010101010',
+                            fullName: 'LINDA AREVALO', grade: '601' });
+    escaneos.push('1010101010');
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('network'); }));
+
+    render(<Ingreso />);
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent(/LINDA AREVALO/));
+  });
+
+  it('cuenta los ingresos que quedan sin enviar', async () => {
+    escaneos.push('1000000500');
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('network'); }));
+
+    render(<Ingreso />);
+    await waitFor(() => expect(screen.getByText(/1 ingreso/i)).toBeInTheDocument());
   });
 });
