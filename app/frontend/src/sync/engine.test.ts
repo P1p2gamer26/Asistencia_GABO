@@ -77,4 +77,19 @@ describe('motor de sincronizacion', () => {
     await downloadBootstrap();
     expect((await db.schoolDays.get('2026-08-10'))?.dayType).toBe('LECTIVO');
   });
+
+  it('cambiar el estado no borra el comentario que el docente ya escribio', async () => {
+    await markAttendance({ ...base, status: 'T', comment: 'El bus se demoro' });
+    await markAttendance({ ...base, status: 'F' });   // el docente corrige el estado
+    const [r] = await db.outbox.toArray();
+    expect(r.status).toBe('F');
+    expect(r.comment).toBe('El bus se demoro');
+  });
+
+  it('un comentario vacio explicito si lo borra', async () => {
+    await markAttendance({ ...base, status: 'T', comment: 'El bus se demoro' });
+    await markAttendance({ ...base, status: 'T', comment: '' });
+    const [r] = await db.outbox.toArray();
+    expect(r.comment).toBeFalsy();
+  });
 });

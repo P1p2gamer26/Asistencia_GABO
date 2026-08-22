@@ -22,10 +22,18 @@ export async function markAttendance(mark: Mark): Promise<void> {
   }
   const key = keyOf(mark);
   const previo = await db.outbox.get(key);
+
+  // `put` reemplaza el registro entero, asi que lo que no venga en `mark` se perderia.
+  // El comentario se conserva salvo que se pase uno nuevo: el docente escribe el motivo
+  // y despues corrige el estado, o pulsa Enviar, y en ambos casos se le borraba. Un
+  // comentario vacio explicito si lo borra, que es lo que significa vaciar el campo.
+  const comment = mark.comment === undefined ? previo?.comment : (mark.comment || undefined);
+
   await db.outbox.put({
     key,
     id: previo?.id ?? crypto.randomUUID(),
     ...mark,
+    comment,
     recordedAt: new Date().toISOString(),
     error: undefined,
   });
