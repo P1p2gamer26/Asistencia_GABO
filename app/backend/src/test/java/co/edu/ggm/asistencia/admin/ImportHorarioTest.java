@@ -86,6 +86,39 @@ class ImportHorarioTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void el_csv_de_horario_acepta_el_aula() throws Exception {
+        String contenido = """
+                grade,weekday,block_no,start_time,end_time,subject,teacher_email,room
+                704,3,2,07:20,08:10,Sociales,aula.import@ggm.edu.co,Laboratorio 2
+                """;
+        mvc.perform(multipart("/api/admin/import/schedule").file(csv(contenido))
+                        .header("Authorization", admin()))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.imported").value(1));
+
+        assertThat(jdbcBase.queryForObject(
+                "SELECT room FROM schedule_blocks WHERE grade='704' AND block_no=2",
+                String.class)).isEqualTo("Laboratorio 2");
+    }
+
+    @Test
+    void un_csv_de_horario_sin_columna_de_aula_sigue_funcionando() throws Exception {
+        // Los archivos que el colegio ya haya preparado no deben dejar de servir.
+        String contenido = """
+                grade,weekday,block_no,start_time,end_time,subject,teacher_email
+                705,3,2,07:20,08:10,Sociales,aula.import@ggm.edu.co
+                """;
+        mvc.perform(multipart("/api/admin/import/schedule").file(csv(contenido))
+                        .header("Authorization", admin()))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.imported").value(1));
+
+        assertThat(jdbcBase.queryForObject(
+                "SELECT room FROM schedule_blocks WHERE grade='705' AND block_no=2",
+                String.class)).isNull();
+    }
+
+    @Test
     void importa_acudientes_y_los_vincula_con_su_hijo() throws Exception {
         String contenido = """
                 document_id,guardian_name,guardian_email,relationship

@@ -74,15 +74,19 @@ public class ImportService {
             }
             Long materiaId = idDeMateria(c[5].trim());
             Long docenteId = idDeDocente(c[6].trim().toLowerCase());
+            // El aula es opcional: los archivos que el colegio ya tenga preparados
+            // vienen con siete columnas y deben seguir sirviendo.
+            String aula = c.length > 7 && !c[7].isBlank() ? c[7].trim() : null;
 
             jdbc.update("""
                     INSERT INTO schedule_blocks
-                      (grade, weekday, block_no, start_time, end_time, subject_id, teacher_id)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                      (grade, weekday, block_no, start_time, end_time, subject_id, teacher_id, room)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT (grade, weekday, block_no) DO UPDATE
                       SET start_time = EXCLUDED.start_time, end_time = EXCLUDED.end_time,
-                          subject_id = EXCLUDED.subject_id, teacher_id = EXCLUDED.teacher_id
-                    """, grade, weekday, blockNo, inicio, fin, materiaId, docenteId);
+                          subject_id = EXCLUDED.subject_id, teacher_id = EXCLUDED.teacher_id,
+                          room = EXCLUDED.room
+                    """, grade, weekday, blockNo, inicio, fin, materiaId, docenteId, aula);
         });
     }
 

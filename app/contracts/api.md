@@ -20,7 +20,7 @@ PUT  /calendar/school-days/{date}   (ADMIN, COORDINADOR)
 
 ## Sincronizacion  (Track A)
 GET  /sync/bootstrap
-     -> {blocks:[{id, grade, weekday, blockNo, subject, startTime}],
+     -> {blocks:[{id, grade, weekday, blockNo, subject, startTime, room?}],
          students:[{id, documentId, fullName, grade}],
          schoolDays:[{calendarDate, dayType}]}
 GET  /schedule/mine -> blocks del bootstrap

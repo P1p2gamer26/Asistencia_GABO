@@ -29,4 +29,6 @@ public class ScheduleBlock {
 
     @Column(name = "teacher_id")
     private Long teacherId;
+
+    private String room;
 }
