@@ -27,7 +27,7 @@ export default function Login() {
   return (
     <form className="card login" onSubmit={submit}>
       <header className="marca">
-        <Escudo size={96} />
+        <Escudo size={128} />
         <div>
           <span className="eyebrow">Planilla de asistencia</span>
           <h1>Asistencia GGM</h1>

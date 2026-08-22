@@ -25,3 +25,9 @@ done
 
 echo
 echo "Listo. Reinicia el backend para que lo recoja."
+echo
+echo "OJO: la aplicacion instala un service worker que cachea el paquete anterior,"
+echo "asi que el navegador puede seguir mostrando la version vieja aunque el fichero"
+echo "en disco ya sea el nuevo. Esto nos ha enganado dos veces. Para verlo de verdad:"
+echo "  - recarga forzada con Ctrl+Shift+R, o"
+echo "  - DevTools > Application > Service Workers > Unregister, y recarga."
