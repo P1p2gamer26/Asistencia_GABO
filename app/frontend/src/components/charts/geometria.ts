@@ -59,6 +59,20 @@ export function puntosLinea(
  * pegado al borde, que parece un fallo aunque el dato sea correcto.
  * El resultado nunca se sale de 0 a 100 porque es un porcentaje.
  */
+/**
+ * Ancho de la zona sensible de cada punto de la linea.
+ *
+ * Con 86 dias lectivos los puntos quedan a ~11 px: una zona fija de 20 px se solapa
+ * con la vecina y tocar un dia devuelve otro. Con pocos dias pasa lo contrario, asi
+ * que se acota por los dos lados: minimo 8 px para que el dedo acierte, maximo 44 px
+ * para que con tres puntos la zona no ocupe un tercio del grafico.
+ */
+export function anchoZonaSensible(puntos: number, ancho: number): number {
+  if (puntos <= 1) return 44;
+  const separacion = ancho / (puntos - 1);
+  return Math.min(44, Math.max(8, separacion));
+}
+
 export const dominioY = (serie: { attendanceRate: number }[]) => {
   const valores = serie.map((d) => d.attendanceRate);
   if (valores.length === 0) return { min: 0, max: 100 };
