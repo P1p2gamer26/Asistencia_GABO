@@ -169,6 +169,10 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 /* --- Tablas ----------------------------------------------------------- */
 
 .tabla-scroll { overflow-x: auto; margin-top: var(--e4); }
+
+/* Con 30 cursos el SVG mide mas de 1000 px: se desplaza por dentro para que el
+   titulo y la leyenda sigan a la vista. */
+.grafica-scroll { max-height: 60vh; overflow-y: auto; }
 table { border-collapse: collapse; width: 100%; font-size: .925rem; }
 th {
   font-family: var(--ui); font-size: .72rem; font-weight: 700; text-transform: uppercase;
