@@ -31,13 +31,14 @@ export default function TomarAsistencia() {
   const [lectivo, setLectivo] = useState(true);
   const [marcas, setMarcas] = useState<Record<number, Status>>({});
   const [online, setOnline] = useState(navigator.onLine);
+  const [alcanzable, setAlcanzable] = useState(true);
   const [pendientes, setPendientes] = useState(0);
   const [error, setError] = useState('');
 
   useEffect(() => {
     void db.blocks.toArray().then(setBlocks);
     void pendingCount().then(setPendientes);
-    const detener = startAutoSync(setPendientes);
+    const detener = startAutoSync((p, a) => { setPendientes(p); setAlcanzable(a); });
     const cambio = () => setOnline(navigator.onLine);
     window.addEventListener('online', cambio);
     window.addEventListener('offline', cambio);
@@ -113,13 +114,14 @@ export default function TomarAsistencia() {
   }
 
   async function enviar() {
-    const { pending } = await flushOutbox();
+    const { pending, alcanzable: hay } = await flushOutbox();
     setPendientes(pending);
+    setAlcanzable(hay);
   }
 
   return (
     <main className="card">
-      <BannerEstado online={online} pendientes={pendientes} onSincronizar={enviar} />
+      <BannerEstado online={online} alcanzable={alcanzable} pendientes={pendientes} onSincronizar={enviar} />
 
       <span className="eyebrow">Planilla del dia</span>
       <h1>Asistencia a clase</h1>
