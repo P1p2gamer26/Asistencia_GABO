@@ -232,3 +232,34 @@ tbody tr:hover { background: #fbfaf4; }
    sensibles de la linea de tendencia quedan por debajo de lo tocable. Las pantallas
    con graficas o tablas anchas usan esta variante. */
 .card.ancha { max-width: 72rem; }
+
+/* Calendario escolar: cuadricula de siete columnas, una por dia de la semana. */
+.calendario { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin: 12px 0; }
+.calendario-cabecera { text-align: center; font-size: .8rem; color: var(--tinta-suave);
+                       padding: 4px 0; font-weight: 700; }
+.calendario-hueco { min-height: 76px; }
+.calendario-dia { min-height: 76px; border: 1px solid var(--rejilla); border-radius: 6px;
+                  padding: 4px 6px; display: flex; flex-direction: column; gap: 2px;
+                  font-size: .75rem; }
+.calendario-dia .numero { font-weight: 700; font-size: .95rem; }
+.calendario-dia .tipo { color: var(--tinta-suave); }
+.calendario-dia .motivo { color: var(--tinta-mute); font-size: .7rem; }
+.calendario-dia select { font-size: .7rem; padding: 2px; min-height: 0; margin-top: auto; }
+
+/* El color acompana a la etiqueta escrita, nunca la sustituye. */
+.dia-lectivo       { background: #eaf6ec; }
+.dia-festivo       { background: #fdecec; }
+.dia-vacaciones    { background: #eef2fb; }
+.dia-institucional { background: #fdf6e3; }
+.dia-suspendido    { background: #f4e9f7; }
+.dia-sin-clase     { background: var(--fondo); color: var(--tinta-mute); }
+
+.muestra { width: 14px; height: 14px; border-radius: 3px; display: inline-block;
+           border: 1px solid var(--rejilla); }
+
+/* En un telefono, siete columnas con texto no caben: se deja solo el numero y el color,
+   y la etiqueta escrita sigue estando en el aria-label para el lector de pantalla. */
+@media (max-width: 560px) {
+  .calendario-dia { min-height: 52px; }
+  .calendario-dia .tipo, .calendario-dia .motivo { display: none; }
+}
