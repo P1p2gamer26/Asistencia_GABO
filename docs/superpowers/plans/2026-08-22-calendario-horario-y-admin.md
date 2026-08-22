@@ -79,22 +79,40 @@ tools/
 ## Orden y dependencias
 
 ```
-Task 1  Aula (backend)         -> la necesita el horario
-Task 2  API de horario semanal -> la necesita la vista de horario
-Task 3  Vista de calendario    -> independiente
-Task 4  Vista de horario       -> depende de 1 y 2
-Task 5  Barra lateral y armazon-> independiente, pero conviene tras 3 y 4 para enlazarlas
-Task 6  Tablero de hoy         -> depende de 5 para tener donde vivir
-Task 7  Datos locales          -> al final, cuando ya hay calendario y horarios que llenar
+Task 1  Aula (backend)          -> la necesita el horario
+Task 2  API de horario semanal  -> la necesitan el horario y el portal del acudiente
+Task 3  Vista de calendario     -> independiente
+Task 4  Vista de horario        -> depende de 1 y 2
+Task 5  Barra lateral y armazon -> independiente, pero conviene tras 3 y 4 para enlazarlas
+Task 6  Inicio del administrador-> depende de 5 para tener donde vivir
+Task 7  Inicio del docente      -> depende de 1 (aula) y de 5
+Task 8  Portal del acudiente    -> depende de 1 y 2
+Task 9  Datos locales           -> al final, cuando ya hay que llenar
 ```
 
-Las tareas 3 y 5 pueden ir en paralelo con 1 y 2 si hay dos personas: la primera es solo
-frontend sobre una API que ya existe.
+Las tres pantallas de inicio (6, 7 y 8) son independientes entre si y tocan ramas
+distintas de `Inicio` en `App.tsx`: **cada una cambia solo su rol**, para que no se pisen.
 
 **La siembra va la ultima a peticion del colegio.** Hasta entonces las vistas se
-comprueban con los tests, que traen sus propios datos, y con las tres filas que ya hay
-en la base local. Al llegar a la Task 7 se siembra una sola vez, con el esquema ya
-cerrado, y se recorren las pantallas con datos de verdad.
+comprueban con los tests, que traen sus propios datos. Al llegar a la Task 9 se siembra
+una sola vez, con el esquema ya cerrado, y se recorren las pantallas con datos de verdad.
+
+### Cada quien aterriza donde le sirve
+
+Al entrar, la ruta `/` reparte por rol, y **todo lo demas vive en la barra lateral**
+(Task 5), no en botones sueltos:
+
+| Rol | Aterriza en | Y ve de un vistazo |
+|---|---|---|
+| Administrador / coordinacion | Task 6 | cuantos bloques han reportado, presentes, ausentes, tarde, evasiones e ingresos de hoy, con el mes de contexto |
+| Docente | Task 7 | en que aula tiene cada clase hoy y de que cursos ya paso lista |
+| Acudiente | Task 8 | cuantos dias asistio y falto cada hijo, sus novedades y su horario |
+
+Un acudiente puede tener **uno o varios hijos**, y eso ya funciona: `guardianships` es
+tabla de union con clave `(student_id, guardian_id)`, con indice por `guardian_id` desde
+`V30`, el endpoint devuelve una lista y `Padre.tsx` ya la recorre. La Task 8 no construye
+esa relacion; anade datos a cada hijo **y le pone por fin un test**, porque hoy no hay
+ninguno con un acudiente de dos hijos.
 
 ---
 
@@ -837,10 +855,10 @@ con `import Calendario from './pages/Calendario';`.
 Run: `cd app/frontend && npm test && npm run build`
 Expected: PASS todo, paquete por debajo de 200 KB gzip.
 
-- [ ] **Step 7: Anotar el recorrido manual, que se hace en la Task 7**
+- [ ] **Step 7: Anotar el recorrido manual, que se hace en la Task 9**
 
 La base local todavía no está sembrada, así que esto **no se ejecuta aquí**: se deja
-apuntado y se recorre entero en la Task 7 Step 5, con datos de verdad. No marcar la
+apuntado y se recorre entero en la Task 9 Step 5, con datos de verdad. No marcar la
 casilla como hecha "porque los tests pasan": son cosas distintas.
 
 Con la base sembrada y la aplicación levantada, abrir `/calendario`:
@@ -1145,7 +1163,7 @@ con `import Horario from './pages/Horario';`.
 Run: `cd app/frontend && npm test && npm run build`
 Expected: PASS todo.
 
-- [ ] **Step 8: Anotar el recorrido manual, que se hace en la Task 7**
+- [ ] **Step 8: Anotar el recorrido manual, que se hace en la Task 9**
 
 Igual que en el calendario: sin base sembrada esto no se puede ver. Se recorre en la
 Task 7 Step 5.
@@ -1914,7 +1932,793 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-## Task 7: Poblar la base local para poder ver algo
+## Task 7: El docente aterriza en su dia
+
+**Files:**
+- Modify: `app/backend/src/main/java/co/edu/ggm/asistencia/repository/ScheduleRepository.java`
+- Modify: `app/backend/src/main/java/co/edu/ggm/asistencia/controller/ScheduleController.java`
+- Test: `app/backend/src/test/java/co/edu/ggm/asistencia/schedule/MiDiaTest.java`
+- Create: `app/frontend/src/pages/InicioDocente.tsx`
+- Test: `app/frontend/src/pages/InicioDocente.test.tsx`
+- Modify: `app/frontend/src/App.tsx`
+- Modify: `app/frontend/src/styles.css`
+
+**Interfaces:**
+- Consumes: `schedule_blocks` con `room` (Task 1), `attendance`, el servicio de calendario ya existente.
+- Produces: `GET /api/schedule/my-day?fecha=YYYY-MM-DD` (personal del colegio) ->
+  `{"lectivo":boolean, "fecha":"YYYY-MM-DD", "motivo":string|null, "bloques":[{id, blockNo, grade, subject, room, startTime, endTime, marcados:int, estudiantes:int}]}`
+- Produces: la ruta `/` muestra `InicioDocente` cuando el rol es DOCENTE.
+
+El docente llega al colegio y lo primero que necesita saber es **donde tiene clase**, y
+despues **de que cursos ya paso lista**. Hoy tiene que abrir el horario, buscar el dia, y
+luego ir curso por curso adivinando si ya marco.
+
+`marcados` de `estudiantes` es el dato que importa, no un si/no: un bloque con 3 de 40
+marcados no esta tomado, esta a medias, y eso es justo lo que un booleano esconde.
+
+**El parametro `fecha` existe para poder probar la pantalla sin depender del reloj.** Sin
+el, el servidor usa hoy.
+
+- [ ] **Step 1: Escribir el test del backend**
+
+```java
+package co.edu.ggm.asistencia.schedule;
+
+import co.edu.ggm.asistencia.support.TestDatabaseConfig;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.web.servlet.MockMvc;
+
+import static org.hamcrest.Matchers.greaterThan;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+@Import(TestDatabaseConfig.class)
+class MiDiaTest {
+
+    @Autowired MockMvc mvc;
+
+    /** Un lunes lectivo. La fecha va fija a proposito: nada aqui consulta el reloj. */
+    private static final String LUNES = "2026-08-03";
+
+    @Test
+    void devuelve_los_bloques_del_dia_con_el_aula() throws Exception {
+        String docente = tokenDeDocenteConHorario(LUNES, "601", "Ciencias", "Laboratorio 1");
+        mvc.perform(get("/api/schedule/my-day?fecha=" + LUNES).header("Authorization", docente))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.lectivo").value(true))
+           .andExpect(jsonPath("$.bloques[0].grade").value("601"))
+           .andExpect(jsonPath("$.bloques[0].room").value("Laboratorio 1"))
+           .andExpect(jsonPath("$.bloques[0].subject").value("Ciencias"));
+    }
+
+    @Test
+    void dice_cuantos_lleva_marcados_de_cuantos_estudiantes() throws Exception {
+        String docente = tokenDeDocenteConHorario(LUNES, "601", "Ciencias", "Laboratorio 1");
+        marcarPrimeros(LUNES, "601", 3);
+        mvc.perform(get("/api/schedule/my-day?fecha=" + LUNES).header("Authorization", docente))
+           .andExpect(jsonPath("$.bloques[0].marcados").value(3))
+           .andExpect(jsonPath("$.bloques[0].estudiantes", greaterThan(3)));
+    }
+
+    @Test
+    void un_bloque_sin_marcar_dice_cero_y_no_se_omite() throws Exception {
+        // Omitirlo esconderia justo el bloque que falta por hacer.
+        String docente = tokenDeDocenteConHorario(LUNES, "601", "Ciencias", "Laboratorio 1");
+        mvc.perform(get("/api/schedule/my-day?fecha=" + LUNES).header("Authorization", docente))
+           .andExpect(jsonPath("$.bloques.length()").value(1))
+           .andExpect(jsonPath("$.bloques[0].marcados").value(0));
+    }
+
+    @Test
+    void en_dia_no_lectivo_lo_dice_y_no_devuelve_bloques() throws Exception {
+        String docente = tokenDeDocenteConHorario(LUNES, "601", "Ciencias", "Laboratorio 1");
+        marcarFestivo("2026-08-07", "Batalla de Boyaca");
+        mvc.perform(get("/api/schedule/my-day?fecha=2026-08-07").header("Authorization", docente))
+           .andExpect(jsonPath("$.lectivo").value(false))
+           .andExpect(jsonPath("$.motivo").value("Batalla de Boyaca"))
+           .andExpect(jsonPath("$.bloques.length()").value(0));
+    }
+
+    @Test
+    void sin_token_responde_401() throws Exception {
+        mvc.perform(get("/api/schedule/my-day?fecha=" + LUNES))
+           .andExpect(status().isUnauthorized());
+    }
+}
+```
+
+Los metodos `tokenDeDocenteConHorario`, `marcarPrimeros` y `marcarFestivo` son siembra de
+prueba. **Mira primero como siembran los tests que ya existen** (`HorarioTest`,
+`BootstrapTest`) y sigue esa misma via: si hay una clase de apoyo compartida, anade ahi lo
+que falte; si cada test siembra por su cuenta, haz lo mismo dentro de este. No crees un
+mecanismo nuevo de siembra.
+
+- [ ] **Step 2: Ejecutar y ver que falla**
+
+Run: `cd app/backend && mvn -q test -Dtest=MiDiaTest`
+Expected: FAIL con 404 en las cuatro primeras.
+
+- [ ] **Step 3: La consulta en `ScheduleRepository`**
+
+```java
+    /**
+     * Los bloques que el docente dicta ese dia de la semana, con cuantos estudiantes
+     * tiene el curso y cuantos lleva marcados en esa fecha.
+     *
+     * Los conteos van como subconsultas y no como JOIN contra `attendance`: un JOIN
+     * dejaria fuera los bloques sin marcar, que son precisamente los que hay que ver.
+     */
+    @Query(value = """
+            SELECT b.id AS id, b.block_no AS blockNo, b.grade AS grade,
+                   s.name AS subject, b.room AS room,
+                   b.start_time AS startTime, b.end_time AS endTime,
+                   (SELECT count(*) FROM students st
+                     WHERE st.grade = b.grade AND st.active) AS estudiantes,
+                   (SELECT count(*) FROM attendance a
+                     WHERE a.schedule_block_id = b.id AND a.class_date = :fecha) AS marcados
+              FROM schedule_blocks b
+              JOIN subjects s ON s.id = b.subject_id
+             WHERE b.teacher_id = :teacherId AND b.weekday = :weekday
+             ORDER BY b.block_no
+            """, nativeQuery = true)
+    List<DayRow> myDay(@Param("teacherId") Long teacherId,
+                       @Param("weekday") int weekday,
+                       @Param("fecha") LocalDate fecha);
+
+    interface DayRow {
+        Long getId(); int getBlockNo(); String getGrade(); String getSubject();
+        String getRoom(); LocalTime getStartTime(); LocalTime getEndTime();
+        int getEstudiantes(); int getMarcados();
+    }
+```
+
+Si la columna que marca a un estudiante como activo no se llama `active`, usa la que
+exista; miralo en `V1__esquema_inicial.sql` antes de escribir la consulta.
+
+- [ ] **Step 4: El endpoint en `ScheduleController`**
+
+```java
+    public record BloqueDelDia(Long id, int blockNo, String grade, String subject,
+                               String room, String startTime, String endTime,
+                               int marcados, int estudiantes) {}
+
+    public record MiDia(boolean lectivo, LocalDate fecha, String motivo,
+                        List<BloqueDelDia> bloques) {}
+
+    /**
+     * El dia del docente: donde tiene clase y de que cursos ya paso lista.
+     *
+     * `fecha` es opcional y existe para poder probar esto sin depender del reloj del
+     * servidor; sin ella se usa hoy.
+     */
+    @GetMapping("/my-day")
+    public MiDia miDia(@RequestParam(required = false)
+                       @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {
+        LocalDate dia = fecha != null ? fecha : LocalDate.now(ZONA);
+        if (!calendario.esDiaLectivo(dia)) {
+            // No se devuelven bloques en un dia no lectivo: mostrarlos invitaria a
+            // marcar la asistencia de una clase que no existe.
+            return new MiDia(false, dia, calendario.motivo(dia), List.of());
+        }
+        var filas = horarios.myDay(jwt.currentUserId(), dia.getDayOfWeek().getValue(), dia);
+        return new MiDia(true, dia, null, filas.stream()
+                .map(f -> new BloqueDelDia(f.getId(), f.getBlockNo(), f.getGrade(),
+                        f.getSubject(), f.getRoom(),
+                        hhmm(f.getStartTime()), hhmm(f.getEndTime()),
+                        f.getMarcados(), f.getEstudiantes()))
+                .toList());
+    }
+```
+
+`ZONA` (la zona horaria de Bogota) y el formateo `hhmm(...)` **ya existen en este
+controlador** por la tarea del horario semanal: reutilizalos, no los redefinas. Para el
+calendario usa los metodos que el servicio ya expone; **no cambies su firma**, esta tarea
+no toca el calendario. Si no hay un metodo que devuelva el motivo, pasa `null` y anotalo
+en el informe en vez de inventar uno.
+
+- [ ] **Step 5: Ejecutar los tests del backend**
+
+Run: `cd app/backend && mvn -q test`
+Expected: PASS todo.
+
+- [ ] **Step 6: Escribir los tests del frontend**
+
+```tsx
+import { render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
+import InicioDocente from './InicioDocente';
+
+const DIA = {
+  lectivo: true, fecha: '2026-08-03', motivo: null,
+  bloques: [
+    { id: 11, blockNo: 1, grade: '601', subject: 'Ciencias', room: 'Laboratorio 1',
+      startTime: '07:00', endTime: '07:50', marcados: 38, estudiantes: 38 },
+    { id: 12, blockNo: 3, grade: '702', subject: 'Ciencias', room: 'Aula 204',
+      startTime: '09:00', endTime: '09:50', marcados: 0, estudiantes: 35 },
+    { id: 13, blockNo: 5, grade: '801', subject: 'Ciencias', room: 'Aula 305',
+      startTime: '11:00', endTime: '11:50', marcados: 3, estudiantes: 40 },
+  ],
+};
+
+function respuesta(datos: unknown) {
+  return new Response(JSON.stringify(datos),
+    { status: 200, headers: { 'Content-Type': 'application/json' } });
+}
+
+const pintar = () => render(<MemoryRouter><InicioDocente /></MemoryRouter>);
+
+describe('InicioDocente', () => {
+  beforeEach(() => {
+    localStorage.setItem('ggm.session', JSON.stringify({
+      token: 't', refreshToken: 'r', role: 'DOCENTE',
+      fullName: 'Pepito Perez', userId: 3, mustChangePassword: false,
+    }));
+    vi.stubGlobal('fetch', vi.fn(async () => respuesta(DIA)));
+  });
+
+  it('dice en que aula es cada clase', async () => {
+    pintar();
+    await waitFor(() => expect(screen.getByText(/Laboratorio 1/)).toBeInTheDocument());
+    expect(screen.getByText(/Aula 204/)).toBeInTheDocument();
+    expect(screen.getByText(/Aula 305/)).toBeInTheDocument();
+  });
+
+  it('distingue lo tomado, lo que va a medias y lo que falta', async () => {
+    pintar();
+    // Un si/no diria que el bloque de 3 de 40 ya esta tomado. No lo esta.
+    await waitFor(() => expect(screen.getByText(/38 de 38/)).toBeInTheDocument());
+    expect(screen.getByText(/3 de 40/)).toBeInTheDocument();
+    expect(screen.getByText(/sin tomar/i)).toBeInTheDocument();
+  });
+
+  it('el bloque a medias tambien ofrece terminarlo, no solo el vacio', async () => {
+    pintar();
+    // 3 de 40 es el caso peligroso: parece hecho y no lo esta.
+    const enlaces = await screen.findAllByRole('link', { name: /tomar la lista/i });
+    const destinos = enlaces.map((e) => e.getAttribute('href'));
+    expect(destinos).toContain('/asistencia?bloque=12');
+    expect(destinos).toContain('/asistencia?bloque=13');
+    expect(destinos).not.toContain('/asistencia?bloque=11');
+  });
+
+  it('en dia no lectivo lo dice y no inventa bloques', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => respuesta(
+      { lectivo: false, fecha: '2026-08-07', motivo: 'Batalla de Boyaca', bloques: [] })));
+    pintar();
+    // No se pintan ceros: no hay clase, y eso es lo que se dice.
+    await waitFor(() => expect(screen.getByText(/no hay clase/i)).toBeInTheDocument());
+    expect(screen.getByText(/Batalla de Boyaca/)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /tomar la lista/i })).not.toBeInTheDocument();
+  });
+
+  it('un docente sin bloques lo lee, no se queda con una pantalla muda', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => respuesta(
+      { lectivo: true, fecha: '2026-08-03', motivo: null, bloques: [] })));
+    pintar();
+    await waitFor(() =>
+      expect(screen.getByText(/no tiene clases asignadas hoy/i)).toBeInTheDocument());
+  });
+
+  it('sin conexion lo dice en vez de fingir un dia sin clases', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('sin red'); }));
+    pintar();
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+  });
+});
+```
+
+- [ ] **Step 7: Ejecutar y ver que fallan**
+
+Run: `cd app/frontend && npm test src/pages/InicioDocente.test.tsx`
+Expected: FAIL — el modulo no existe.
+
+- [ ] **Step 8: Escribir `InicioDocente.tsx`**
+
+```tsx
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { api, getSession } from '../api/client';
+
+type Bloque = {
+  id: number; blockNo: number; grade: string; subject: string; room?: string;
+  startTime: string; endTime: string; marcados: number; estudiantes: number;
+};
+type Dia = { lectivo: boolean; fecha: string; motivo: string | null; bloques: Bloque[] };
+
+/**
+ * Lo tomado, lo que va a medias y lo que falta se dicen distinto a proposito.
+ * El caso peligroso es el de en medio: parece hecho y no lo esta.
+ */
+function estado(b: Bloque) {
+  if (b.marcados === 0) return { texto: 'sin tomar', clase: 'falta' };
+  if (b.marcados < b.estudiantes) {
+    return { texto: `${b.marcados} de ${b.estudiantes}`, clase: 'medias' };
+  }
+  return { texto: `${b.marcados} de ${b.estudiantes}`, clase: 'listo' };
+}
+
+export default function InicioDocente() {
+  const [dia, setDia] = useState<Dia | null>(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    api.get<Dia>('/api/schedule/my-day')
+       .then(setDia)
+       .catch(() => setError('No se pudo consultar el dia. Requiere conexion.'));
+  }, []);
+
+  return (
+    <main className="card ancha">
+      <h1>Hola, {getSession()?.fullName}</h1>
+
+      {error && <p role="alert" className="error">{error}</p>}
+      {!dia && !error && <p className="meta">Cargando...</p>}
+
+      {dia && !dia.lectivo && (
+        <p className="aviso-no-lectivo">
+          Hoy no hay clase{dia.motivo ? `: ${dia.motivo}` : ''}.
+        </p>
+      )}
+
+      {dia?.lectivo && dia.bloques.length === 0 && (
+        <p className="meta">
+          No tiene clases asignadas hoy. Si cree que es un error, avise a coordinacion.
+        </p>
+      )}
+
+      {dia?.lectivo && dia.bloques.length > 0 && (
+        <ul className="dia-bloques">
+          {dia.bloques.map((b) => {
+            const e = estado(b);
+            return (
+              <li key={b.id} className={`bloque ${e.clase}`}>
+                <span className="hora">{b.startTime}</span>
+                <span className="donde">
+                  <strong>{b.grade}</strong> {b.subject}
+                  {b.room && <em className="aula"> en {b.room}</em>}
+                </span>
+                <span className="marcado">{e.texto}</span>
+                {b.marcados < b.estudiantes && (
+                  <Link to={`/asistencia?bloque=${b.id}`} className="tomar-lista">
+                    Tomar la lista de {b.grade}
+                  </Link>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </main>
+  );
+}
+```
+
+- [ ] **Step 9: Estilos**
+
+```css
+/* El dia del docente: una fila por bloque, legible de un vistazo en el telefono. */
+.dia-bloques { list-style: none; padding: 0; margin: var(--e4) 0 0; display: grid; gap: 8px; }
+.dia-bloques .bloque { display: grid; gap: 2px 12px; padding: 10px 12px;
+                       border: 1px solid var(--rejilla); border-radius: 8px;
+                       grid-template-columns: auto 1fr auto; align-items: baseline; }
+.dia-bloques .hora { font-variant-numeric: tabular-nums; color: var(--tinta-suave); }
+.dia-bloques .aula { color: var(--ocre); font-style: normal; font-weight: 700; }
+.dia-bloques .marcado { font-size: .8rem; color: var(--tinta-suave); }
+/* El estado se dice con palabras; el borde solo acompana, nunca informa por si solo. */
+.dia-bloques .falta  { border-left: 4px solid var(--ocre); }
+.dia-bloques .medias { border-left: 4px solid var(--ocre); }
+.dia-bloques .listo  { border-left: 4px solid var(--verde); }
+.dia-bloques .tomar-lista { grid-column: 1 / -1; margin-top: 4px; }
+.aviso-no-lectivo { padding: 12px; border-radius: 8px; background: var(--fondo);
+                    border: 1px dashed var(--rejilla); }
+@media (max-width: 560px) {
+  .dia-bloques .bloque { grid-template-columns: auto 1fr; }
+  .dia-bloques .marcado { grid-column: 2; }
+}
+```
+
+Si alguna de esas variables CSS no existe con ese nombre, usa la equivalente que ya use
+el fichero; no anadas variables nuevas.
+
+- [ ] **Step 10: Enrutarlo en `App.tsx`**
+
+En el componente `Inicio`, el docente aterriza aqui:
+
+```tsx
+  if (session.role === 'ACUDIENTE') return <Padre />;
+  if (session.role === 'DOCENTE') return <InicioDocente />;
+  return <Home />;
+```
+
+con `import InicioDocente from './pages/InicioDocente';`. **No toques el reparto del
+acudiente ni el del administrador**: cada uno se cambia en su propia tarea.
+
+- [ ] **Step 11: Ejecutar todo**
+
+Run: `cd app/frontend && npm test && npm run build`, y `cd app/backend && mvn -q test`
+Expected: PASS todo.
+
+- [ ] **Step 12: Comprobar que los tests pueden fallar**
+
+Un test que no puede fallar da por cubierto lo que no lo esta. Rompe a proposito una cosa
+de cada y confirma el rojo, luego restaura:
+1. Cambia `b.marcados < b.estudiantes` por `b.marcados < 0` en el enlace: debe ponerse
+   rojo el test del bloque a medias.
+2. Quita `{b.room && ...}` de la vista: debe ponerse rojo el test del aula.
+
+**Pega la evidencia de los dos rojos en el informe.** Sin ella la tarea no se cierra.
+
+- [ ] **Step 13: Commit**
+
+```bash
+git add app/backend app/frontend
+git commit -m "feat: el docente aterriza en su dia, con aula y lista pendiente
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
+```
+
+---
+
+## Task 8: El acudiente ve los dias y el horario de cada hijo
+
+**Files:**
+- Modify: `app/backend/src/main/java/co/edu/ggm/asistencia/controller/GuardianController.java`
+- Modify: `app/backend/src/main/java/co/edu/ggm/asistencia/repository/ReportRepository.java`
+- Test: `app/backend/src/test/java/co/edu/ggm/asistencia/guardian/PortalAcudienteTest.java`
+- Modify: `app/frontend/src/pages/Padre.tsx`
+- Test: `app/frontend/src/pages/Padre.test.tsx`
+- Modify: `app/frontend/src/styles.css`
+
+**Interfaces:**
+- Consumes: `guardianships`, `attendance`, `students`, `schedule_blocks` con `room` (Task 1), `GET /api/schedule/week?grade=` (Task 2) **no se reutiliza**: el acudiente no es COORDINADOR y recibiria 403.
+- Produces: `GET /api/guardian/children` ampliado, cada hijo con
+  `{studentId, fullName, grade, schoolDays, recordedDays, asistio:int, falto:int, tarde:int, evadio:int, recent:[...], horario:[{weekday, blockNo, subject, room, startTime, endTime, teacherName}]}`
+
+**Varios hijos por acudiente ya funciona y no hay que construirlo**: `guardianships` es
+tabla de union con clave `(student_id, guardian_id)`, hay indice por `guardian_id` desde
+`V30`, el endpoint ya devuelve una lista y `Padre.tsx` ya la recorre. Esta tarea **no
+toca esa relacion**; solo anade datos a cada hijo. Lo que si hay que hacer es probarlo:
+hoy no existe ningun test con un acudiente de dos hijos.
+
+Lo que pidio la familia: **cuantos dias fue y cuantos no**, y **el horario del hijo**.
+
+Cuidado con el resumen: `Padre.tsx` ya distingue "no hay registros" de "sin novedades",
+y esa distincion es la parte mas importante del portal. Un padre lee "0 faltas" como "le
+fue bien"; si nadie tomo asistencia, eso seria prometerle una tranquilidad que el sistema
+no puede respaldar. **Los contadores nuevos no pueden romper esa distincion**: se muestran
+sobre `recordedDays`, nunca sobre el total del periodo.
+
+- [ ] **Step 1: Escribir el test del backend**
+
+```java
+package co.edu.ggm.asistencia.guardian;
+
+import co.edu.ggm.asistencia.support.TestDatabaseConfig;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.web.servlet.MockMvc;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+@Import(TestDatabaseConfig.class)
+class PortalAcudienteTest {
+
+    @Autowired MockMvc mvc;
+
+    @Test
+    void un_acudiente_con_dos_hijos_los_ve_a_los_dos() throws Exception {
+        // La tabla `guardianships` siempre lo permitio, pero nunca se habia probado.
+        String token = acudienteCon("Ana Perez", "601", "Luis Perez", "802");
+        mvc.perform(get("/api/guardian/children").header("Authorization", token))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.length()").value(2))
+           .andExpect(jsonPath("$[?(@.fullName=='Ana Perez')].grade").value("601"))
+           .andExpect(jsonPath("$[?(@.fullName=='Luis Perez')].grade").value("802"));
+    }
+
+    @Test
+    void cuenta_cuantos_dias_asistio_y_cuantos_falto() throws Exception {
+        String token = acudienteCon("Ana Perez", "601");
+        marcar("Ana Perez", "2026-08-03", "P");
+        marcar("Ana Perez", "2026-08-04", "F");
+        marcar("Ana Perez", "2026-08-05", "T");
+        mvc.perform(get("/api/guardian/children").header("Authorization", token))
+           .andExpect(jsonPath("$[0].asistio").value(1))
+           .andExpect(jsonPath("$[0].falto").value(1))
+           .andExpect(jsonPath("$[0].tarde").value(1))
+           .andExpect(jsonPath("$[0].recordedDays").value(3));
+    }
+
+    @Test
+    void sin_ningun_registro_los_contadores_van_en_cero_y_recordedDays_tambien() throws Exception {
+        // Es el caso que no se puede confundir con "asistio siempre".
+        String token = acudienteCon("Ana Perez", "601");
+        mvc.perform(get("/api/guardian/children").header("Authorization", token))
+           .andExpect(jsonPath("$[0].recordedDays").value(0))
+           .andExpect(jsonPath("$[0].asistio").value(0))
+           .andExpect(jsonPath("$[0].falto").value(0));
+    }
+
+    @Test
+    void devuelve_el_horario_del_hijo_con_el_aula() throws Exception {
+        String token = acudienteCon("Ana Perez", "601");
+        horarioDe("601", 1, 1, "Ciencias", "Laboratorio 1", "Pepito Perez");
+        mvc.perform(get("/api/guardian/children").header("Authorization", token))
+           .andExpect(jsonPath("$[0].horario[0].subject").value("Ciencias"))
+           .andExpect(jsonPath("$[0].horario[0].room").value("Laboratorio 1"))
+           .andExpect(jsonPath("$[0].horario[0].teacherName").value("Pepito Perez"))
+           .andExpect(jsonPath("$[0].horario[0].weekday").value(1));
+    }
+
+    @Test
+    void un_acudiente_no_ve_hijos_ajenos() throws Exception {
+        String token = acudienteCon("Ana Perez", "601");
+        estudianteSuelto("Hijo De Otro", "601");
+        mvc.perform(get("/api/guardian/children").header("Authorization", token))
+           .andExpect(jsonPath("$.length()").value(1))
+           .andExpect(jsonPath("$[0].fullName").value("Ana Perez"));
+    }
+
+    @Test
+    void el_personal_no_entra_por_esta_puerta() throws Exception {
+        mvc.perform(get("/api/guardian/children").header("Authorization", tokenDeDocente()))
+           .andExpect(status().isForbidden());
+    }
+}
+```
+
+Para la siembra (`acudienteCon`, `marcar`, `horarioDe`, `estudianteSuelto`,
+`tokenDeDocente`) **sigue la via que ya usan los tests existentes** del proyecto; mira
+como lo hacen antes de escribir nada. No inventes un mecanismo nuevo.
+
+- [ ] **Step 2: Ejecutar y ver que falla**
+
+Run: `cd app/backend && mvn -q test -Dtest=PortalAcudienteTest`
+Expected: FAIL — faltan los campos nuevos; el primero y el ultimo pueden pasar ya, y esta
+bien: prueban lo que ya funcionaba y quedan como red.
+
+- [ ] **Step 3: Ampliar el `record Child` y la consulta**
+
+En `GuardianController`, el record crece:
+
+```java
+    public record BloqueHorario(int weekday, int blockNo, String subject, String room,
+                                String startTime, String endTime, String teacherName) {}
+
+    public record Child(Long studentId, String fullName, String grade,
+                        int schoolDays, int recordedDays,
+                        int asistio, int falto, int tarde, int evadio,
+                        List<Mark> recent, List<BloqueHorario> horario) {}
+```
+
+Los contadores salen de una sola consulta agrupada, no de contar en Java sobre `recent`:
+`recent` esta limitada a las ultimas novedades y contar sobre ella daria numeros
+equivocados en cuanto el periodo pase de ese limite.
+
+```java
+    /** Cuantos dias asistio, falto, llego tarde o evadio, por estudiante. */
+    @Query(value = """
+            SELECT a.student_id AS studentId,
+                   count(*) FILTER (WHERE a.status = 'P') AS asistio,
+                   count(*) FILTER (WHERE a.status = 'F') AS falto,
+                   count(*) FILTER (WHERE a.status = 'T') AS tarde,
+                   count(*) FILTER (WHERE a.status = 'E') AS evadio,
+                   count(DISTINCT a.class_date)            AS diasRegistrados
+              FROM attendance a
+             WHERE a.student_id IN (:ids)
+             GROUP BY a.student_id
+            """, nativeQuery = true)
+    List<ConteoRow> conteosPorEstudiante(@Param("ids") List<Long> ids);
+
+    interface ConteoRow {
+        Long getStudentId(); int getAsistio(); int getFalto();
+        int getTarde(); int getEvadio(); int getDiasRegistrados();
+    }
+```
+
+**Una sola consulta para todos los hijos**, no una por hijo: un acudiente con tres hijos
+no debe costar tres viajes a la base. Si `ids` viene vacia, no llames a la consulta —
+`IN ()` es un error de sintaxis en PostgreSQL.
+
+Para el horario, reutiliza `ScheduleRepository.weekOfGrade(...)` que **ya existe** de la
+Task 2. No dupliques la consulta y **no** llames al endpoint HTTP `/api/schedule/week`:
+el acudiente no tiene el rol que ese endpoint exige y recibiria 403.
+
+- [ ] **Step 4: Ejecutar los tests del backend**
+
+Run: `cd app/backend && mvn -q test`
+Expected: PASS todo.
+
+- [ ] **Step 5: Escribir los tests del frontend**
+
+```tsx
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import Padre from './Padre';
+
+const DOS_HIJOS = [
+  { studentId: 1, fullName: 'Ana Perez', grade: '601',
+    schoolDays: 10, recordedDays: 8, asistio: 6, falto: 1, tarde: 1, evadio: 0,
+    recent: [{ classDate: '2026-08-04', subject: 'Ciencias', status: 'F' }],
+    horario: [{ weekday: 1, blockNo: 1, subject: 'Ciencias', room: 'Laboratorio 1',
+                startTime: '07:00', endTime: '07:50', teacherName: 'Pepito Perez' }] },
+  { studentId: 2, fullName: 'Luis Perez', grade: '802',
+    schoolDays: 10, recordedDays: 0, asistio: 0, falto: 0, tarde: 0, evadio: 0,
+    recent: [], horario: [] },
+];
+
+function respuesta(datos: unknown) {
+  return new Response(JSON.stringify(datos),
+    { status: 200, headers: { 'Content-Type': 'application/json' } });
+}
+
+describe('Padre', () => {
+  beforeEach(() => {
+    localStorage.setItem('ggm.session', JSON.stringify({
+      token: 't', refreshToken: 'r', role: 'ACUDIENTE',
+      fullName: 'Madre Perez', userId: 9, mustChangePassword: false,
+    }));
+    vi.stubGlobal('fetch', vi.fn(async () => respuesta(DOS_HIJOS)));
+  });
+
+  it('muestra a los dos hijos, cada uno con su curso', async () => {
+    render(<Padre />);
+    await waitFor(() => expect(screen.getByText(/Ana Perez/)).toBeInTheDocument());
+    expect(screen.getByText(/Luis Perez/)).toBeInTheDocument();
+    expect(screen.getByText(/601/)).toBeInTheDocument();
+    expect(screen.getByText(/802/)).toBeInTheDocument();
+  });
+
+  it('dice cuantos dias asistio y cuantos falto', async () => {
+    render(<Padre />);
+    await waitFor(() => expect(screen.getByText(/6 .*asisti/i)).toBeInTheDocument());
+    expect(screen.getByText(/1 .*falt/i)).toBeInTheDocument();
+  });
+
+  it('sin registros no dice que asistio siempre', async () => {
+    render(<Padre />);
+    // Luis no tiene un solo registro. Decir "0 faltas" seria prometer una tranquilidad
+    // que el sistema no puede respaldar: nadie ha tomado su asistencia.
+    await waitFor(() => expect(screen.getByText(/Luis Perez/)).toBeInTheDocument());
+    const seccion = screen.getByText(/Luis Perez/).closest('section')!;
+    expect(seccion).toHaveTextContent(/todavia no hay registros/i);
+    expect(seccion).not.toHaveTextContent(/sin novedades/i);
+    expect(seccion).not.toHaveTextContent(/asistio a las/i);
+  });
+
+  it('muestra el horario del hijo con el aula y el docente', async () => {
+    render(<Padre />);
+    await waitFor(() => expect(screen.getByText(/Ana Perez/)).toBeInTheDocument());
+    await userEvent.click(screen.getByRole('button', { name: /horario de Ana Perez/i }));
+    expect(screen.getByText(/Laboratorio 1/)).toBeInTheDocument();
+    expect(screen.getByText(/Pepito Perez/)).toBeInTheDocument();
+    expect(screen.getByText(/lunes/i)).toBeInTheDocument();
+  });
+
+  it('un hijo sin horario cargado lo dice', async () => {
+    render(<Padre />);
+    await waitFor(() => expect(screen.getByText(/Luis Perez/)).toBeInTheDocument());
+    await userEvent.click(screen.getByRole('button', { name: /horario de Luis Perez/i }));
+    expect(screen.getByText(/no tiene horario cargado/i)).toBeInTheDocument();
+  });
+
+  it('sin conexion lo dice', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('sin red'); }));
+    render(<Padre />);
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+  });
+});
+```
+
+- [ ] **Step 6: Ejecutar y ver que fallan**
+
+Run: `cd app/frontend && npm test src/pages/Padre.test.tsx`
+Expected: FAIL en los de contadores y horario; los de dos hijos y sin conexion pueden
+pasar ya.
+
+- [ ] **Step 7: Ampliar `Padre.tsx`**
+
+Sobre lo que ya existe, sin rehacerlo:
+
+1. El tipo `Child` gana `asistio`, `falto`, `tarde`, `evadio` y `horario`.
+2. Bajo el resumen que ya se calcula, se anaden los contadores **solo si
+   `recordedDays > 0`**. Con cero registros no se pinta ningun contador: se deja el
+   mensaje que ya dice que todavia no hay registros.
+
+```tsx
+{h.recordedDays > 0 && (
+  <ul className="conteo-hijo">
+    <li><strong>{h.asistio}</strong> dias asistio</li>
+    <li><strong>{h.falto}</strong> dias falto</li>
+    {h.tarde > 0 && <li><strong>{h.tarde}</strong> dias llego tarde</li>}
+    {h.evadio > 0 && <li><strong>{h.evadio}</strong> dias evadio clase</li>}
+  </ul>
+)}
+```
+
+3. El horario va detras de un boton por hijo, porque un acudiente con tres hijos no
+   necesita tres rejillas abiertas a la vez en el telefono:
+
+```tsx
+const [abierto, setAbierto] = useState<number | null>(null);
+
+// ... dentro del map de hijos:
+<button type="button" className="secundario"
+        aria-expanded={abierto === h.studentId}
+        onClick={() => setAbierto(abierto === h.studentId ? null : h.studentId)}>
+  Horario de {h.fullName}
+</button>
+{abierto === h.studentId && (
+  h.horario.length === 0
+    ? <p className="meta">Este curso no tiene horario cargado todavia.</p>
+    : <ul className="horario-hijo">
+        {h.horario.map((b, i) => (
+          <li key={i}>
+            <strong>{DIAS[b.weekday]}</strong> {b.startTime} — {b.subject}
+            {b.room && <em className="aula"> en {b.room}</em>}
+            {b.teacherName && <span className="meta"> con {b.teacherName}</span>}
+          </li>
+        ))}
+      </ul>
+)}
+```
+
+con `const DIAS = ['', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes'];`.
+
+- [ ] **Step 8: Estilos**
+
+```css
+/* Portal del acudiente: los conteos y el horario de cada hijo. */
+.conteo-hijo { list-style: none; padding: 0; margin: 4px 0 0; display: flex;
+               flex-wrap: wrap; gap: 4px 16px; font-size: .85rem; }
+.horario-hijo { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 4px;
+                font-size: .85rem; }
+.horario-hijo li { padding: 6px 8px; border-left: 3px solid var(--rejilla); }
+```
+
+- [ ] **Step 9: Ejecutar todo**
+
+Run: `cd app/frontend && npm test && npm run build`, y `cd app/backend && mvn -q test`
+Expected: PASS todo.
+
+- [ ] **Step 10: Comprobar que los tests pueden fallar**
+
+Rompe a proposito y confirma el rojo, luego restaura:
+1. Quita el `h.recordedDays > 0 &&` que envuelve los contadores: debe ponerse rojo el
+   test de "sin registros no dice que asistio siempre". **Este es el que importa**: es la
+   promesa que el portal no puede romper.
+2. Quita `{b.room && ...}` del horario: debe ponerse rojo el test del aula.
+
+**Pega la evidencia de los dos rojos en el informe.** Sin ella la tarea no se cierra.
+
+- [ ] **Step 11: Commit**
+
+```bash
+git add app/backend app/frontend
+git commit -m "feat: el acudiente ve los dias y el horario de cada hijo
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
+```
+
+---
+
+## Task 9: Poblar la base local para poder ver algo
 
 **Files:**
 - Create: `tools/datos-locales.sql`
@@ -2167,7 +2971,7 @@ Lo que **no** se hace, con su motivo. Vale tanto como lo que sí:
 | `countBlocksReported` hace dos subconsultas por bloque | El resumen de hoy podría tardar | Son ~36 bloques al día y los índices ya existen; si pasara de 300 ms, medir antes de optimizar |
 | La barra lateral rompe tests de `Home` que buscaban sus enlaces | Falsos rojos | Está anotado en la Task 5 Step 8: se borran esas comprobaciones porque el comportamiento se movió a `Menu`, donde ya está probado |
 | El calendario en 390 px oculta las etiquetas escritas | Se dependería del color | El `aria-label` conserva la etiqueta y el mes navegable permite tocar cada día |
-| `datos-locales.sql` se ejecuta antes de `V50` | Falla con "column room does not exist" | Es el orden correcto y está dicho en la Task 7 Step 3 |
+| `datos-locales.sql` se ejecuta antes de `V50` | Falla con "column room does not exist" | Es el orden correcto y está dicho en la Task 9 Step 3 |
 | Preseleccionar el bloque por URL con una copia local desactualizada | El bloque no se encuentra | No se hace nada y el docente elige a mano; está en la Task 4 Step 4 |
 
 ## Self-review
