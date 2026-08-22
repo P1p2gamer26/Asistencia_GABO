@@ -74,11 +74,11 @@ Todas las cifras siguientes se ejecutaron y se observaron; ninguna es estimada.
 
 | Comprobación | Resultado |
 |---|---|
-| Tests de backend (`mvn test`) | **89 de 89**, contra PostgreSQL 16 real, en tres órdenes de ejecución |
-| Tests de frontend (`npm test`) | **88 de 88** |
+| Tests de backend (`mvn test`) | **94 de 94**, contra PostgreSQL 16 real, en tres órdenes de ejecución |
+| Tests de frontend (`npm test`) | **100 de 100** |
 | Compilación del frontend | Limpia · **95,5 KB gzip** el paquete inicial |
 | Integración continua | **Verde entera**: backend, frontend, imagen Docker y **prueba de humo** |
-| Commits | 79 |
+| Commits | 124 |
 
 El paquete inicial queda por debajo del objetivo de 200 KB. El segundo fragmento de
 107 KB es la librería de escaneo de códigos, que **solo se descarga en teléfonos sin
@@ -594,6 +594,53 @@ como pendiente.
 
 El invariante quedó comprobado en `tools/humo.sh`: un lote con los dos estudiantes del
 bloque de la semilla debe dejar exactamente dos filas en `attendance`.
+
+---
+
+## 6.j El defecto más grave: la asistencia se guardaba a medias
+
+Al verificar el ciclo offline se marcaron **3 faltas en un curso de 40 estudiantes**.
+En la base quedaron **3 registros**. Los 37 presentes no existían.
+
+La pantalla mostraba la "P" resaltada para los 40, así que el docente cree
+razonablemente que los está registrando a todos. Pero a la cola solo entraban los que
+pulsaba. Las consecuencias encadenaban:
+
+- Un estudiante presente y una clase que nadie registró eran **indistinguibles**: los
+  dos sin fila.
+- El aviso de bloques pendientes daba el bloque por completo en cuanto existía **un**
+  registro, así que nadie iba a recordar que faltaban 37.
+- Los informes contaban sobre las filas existentes, de modo que el porcentaje salía
+  bien y **el hueco era invisible** en el tablero.
+- En el caso extremo —un curso que asiste completo y el docente no toca nada— el botón
+  estaba deshabilitado: **no se podía registrar nada aunque se quisiera**.
+
+Contradecía el objetivo del proyecto tal como está escrito: *"garantizar la toma de
+asistencia de todos los estudiantes"*.
+
+**Corregido por las dos caras**: el envío registra ahora el curso completo con el estado
+efectivo de cada estudiante, y el aviso de pendientes compara contra el número de
+estudiantes activos del curso en vez de contra cero. Verificado con datos reales: marcar
+una falta en un curso de 40 y enviar deja **40 registros — 1 falta y 39 presentes**.
+
+### Por qué se escapó tanto tiempo
+
+Los tests comprobaban que *marcar un estudiante lo encola*, y eso siempre funcionó.
+**Nadie comprobaba cuántos quedan al final.** Con dos o tres estudiantes de prueba,
+marcar uno y ver un registro parecía correcto. Hizo falta un curso de 40 y contar las
+filas en la base para que la diferencia entre 3 y 40 saltara a la vista.
+
+### Y un test que no se ejecutaba
+
+Los tests del aviso de pendientes usaban `assumeTrue(dia <= 5)`: al ejecutarlos en
+sábado, **los tres se saltaron** y el arreglo quedó sin verificar. Habría pasado dos días
+de cada siete en la integración continua, en silencio. Se reescribieron contra el
+repositorio con una fecha fija, deterministas cualquier día, y se añadió el caso que
+faltaba: un estudiante retirado del curso no debe impedir que el bloque se dé por
+completo.
+
+**Un test que se salta es peor que un test que falta**: el que falta se ve en la lista,
+el que se salta parece cobertura.
 
 ---
 
