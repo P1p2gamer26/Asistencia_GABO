@@ -53,27 +53,6 @@ export default function Home() {
           </ul>
         </section>
       )}
-      <nav className="acciones">
-        <Link className="boton" to="/asistencia">
-          Asistencia a clase<small>Marcar P, T, F o E por bloque. Funciona sin senal.</small>
-        </Link>
-        <Link className="boton" to="/ingreso">
-          Ingreso al colegio<small>Escanear el carnet en la porteria.</small>
-        </Link>
-        <Link className="boton" to="/consultas">
-          Consultas<small>Resumen por curso e informes en Excel.</small>
-        </Link>
-        {(session.role === 'COORDINADOR' || session.role === 'ADMIN') && (
-          <Link className="boton" to="/dashboard">
-            Tablero<small>Tasa de asistencia, ausentes de hoy y tendencia.</small>
-          </Link>
-        )}
-        {session.role === 'ADMIN' && (
-          <Link className="boton" to="/admin">
-            Administracion<small>Usuarios, calendario academico y carga de CSV.</small>
-          </Link>
-        )}
-      </nav>
       <p className="meta">
         Datos descargados: {ultima ? new Date(ultima).toLocaleString('es-CO') : 'nunca'}
       </p>

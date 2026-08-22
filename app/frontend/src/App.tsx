@@ -14,6 +14,7 @@ import Admin from './pages/Admin';
 import CambiarClave from './pages/CambiarClave';
 import Calendario from './pages/Calendario';
 import Horario from './pages/Horario';
+import Layout from './components/Layout';
 
 const PERSONAL = ['DOCENTE', 'COORDINADOR', 'ADMIN'];
 
@@ -27,7 +28,9 @@ function SoloRoles({ roles, children }: { roles: string[]; children: React.React
   const session = getSession();
   if (!session) return <Navigate to="/login" replace />;
   if (useDesvioPorClave(session)) return <Navigate to="/cambiar-clave" replace />;
-  return roles.includes(session.role) ? <>{children}</> : <Navigate to="/" replace />;
+  return roles.includes(session.role)
+    ? <Layout>{children}</Layout>
+    : <Navigate to="/" replace />;
 }
 
 /** El acudiente no ve el menu del docente: su inicio es su propio portal. */
@@ -35,13 +38,13 @@ function Inicio() {
   const session = getSession();
   if (!session) return <Navigate to="/login" replace />;
   if (useDesvioPorClave(session)) return <Navigate to="/cambiar-clave" replace />;
-  return session.role === 'ACUDIENTE' ? <Padre /> : <Home />;
+  return <Layout>{session.role === 'ACUDIENTE' ? <Padre /> : <Home />}</Layout>;
 }
 
-function Protegida({ children }: { children: React.ReactNode }) {
+function Protegida({ children, armazon = true }: { children: React.ReactNode; armazon?: boolean }) {
   const session = getSession();
   if (!session) return <Navigate to="/login" replace />;
-  return <>{children}</>;
+  return armazon ? <Layout>{children}</Layout> : <>{children}</>;
 }
 
 export default function App() {
@@ -49,7 +52,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<Inicio />} />
-      <Route path="/cambiar-clave" element={<Protegida><CambiarClave /></Protegida>} />
+      <Route path="/cambiar-clave" element={<Protegida armazon={false}><CambiarClave /></Protegida>} />
       {/* El acudiente tiene sesion valida pero no puede ver el curso completo de
           nadie: estas dos rutas son de personal del colegio, no de familias. */}
       <Route path="/asistencia"
