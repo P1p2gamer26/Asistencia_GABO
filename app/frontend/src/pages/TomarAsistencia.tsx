@@ -30,6 +30,7 @@ export default function TomarAsistencia() {
   const [fecha, setFecha] = useState(hoyISO());
   const [lectivo, setLectivo] = useState(true);
   const [marcas, setMarcas] = useState<Record<number, Status>>({});
+  const [motivos, setMotivos] = useState<Record<number, string>>({});
   const [online, setOnline] = useState(navigator.onLine);
   const [alcanzable, setAlcanzable] = useState(true);
   const [pendientes, setPendientes] = useState(0);
@@ -81,7 +82,7 @@ export default function TomarAsistencia() {
 
   // Al cambiar de curso, bloque o fecha se recupera lo ya marcado localmente para ese contexto.
   useEffect(() => {
-    if (!blockId) { setMarcas({}); return; }
+    if (!blockId) { setMarcas({}); setMotivos({}); return; }
     void db.outbox.where('classDate').equals(fecha).toArray().then((pend) => {
       const previas: Record<number, Status> = {};
       for (const r of pend) if (r.scheduleBlockId === blockId) previas[r.studentId] = r.status;
@@ -94,19 +95,13 @@ export default function TomarAsistencia() {
     try {
       await markAttendance({ studentId, scheduleBlockId: blockId, classDate: fecha, status });
       setMarcas((prev) => ({ ...prev, [studentId]: status }));
-      setPendientes(await pendingCount());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo registrar');
-    }
-  }
-
-  async function comentar(studentId: number, comment: string) {
-    if (!blockId) return;
-    try {
-      await markAttendance({
-        studentId, scheduleBlockId: blockId, classDate: fecha,
-        status: marcas[studentId] ?? 'P', comment,
-      });
+      if (status === 'P') {
+        // Un motivo de tardanza en alguien que llego a tiempo confunde al acudiente.
+        setMotivos((prev) => {
+          const { [studentId]: _, ...resto } = prev;
+          return resto;
+        });
+      }
       setPendientes(await pendingCount());
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo registrar');
@@ -131,6 +126,7 @@ export default function TomarAsistencia() {
           scheduleBlockId: blockId,
           classDate: fecha,
           status: marcas[s.id] ?? 'P',
+          comment: motivos[s.id] ?? '',
         });
       }
       const { pending, alcanzable: hay } = await flushOutbox();
@@ -196,8 +192,11 @@ export default function TomarAsistencia() {
                   </div>
                   {(marcas[s.id] === 'T' || marcas[s.id] === 'F') && (
                     <input className="comentario" type="text" maxLength={280}
+                           aria-label={`Motivo para ${s.fullName}`}
                            placeholder="Motivo (opcional)"
-                           onBlur={(ev) => void comentar(s.id, ev.target.value)} />
+                           value={motivos[s.id] ?? ''}
+                           onChange={(ev) =>
+                             setMotivos((prev) => ({ ...prev, [s.id]: ev.target.value }))} />
                   )}
                 </li>
               ))}
