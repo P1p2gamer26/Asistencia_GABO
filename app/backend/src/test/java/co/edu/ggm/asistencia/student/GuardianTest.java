@@ -22,6 +22,7 @@ class GuardianTest extends AbstractIntegrationTest {
 
     private Long acudienteId;
     private Long otroAcudienteId;
+    private Long hijoId;
 
     @BeforeEach
     void datos() {
@@ -33,6 +34,8 @@ class GuardianTest extends AbstractIntegrationTest {
             """);
         acudienteId = jdbc.queryForObject(
                 "SELECT id FROM users WHERE email = 'papa@correo.com'", Long.class);
+        hijoId = jdbc.queryForObject(
+                "SELECT id FROM students WHERE document_id = '1010101011'", Long.class);
         jdbc.update("""
             INSERT INTO guardianships (student_id, guardian_id, relationship)
             VALUES ((SELECT id FROM students WHERE document_id = '1010101011'), ?, 'Padre')
@@ -104,5 +107,56 @@ class GuardianTest extends AbstractIntegrationTest {
         org.assertj.core.api.Assertions.assertThat(conParametro).isEqualTo(sinParametro);
         org.assertj.core.api.Assertions.assertThat(conParametro)
                 .doesNotContain("LINDA").doesNotContain("\"studentId\":" + hijoDelOtro);
+    }
+
+    @Test
+    void informa_de_cuantos_dias_lectivos_tiene_el_periodo() throws Exception {
+        mvc.perform(get("/api/guardian/children")
+                        .param("from", "2026-03-02").param("to", "2026-03-06")
+                        .header("Authorization", "Bearer " + jwt.issueAccess(acudienteId, "ACUDIENTE")))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$[0].schoolDays").value(5));
+    }
+
+    @Test
+    void sin_ningun_registro_lo_dice_en_vez_de_fingir_que_todo_fue_bien() throws Exception {
+        jdbc.update("DELETE FROM attendance WHERE student_id = ?", hijoId);
+        mvc.perform(get("/api/guardian/children")
+                        .param("from", "2026-03-02").param("to", "2026-03-06")
+                        .header("Authorization", "Bearer " + jwt.issueAccess(acudienteId, "ACUDIENTE")))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$[0].schoolDays").value(5))
+           // Cero dias con registro: la pantalla NO puede decir "todo bien".
+           .andExpect(jsonPath("$[0].recordedDays").value(0));
+    }
+
+    @Test
+    void cuenta_los_dias_en_que_si_hay_registro() throws Exception {
+        jdbc.update("DELETE FROM attendance WHERE student_id = ?", hijoId);
+        registrarAsistencia("2026-03-02", "P");
+        registrarAsistencia("2026-03-03", "F");
+        mvc.perform(get("/api/guardian/children")
+                        .param("from", "2026-03-02").param("to", "2026-03-06")
+                        .header("Authorization", "Bearer " + jwt.issueAccess(acudienteId, "ACUDIENTE")))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$[0].recordedDays").value(2));
+    }
+
+    @Test
+    void sin_fechas_usa_los_ultimos_sesenta_dias() throws Exception {
+        mvc.perform(get("/api/guardian/children")
+                        .header("Authorization", "Bearer " + jwt.issueAccess(acudienteId, "ACUDIENTE")))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$[0].schoolDays").isNumber());
+    }
+
+    private void registrarAsistencia(String fecha, String estado) {
+        jdbc.update("""
+                INSERT INTO attendance (id, student_id, schedule_block_id, class_date,
+                                        status, recorded_by, recorded_at)
+                VALUES (gen_random_uuid(), ?, (SELECT id FROM schedule_blocks LIMIT 1),
+                        ?::date, ?, (SELECT id FROM users WHERE email = 'fpalacios@ggm.edu.co'), now())
+                ON CONFLICT ON CONSTRAINT attendance_unique_slot DO UPDATE SET status = EXCLUDED.status
+                """, hijoId, fecha, estado);
     }
 }
