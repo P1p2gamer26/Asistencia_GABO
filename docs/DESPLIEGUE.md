@@ -223,9 +223,10 @@ Generar el secreto: `openssl rand -base64 48`. **Nunca dejar el valor por defect
 Las migraciones de Flyway corren solas al arrancar: crean el esquema, siembran el
 calendario 2026 y crean tres usuarios de prueba con contraseña `cambiar123`.
 
-**Lo primero, antes que nada:** entrar como `admin@ggm.edu.co`, ir a Administración >
-Usuarios y cambiar la contraseña de los tres usuarios semilla, o desactivarlos y crear
-los reales. Dejarlos como están es dejar la puerta abierta.
+**Lo primero, antes que nada:** entrar como `admin@ggm.edu.co` con la contraseña
+`cambiar123`. La aplicación **obligará a cambiarla** antes de dejar hacer nada más,
+igual que a todos los usuarios que se creen después. No hay forma de saltarse ese paso,
+que es justo lo que se quiere: la contraseña temporal está escrita en este repositorio.
 
 Después, en Administración > Carga de datos, en este orden:
 
@@ -275,6 +276,11 @@ gunzip -c asistencia-2026-08-21.sql.gz | docker exec -i asistencia-db-1 psql -U 
    `students.document_id`. Si no coincide, el problema son los datos, no el código, y
    es mucho mejor descubrirlo ahora que el primer día de clases.
 5. Marcar una evasión y comprobar que llega el correo a coordinación.
+6. Entrar con un usuario recién creado y comprobar que obliga a cambiar la contraseña.
+7. Fallar cinco veces el acceso a propósito y comprobar que el sexto intento responde
+   "Demasiados intentos". El bloqueo dura quince minutos y es por correo, no por
+   conexión: el colegio sale a internet por una sola, y bloquear por dirección dejaría
+   fuera a todo el mundo.
 
 Los puntos 3 y 4 no se pueden hacer desde un escritorio: hacen falta un teléfono y un
 carnet de verdad.
