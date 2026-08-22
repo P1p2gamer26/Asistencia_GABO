@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react';
 import { api, clearSession, getSession } from '../api/client';
 
 type Mark = { classDate: string; subject: string; status: string; comment?: string };
-type Child = { studentId: number; fullName: string; grade: string; recent: Mark[] };
+type Child = {
+  studentId: number; fullName: string; grade: string;
+  schoolDays: number; recordedDays: number; recent: Mark[];
+};
 
 const ETIQUETA: Record<string, string> = {
   P: 'Presente', T: 'Llego tarde', F: 'No asistio', E: 'Evadio clase',
@@ -24,13 +27,23 @@ export default function Padre() {
       <p>{getSession()!.fullName}</p>
       {error && <p role="alert" className="error">{error}</p>}
       {hijos.map((h) => {
-        const faltas = h.recent.filter((m) => m.status !== 'P').length;
+        const novedades = h.recent.filter((m) => m.status !== 'P');
+        const resumen =
+          h.recordedDays === 0
+            // Un padre lee "0 novedades" como "le fue bien". Si nadie tomo asistencia,
+            // eso seria prometerle una tranquilidad que el sistema no puede respaldar.
+            ? 'Todavia no hay registros de este periodo.'
+            : novedades.length > 0
+              ? `${novedades.length} novedad(es) en ${h.recordedDays} de ${h.schoolDays} dias registrados.`
+              : h.recordedDays >= h.schoolDays
+                ? `Asistio a las ${h.recordedDays} clases registradas, sin novedades.`
+                : `Sin novedades en ${h.recordedDays} de ${h.schoolDays} dias registrados.`;
         return (
           <section key={h.studentId}>
             <h2>{h.fullName} <small>({h.grade})</small></h2>
-            <p className="meta">{faltas} novedad(es) en los ultimos 30 dias</p>
+            <p className="meta">{resumen}</p>
             <ul className="novedades">
-              {h.recent.filter((m) => m.status !== 'P').map((m, i) => (
+              {novedades.map((m, i) => (
                 <li key={i}>
                   <strong>{new Date(`${m.classDate}T00:00`).toLocaleDateString('es-CO')}</strong>
                   {' '}{m.subject}: {ETIQUETA[m.status] ?? m.status}

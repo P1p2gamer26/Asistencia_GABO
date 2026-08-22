@@ -52,6 +52,15 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
                                       @Param("from") java.time.LocalDate from,
                                       @Param("to") java.time.LocalDate to);
 
+    @Query(value = """
+            SELECT count(DISTINCT a.class_date)
+            FROM attendance a
+            WHERE a.student_id = :studentId AND a.class_date BETWEEN :from AND :to
+            """, nativeQuery = true)
+    int countRecordedDays(@Param("studentId") Long studentId,
+                          @Param("from") java.time.LocalDate from,
+                          @Param("to") java.time.LocalDate to);
+
     @Modifying
     @Query(value = """
             INSERT INTO students (document_id, first_name, middle_name, last_name, second_surname, grade)
