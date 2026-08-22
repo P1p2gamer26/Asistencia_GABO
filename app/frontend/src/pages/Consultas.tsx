@@ -55,7 +55,7 @@ export default function Consultas() {
   }
 
   return (
-    <main className="card">
+    <main className="card ancha">
       <h1>Consultas</h1>
       <div className="filtros">
         <label htmlFor="curso">Curso</label>
