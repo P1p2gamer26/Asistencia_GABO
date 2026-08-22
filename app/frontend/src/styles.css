@@ -226,3 +226,9 @@ tbody tr:hover { background: #fbfaf4; }
 .pendientes-hoy h2 { font-size: .95rem; margin: 0 0 var(--e2); color: var(--ocre); }
 .pendientes-hoy ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--e1); }
 .pendientes-hoy a { color: var(--verde-oscuro); font-weight: 600; }
+
+/* Una columna de 34rem es la medida correcta para leer texto y rellenar formularios,
+   pero no para un tablero con graficas: a 544 px reales el SVG se escala y las zonas
+   sensibles de la linea de tendencia quedan por debajo de lo tocable. Las pantallas
+   con graficas o tablas anchas usan esta variante. */
+.card.ancha { max-width: 72rem; }

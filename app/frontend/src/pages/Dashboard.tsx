@@ -37,7 +37,7 @@ export default function Dashboard() {
   }, [dias, grade]);
 
   return (
-    <main className="card">
+    <main className="card ancha">
       <span className="eyebrow">Periodo de {dias} dias{grade ? ` | curso ${grade}` : ''}</span>
       <h1>Tablero de asistencia</h1>
 
