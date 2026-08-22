@@ -74,11 +74,11 @@ Todas las cifras siguientes se ejecutaron y se observaron; ninguna es estimada.
 
 | Comprobación | Resultado |
 |---|---|
-| Tests de backend (`mvn test`) | **56 de 56**, contra PostgreSQL 16 real, en tres órdenes de ejecución |
-| Tests de frontend (`npm test`) | **50 de 50** |
+| Tests de backend (`mvn test`) | **89 de 89**, contra PostgreSQL 16 real, en tres órdenes de ejecución |
+| Tests de frontend (`npm test`) | **82 de 82** |
 | Compilación del frontend | Limpia · **95,5 KB gzip** el paquete inicial |
 | Integración continua | **Verde entera**: backend, frontend, imagen Docker y **prueba de humo** |
-| Commits | 70 |
+| Commits | 79 |
 
 El paquete inicial queda por debajo del objetivo de 200 KB. El segundo fragmento de
 107 KB es la librería de escaneo de códigos, que **solo se descarga en teléfonos sin
@@ -429,6 +429,55 @@ Tampoco se ha desplegado todavía en Vercel, Supabase ni Fly: la configuración
 (`vercel.json`, `fly.toml`, CORS por entorno) está escrita y validada sintácticamente,
 pero **una configuración de despliegue sin desplegar es una hipótesis**, igual que lo
 fue el Dockerfile en la cuarta iteración —donde resultó estar mal—.
+
+---
+
+## 6.f Sexta iteración: auditoría y endurecimiento
+
+Se auditó el código antes de proponer nada, y el resultado fue más interesante por lo
+que **no** hacía falta: **la estructura está sana.** 2.199 líneas de Java, la clase más
+grande tiene 199, ningún `findAll()` trayendo tablas enteras a memoria, todos los
+controladores validan su entrada, 8 índices. Mover código sano de sitio es riesgo sin
+beneficio, así que no se tocó.
+
+Lo que sí aparecieron fueron cuatro agujeros concretos, y uno grave.
+
+### Nadie podía cambiar su contraseña
+
+No existía el endpoint. Los 1.200 acudientes y los docentes quedaban permanentemente en
+`cambiar123` —que está escrita en este repositorio— y el "restablecer" del administrador
+la dejaba en ese mismo valor conocido. La guía de despliegue decía *"cambie las
+contraseñas antes que nada"* y **no había forma de hacerlo**.
+
+Ahora hay cambio de contraseña propio, y la aplicación **obliga** a hacerlo mientras la
+contraseña siga siendo la temporal: no se puede llegar a ninguna otra pantalla. Mínimo
+de 8 caracteres y distinta de la actual; sin exigir mayúsculas ni símbolos, porque en un
+colegio con acceso limitado a tecnología esas reglas producen contraseñas apuntadas en
+un papel pegado al monitor.
+
+### Los otros tres
+
+- **El login no limitaba intentos.** Cinco fallos bloquean el correo quince minutos. Se
+  cuenta **por correo y no por dirección IP**: el colegio sale a internet por una sola
+  conexión, así que bloquear por IP dejaría fuera a todo el mundo en cuanto un docente
+  se equivocara cinco veces.
+- **El lote de sincronización no tenía tope.** Ahora 500 registros: un curso son 40 y
+  una jornada completa unos 240, así que deja holgura para una semana sin señal.
+- **La interfaz no tenía límite de error.** Cualquier fallo de renderizado dejaba la
+  pantalla en blanco. Ahora muestra un mensaje que dice lo que el docente más necesita
+  saber en ese momento: **la asistencia que ya marcó no se perdió**, está en el teléfono.
+
+### Un zombi de un día
+
+Durante la verificación, el endpoint nuevo devolvía 404 aunque el código estaba bien.
+La causa: un proceso Java del día anterior seguía ocupando el puerto 8080 y sobrevivía
+a todos los intentos de cerrarlo por falta de permisos. **Las pruebas locales llevaban
+horas corriendo contra una versión vieja.** Se resolvió usando otro puerto, y el
+episodio deja una lección: la integración continua, que parte siempre de cero, es la
+única medición en la que se puede confiar sin reservas.
+
+Resultado: **89 tests de backend y 82 de frontend**, verdes en tres órdenes de
+ejecución, y los 21 invariantes de la prueba de humo en pie.
 
 ---
 
