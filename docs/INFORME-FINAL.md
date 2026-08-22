@@ -75,10 +75,10 @@ Todas las cifras siguientes se ejecutaron y se observaron; ninguna es estimada.
 | Comprobación | Resultado |
 |---|---|
 | Tests de backend (`mvn test`) | **94 de 94**, contra PostgreSQL 16 real, en tres órdenes de ejecución |
-| Tests de frontend (`npm test`) | **108 de 108** |
+| Tests de frontend (`npm test`) | **109 de 109** |
 | Compilación del frontend | Limpia · **95,5 KB gzip** el paquete inicial |
 | Integración continua | **Verde entera**: backend, frontend, imagen Docker y **prueba de humo** |
-| Commits | 130 |
+| Commits | 136 |
 
 El paquete inicial queda por debajo del objetivo de 200 KB. El segundo fragmento de
 107 KB es la librería de escaneo de códigos, que **solo se descarga en teléfonos sin
@@ -776,6 +776,39 @@ curl -X POST /api/entry/sync ... {"documentId":"1010101010", ...}
 
 Y el invariante quedó en `tools/humo.sh`: un carnet real resuelve el nombre, uno
 inexistente se rechaza con motivo "no registrado".
+
+---
+
+## 6.l La portería habría dicho "no reconocido" a los 1.200 estudiantes
+
+La pantalla de ingreso buscaba al estudiante en la copia **local** del dispositivo. Esa
+copia viene del paquete de arranque, que trae solo los estudiantes de los cursos que
+dicta quien entró. Medido con el usuario de coordinación, que es quien está en la puerta:
+
+```
+bootstrap de coordinacion:  bloques: 0 | estudiantes: 0
+```
+
+Cero. Cada carnet escaneado habría mostrado *"Carnet no reconocido"*. El ingreso se
+guardaba bien, pero quien está en la puerta vería un error constante y **perdería la
+capacidad de detectar un carnet realmente malo**, que es justo para lo que sirve ese
+mensaje.
+
+**El dato correcto ya estaba llegando.** El servidor responde
+`{"accepted":1,"rejected":[],"names":{"...":"NOMBRE777 APELLIDO777"}}`, y la pantalla lo
+descartaba. No por un error de lógica, sino **por una línea de tipos**: declaraba la
+forma de la respuesta sin `names`, así que el campo desaparecía en silencio al
+deserializar.
+
+Es el hallazgo más instructivo del proyecto en ese aspecto: **TypeScript describe lo que
+esperas, no lo que llega.** Una declaración incompleta no produce ningún error, y ningún
+test unitario lo detecta, porque el test simula la respuesta usando ese mismo tipo
+incompleto.
+
+Ahora la pantalla distingue los tres casos que confundía en uno: el servidor confirma y
+da el nombre; el servidor rechaza el carnet; o no hay conexión todavía, en cuyo caso dice
+que **el ingreso quedó registrado y se verificará al sincronizar** — porque decir lo
+contrario haría que alguien escaneara el mismo carnet tres veces.
 
 ---
 
