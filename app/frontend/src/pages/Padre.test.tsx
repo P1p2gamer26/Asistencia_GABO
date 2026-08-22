@@ -7,6 +7,8 @@ const HIJOS = [
     studentId: 2,
     fullName: 'JUAN DIEGO AVILA VERGARA',
     grade: '601',
+    schoolDays: 3,
+    recordedDays: 3,
     recent: [
       { classDate: '2026-08-20', subject: 'Matematicas', status: 'F' },
       { classDate: '2026-08-19', subject: 'Espanol', status: 'T', comment: 'Bus demorado' },
@@ -78,5 +80,46 @@ describe('Padre', () => {
     await waitFor(() =>
       expect(screen.getByText(/Maria Figueroa/)).toBeInTheDocument());
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('sin ningun registro lo dice, en vez de dar a entender que todo fue bien', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => respuesta([{
+      studentId: 2, fullName: 'JUAN AVILA', grade: '601',
+      schoolDays: 12, recordedDays: 0, recent: [],
+    }])));
+    render(<Padre />);
+    await waitFor(() =>
+      expect(screen.getByText(/todavia no hay registros/i)).toBeInTheDocument());
+    expect(screen.queryByText(/0 novedad/i)).not.toBeInTheDocument();
+  });
+
+  it('con registros y sin novedades tranquiliza con fundamento', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => respuesta([{
+      studentId: 2, fullName: 'JUAN AVILA', grade: '601',
+      schoolDays: 12, recordedDays: 12, recent: [],
+    }])));
+    render(<Padre />);
+    await waitFor(() =>
+      expect(screen.getByText(/asistio a las 12 clases registradas/i)).toBeInTheDocument());
+  });
+
+  it('con registros parciales dice cuantos dias cubre', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => respuesta([{
+      studentId: 2, fullName: 'JUAN AVILA', grade: '601',
+      schoolDays: 12, recordedDays: 5, recent: [],
+    }])));
+    render(<Padre />);
+    await waitFor(() =>
+      expect(screen.getByText(/5 de 12/i)).toBeInTheDocument());
+  });
+
+  it('con novedades las lista, como antes', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => respuesta([{
+      studentId: 2, fullName: 'JUAN AVILA', grade: '601',
+      schoolDays: 12, recordedDays: 12,
+      recent: [{ classDate: '2026-08-20', subject: 'Matematicas', status: 'F' }],
+    }])));
+    render(<Padre />);
+    await waitFor(() => expect(screen.getByText(/No asistio/i)).toBeInTheDocument());
   });
 });
