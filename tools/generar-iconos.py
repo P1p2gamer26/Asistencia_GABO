@@ -3,7 +3,7 @@
     python tools/generar-iconos.py
 
 Fuente:  docs/marca/logo-colegio.jpeg  (foto del escudo sobre fondo blanco)
-Salida:  app/frontend/public/{icon-192.png, icon-512.png, favicon.ico}
+Salida:  app/frontend/public/{icon-192.png, icon-512.png, favicon.ico, escudo.png}
 
 Se deja como script y no como paso del build porque el escudo cambia una vez cada
 varios anos: meterlo en cada compilacion seria pagar siempre por algo que casi nunca
@@ -22,7 +22,8 @@ FONDO = (245, 243, 234)      # #f5f3ea, el background_color del manifest
 # queda en 31,5 KB y bajarlo mas hace que el degradado del escudo muestre bandas: se
 # le permite un poco mas porque el service worker lo precarga una sola vez, mientras
 # que la regla de 30 KB existe para lo que viaja en cada carga.
-LIMITES = {"icon-192.png": 30 * 1024, "icon-512.png": 40 * 1024, "favicon.ico": 30 * 1024}
+LIMITES = {"icon-192.png": 30 * 1024, "icon-512.png": 40 * 1024,
+           "favicon.ico": 30 * 1024, "escudo.png": 20 * 1024}
 
 
 def escudo() -> Image.Image:
@@ -107,7 +108,13 @@ if __name__ == "__main__":
     icono(base, 256, 0.98, transparente=True).save(
         DESTINO / "favicon.ico", "ICO", sizes=[(16, 16), (32, 32), (48, 48), (64, 64)])
 
-    for nombre in ("icon-192.png", "icon-512.png", "favicon.ico"):
+    # Escudo para la interfaz: fondo transparente, porque se pinta sobre la tarjeta
+    # crema del login y sobre el encabezado. Se genera a 176 px para que se vea nitido
+    # en pantallas de doble densidad al tamano maximo en que se usa (72 px).
+    guardar(icono(base, 176, 0.98, transparente=True), DESTINO / "escudo.png",
+            LIMITES["escudo.png"])
+
+    for nombre in ("icon-192.png", "icon-512.png", "favicon.ico", "escudo.png"):
         tam = (DESTINO / nombre).stat().st_size
         marca = "OK " if tam <= LIMITES[nombre] else "GRANDE"
         print(f"  {marca} {nombre}: {tam / 1024:.1f} KB")
