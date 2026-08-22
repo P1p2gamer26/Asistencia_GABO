@@ -10,6 +10,14 @@ import SelectorFecha from '../components/SelectorFecha';
 
 const hoyISO = () => new Date().toLocaleDateString('en-CA');   // YYYY-MM-DD en hora local
 
+const DIAS = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+
+/** Dia de la semana (1 lunes ... 7 domingo) de una fecha YYYY-MM-DD, en hora local. */
+function diaDeLaSemana(fecha: string): number {
+  const d = new Date(`${fecha}T00:00`).getDay();
+  return d === 0 ? 7 : d;
+}
+
 export default function TomarAsistencia() {
   // Los pendientes de hoy en el inicio enlazan aqui con el curso y el bloque ya elegidos.
   const [params] = useSearchParams();
@@ -23,13 +31,14 @@ export default function TomarAsistencia() {
   const [lectivo, setLectivo] = useState(true);
   const [marcas, setMarcas] = useState<Record<number, Status>>({});
   const [online, setOnline] = useState(navigator.onLine);
+  const [alcanzable, setAlcanzable] = useState(true);
   const [pendientes, setPendientes] = useState(0);
   const [error, setError] = useState('');
 
   useEffect(() => {
     void db.blocks.toArray().then(setBlocks);
     void pendingCount().then(setPendientes);
-    const detener = startAutoSync(setPendientes);
+    const detener = startAutoSync((p, a) => { setPendientes(p); setAlcanzable(a); });
     const cambio = () => setOnline(navigator.onLine);
     window.addEventListener('online', cambio);
     window.addEventListener('offline', cambio);
@@ -47,9 +56,14 @@ export default function TomarAsistencia() {
     [blocks],
   );
 
+  // Solo los bloques que ocurren el dia de la fecha elegida. Un bloque del martes no
+  // se puede marcar un lunes, asi que ofrecerlo es ofrecer un error: el docente elegia
+  // entre cinco opciones identicas y la equivocada guardaba la asistencia en otro dia.
   const bloquesDelGrado = useMemo(
-    () => blocks.filter((b) => b.grade === grade),
-    [blocks, grade],
+    () => blocks
+      .filter((b) => b.grade === grade && b.weekday === diaDeLaSemana(fecha))
+      .sort((a, b) => a.blockNo - b.blockNo),
+    [blocks, grade, fecha],
   );
 
   useEffect(() => {
@@ -57,6 +71,13 @@ export default function TomarAsistencia() {
     void db.students.where('grade').equals(grade).toArray()
       .then((lista) => setStudents(lista.sort((a, b) => a.fullName.localeCompare(b.fullName))));
   }, [grade]);
+
+  useEffect(() => {
+    // La lista de bloques depende del dia: si el elegido ya no esta, se limpia.
+    if (blockId !== null && !bloquesDelGrado.some((b) => b.id === blockId)) {
+      setBlockId(null);
+    }
+  }, [bloquesDelGrado, blockId]);
 
   // Al cambiar de curso, bloque o fecha se recupera lo ya marcado localmente para ese contexto.
   useEffect(() => {
@@ -93,13 +114,14 @@ export default function TomarAsistencia() {
   }
 
   async function enviar() {
-    const { pending } = await flushOutbox();
+    const { pending, alcanzable: hay } = await flushOutbox();
     setPendientes(pending);
+    setAlcanzable(hay);
   }
 
   return (
     <main className="card">
-      <BannerEstado online={online} pendientes={pendientes} onSincronizar={enviar} />
+      <BannerEstado online={online} alcanzable={alcanzable} pendientes={pendientes} onSincronizar={enviar} />
 
       <span className="eyebrow">Planilla del dia</span>
       <h1>Asistencia a clase</h1>
@@ -116,7 +138,9 @@ export default function TomarAsistencia() {
                 onChange={(e) => setBlockId(Number(e.target.value) || null)}>
           <option value="">Seleccione...</option>
           {bloquesDelGrado.map((b) => (
-            <option key={b.id} value={b.id}>{b.blockNo}. {b.subject} ({b.startTime})</option>
+            <option key={b.id} value={b.id}>
+              {b.blockNo}. {b.subject} ({b.startTime}) · {DIAS[b.weekday % 7]}
+            </option>
           ))}
         </select>
 
