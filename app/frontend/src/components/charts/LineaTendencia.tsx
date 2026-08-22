@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { dominioY, puntosLinea } from './geometria';
+import { anchoZonaSensible, dominioY, puntosLinea } from './geometria';
 
 const ANCHO = 1000;
 const ALTO = 220;
@@ -28,6 +28,7 @@ export default function LineaTendencia({ serie }: Props) {
   }
 
   const trazo = puntos.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  const zona = anchoZonaSensible(puntos.length, anchoUtil);
 
   return (
     <figure className="grafica">
@@ -57,7 +58,7 @@ export default function LineaTendencia({ serie }: Props) {
 
           {puntos.map((p, i) => (
             <g key={p.fecha}>
-              <rect x={p.x - 10} y={0} width={20} height={altoUtil} fill="transparent"
+              <rect x={p.x - zona / 2} y={0} width={zona} height={altoUtil} fill="transparent"
                     tabIndex={0} role="button"
                     aria-label={`${fecha(p.fecha)}: ${p.valor} por ciento`}
                     onMouseEnter={() => setActivo(i)} onFocus={() => setActivo(i)} />
