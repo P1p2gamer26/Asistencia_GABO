@@ -109,4 +109,36 @@ class SyncTest extends AbstractIntegrationTest {
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.accepted").value(0));
     }
+
+    @Test
+    void un_lote_desmesurado_se_rechaza_en_vez_de_intentar_procesarlo() throws Exception {
+        StringBuilder registros = new StringBuilder();
+        for (int i = 0; i < 501; i++) {
+            if (i > 0) registros.append(',');
+            registros.append("""
+                {"id":"%s","studentId":1,"scheduleBlockId":1,"classDate":"2026-04-06",
+                 "status":"P","recordedAt":"2026-04-06T11:30:00Z"}
+                """.formatted(new java.util.UUID(0L, i).toString()));
+        }
+        mvc.perform(post("/api/attendance/sync").header("Authorization", token())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"records\":[" + registros + "]}"))
+           .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void un_lote_grande_pero_razonable_se_acepta() throws Exception {
+        StringBuilder registros = new StringBuilder();
+        for (int i = 0; i < 40; i++) {
+            if (i > 0) registros.append(',');
+            registros.append("""
+                {"id":"%s","studentId":1,"scheduleBlockId":1,"classDate":"2026-04-09",
+                 "status":"P","recordedAt":"2026-04-09T11:30:00Z"}
+                """.formatted(new java.util.UUID(7L, i).toString()));
+        }
+        mvc.perform(post("/api/attendance/sync").header("Authorization", token())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"records\":[" + registros + "]}"))
+           .andExpect(status().isOk());
+    }
 }

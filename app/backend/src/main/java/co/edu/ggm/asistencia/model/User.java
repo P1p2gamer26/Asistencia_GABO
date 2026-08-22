@@ -25,4 +25,7 @@ public class User {
     private Role role;
 
     private boolean active;
+
+    @Column(name = "must_change_password")
+    private boolean mustChangePassword;
 }
