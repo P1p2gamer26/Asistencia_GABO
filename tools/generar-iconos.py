@@ -23,7 +23,7 @@ FONDO = (245, 243, 234)      # #f5f3ea, el background_color del manifest
 # le permite un poco mas porque el service worker lo precarga una sola vez, mientras
 # que la regla de 30 KB existe para lo que viaja en cada carga.
 LIMITES = {"icon-192.png": 30 * 1024, "icon-512.png": 40 * 1024,
-           "favicon.ico": 30 * 1024, "escudo.png": 20 * 1024}
+           "favicon.ico": 30 * 1024, "escudo.png": 120 * 1024}
 
 
 def escudo() -> Image.Image:
@@ -82,10 +82,16 @@ def guardar(img: Image.Image, ruta: Path, limite: int) -> None:
         candidata.save(buf, "PNG", optimize=True)
         return buf.getvalue()
 
+    # Si el color real ya cabe, se deja: cuantizar sin necesidad solo empeora el
+    # texto en anillo del escudo a cambio de unos kilobytes que sobran.
+    mejor = bytes_de(img)
+    if len(mejor) <= limite:
+        ruta.write_bytes(mejor)
+        return
+
     # Se prueban todas y se conserva la mas pequena. Quedarse con el ultimo intento
     # puede dejar un fichero mayor que el primero: reducir la paleta no siempre
     # comprime mejor, sobre todo si la imagen ya venia palettizada.
-    mejor = bytes_de(img)
     for colores in (192, 128, 96, 64, 48):
         candidata = bytes_de(img.convert("P", palette=Image.ADAPTIVE, colors=colores,
                                          dither=Image.Dither.NONE))
@@ -109,9 +115,16 @@ if __name__ == "__main__":
         DESTINO / "favicon.ico", "ICO", sizes=[(16, 16), (32, 32), (48, 48), (64, 64)])
 
     # Escudo para la interfaz: fondo transparente, porque se pinta sobre la tarjeta
-    # crema del login y sobre el encabezado. Se genera a 176 px para que se vea nitido
-    # en pantallas de doble densidad al tamano maximo en que se usa (72 px).
-    guardar(icono(base, 176, 0.98, transparente=True), DESTINO / "escudo.png",
+    # crema del login y sobre el encabezado. A 288 px se ve nitido a triple densidad
+    # en el tamano mayor en que se usa (96 px en el login).
+    #
+    # El limite es holgado a proposito: este escudo lleva texto en anillo y un cielo
+    # con degradado, y al cuantizarlo a paleta el texto se convierte en manchas. Es un
+    # solo fichero, lo cachea el service worker en la primera visita y no vuelve a
+    # descargarse; ahorrar 80 KB una vez no compensa un escudo ilegible. El fichero
+    # pesa porque el original es la foto de un escudo impreso y conserva la trama de
+    # semitono; a 288 px en color real cabe en el limite y el texto del anillo se lee.
+    guardar(icono(base, 288, 0.98, transparente=True), DESTINO / "escudo.png",
             LIMITES["escudo.png"])
 
     for nombre in ("icon-192.png", "icon-512.png", "favicon.ico", "escudo.png"):
