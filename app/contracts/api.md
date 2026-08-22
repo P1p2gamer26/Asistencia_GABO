@@ -5,8 +5,12 @@ Todas las rutas cuelgan de `/api`. Todas menos `/auth/**` exigen
 403 rol incorrecto, 400 cuerpo invalido.
 
 ## Auth  (Track A)
-POST /auth/login    {email, password} -> {token, refreshToken, role, fullName, userId}
+POST /auth/login    {email, password} -> {token, refreshToken, role, fullName, userId, mustChangePassword}
+                    429 si el correo acumula 5 fallos (bloqueo de 15 minutos)
 POST /auth/refresh  {refreshToken}    -> igual que login
+POST /auth/change-password  {currentPassword, newPassword} -> 204
+                    401 si la actual no coincide; 400 si la nueva tiene menos de 8
+                    caracteres o es igual a la actual
 
 ## Calendario  (Track A)
 GET  /calendar/school-days?from=YYYY-MM-DD&to=YYYY-MM-DD
@@ -53,3 +57,4 @@ POST /admin/import/students  multipart file=CSV -> {imported, errors:[String]}
 - `classDate` solo puede ser una fecha con dayType = LECTIVO. Si no, el registro
   se rechaza con reason = "La fecha no es un dia lectivo".
 - Los `id` son UUID v4 generados por el cliente. Reenviar el mismo lote nunca duplica.
+- `POST /attendance/sync` acepta como maximo 500 registros por lote.
