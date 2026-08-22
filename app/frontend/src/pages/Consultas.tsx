@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api, apiUrl, getSession } from '../api/client';
 
 type Fila = {
@@ -13,6 +13,16 @@ export default function Consultas() {
   const [tipo, setTipo] = useState('resumen');
   const [filas, setFilas] = useState<Fila[]>([]);
   const [error, setError] = useState('');
+  const [cursos, setCursos] = useState<string[]>([]);
+
+  // Los cursos salen de un resumen de un solo dia: es la consulta mas barata que
+  // devuelve la lista completa, y evita inventar un endpoint nuevo para esto.
+  useEffect(() => {
+    const hoy = new Date().toLocaleDateString('en-CA');
+    api.get<Fila[]>(`/api/reports/summary?from=${hoy}&to=${hoy}`)
+       .then((filas) => setCursos([...new Set(filas.map((f) => f.grade))].sort()))
+       .catch(() => {});   // sin conexion se queda vacio y el aviso lo explica
+  }, []);
 
   const query = () =>
     `grade=${encodeURIComponent(grade)}&from=${from}&to=${to}`;
@@ -49,7 +59,10 @@ export default function Consultas() {
       <h1>Consultas</h1>
       <div className="filtros">
         <label htmlFor="curso">Curso</label>
-        <input id="curso" value={grade} onChange={(e) => setGrade(e.target.value)} placeholder="601 (vacio = todos)" />
+        <select id="curso" value={grade} onChange={(e) => setGrade(e.target.value)}>
+          <option value="">Seleccione un curso...</option>
+          {cursos.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
         <label htmlFor="desde">Desde</label>
         <input id="desde" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
         <label htmlFor="hasta">Hasta</label>
@@ -61,9 +74,16 @@ export default function Consultas() {
           <option value="inasistencias">Consolidado de inasistencias</option>
         </select>
       </div>
-      <button type="button" onClick={() => void buscar()} disabled={!from || !to}>Consultar</button>
-      <button type="button" className="secundario" onClick={() => void descargar()} disabled={!from || !to}>
-        Descargar Excel
+      <p className="meta">
+        Elija un curso para ver la tabla. Para analizar el colegio entero, descargue
+        el Excel: 1.200 estudiantes no se leen en una pantalla.
+      </p>
+      <button type="button" onClick={() => void buscar()} disabled={!grade || !from || !to}>
+        Consultar
+      </button>
+      <button type="button" className="secundario" onClick={() => void descargar()}
+              disabled={!from || !to}>
+        Descargar Excel{grade ? ` (${grade})` : ' (todos los cursos)'}
       </button>
       {error && <p role="alert" className="error">{error}</p>}
       {filas.length > 0 && (
