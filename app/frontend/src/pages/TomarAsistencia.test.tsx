@@ -207,4 +207,63 @@ describe('TomarAsistencia', () => {
     await waitFor(() => expect(screen.getByLabelText(/curso/i)).toBeInTheDocument());
     expect(screen.getByRole('button', { name: /enviar asistencia/i })).toBeDisabled();
   });
+
+  it('enviar conserva el motivo que el docente escribio', async () => {
+    await elegirCursoYBloque();
+
+    const grupo = screen.getByRole('group', { name: /ANA LOPEZ/i });
+    await userEvent.click(within(grupo).getByRole('button', { name: 'T' }));
+
+    const motivo = await screen.findByLabelText(/motivo/i);
+    await userEvent.type(motivo, 'El bus se demoro');
+    await userEvent.tab();
+
+    await userEvent.click(screen.getByRole('button', { name: /enviar asistencia/i }));
+
+    await waitFor(async () => {
+      const cola = await db.outbox.toArray();
+      const ana = cola.find((r) => r.studentId === 10);
+      // El defecto: enviar reconstruia los registros y perdia el motivo.
+      expect(ana?.comment).toBe('El bus se demoro');
+      expect(ana?.status).toBe('T');
+    });
+  });
+
+  it('el motivo sobrevive a que el docente corrija el estado', async () => {
+    await elegirCursoYBloque();
+
+    const grupo = screen.getByRole('group', { name: /ANA LOPEZ/i });
+    await userEvent.click(within(grupo).getByRole('button', { name: 'T' }));
+    await userEvent.type(await screen.findByLabelText(/motivo/i), 'El bus se demoro');
+    await userEvent.tab();
+
+    // Se lo piensa mejor y lo pone como falta
+    await userEvent.click(within(grupo).getByRole('button', { name: 'F' }));
+    await userEvent.click(screen.getByRole('button', { name: /enviar asistencia/i }));
+
+    await waitFor(async () => {
+      const ana = (await db.outbox.toArray()).find((r) => r.studentId === 10);
+      expect(ana?.status).toBe('F');
+      expect(ana?.comment).toBe('El bus se demoro');
+    });
+  });
+
+  it('volver a presente borra el motivo, que ya no tiene sentido', async () => {
+    await elegirCursoYBloque();
+
+    const grupo = screen.getByRole('group', { name: /ANA LOPEZ/i });
+    await userEvent.click(within(grupo).getByRole('button', { name: 'T' }));
+    await userEvent.type(await screen.findByLabelText(/motivo/i), 'El bus se demoro');
+    await userEvent.tab();
+    await userEvent.click(within(grupo).getByRole('button', { name: 'P' }));
+
+    await userEvent.click(screen.getByRole('button', { name: /enviar asistencia/i }));
+
+    await waitFor(async () => {
+      const ana = (await db.outbox.toArray()).find((r) => r.studentId === 10);
+      expect(ana?.status).toBe('P');
+      // Un motivo de tardanza en alguien que llego a tiempo confunde al acudiente.
+      expect(ana?.comment).toBeFalsy();
+    });
+  });
 });
