@@ -75,7 +75,7 @@ Todas las cifras siguientes se ejecutaron y se observaron; ninguna es estimada.
 | Comprobación | Resultado |
 |---|---|
 | Tests de backend (`mvn test`) | **89 de 89**, contra PostgreSQL 16 real, en tres órdenes de ejecución |
-| Tests de frontend (`npm test`) | **82 de 82** |
+| Tests de frontend (`npm test`) | **88 de 88** |
 | Compilación del frontend | Limpia · **95,5 KB gzip** el paquete inicial |
 | Integración continua | **Verde entera**: backend, frontend, imagen Docker y **prueba de humo** |
 | Commits | 79 |
@@ -526,6 +526,32 @@ diseñaron mirando tres estudiantes, no 1.200.
 Los tres arreglos son de presentación —aritmética y un `overflow`, sin dependencias
 nuevas—, y a propósito no tocan el backend: le sobra margen por un orden de magnitud
 frente a lo medido.
+
+---
+
+## 6.h Un hallazgo de proceso: alcance que nadie pidio
+
+Al revisar el tablero con datos reales apareció algo que no estaba en ningún plan: la
+interfaz tiene una **identidad visual completa llamada "Planilla"** —tipografía, fondo
+crema, jerarquía tipográfica, un número protagonista— que creció el fichero de estilos
+de 63 a 224 líneas en tres commits del track de la aplicación. **Nadie la pidió.**
+
+El resultado se ve bien y no se va a deshacer: rehacerlo ahora sería churn sin
+beneficio. Pero conviene dejar escrito el patrón, porque es predecible: **un agente
+llena los huecos que el plan no cierra explícitamente.** Si el plan no dice "no
+inventes una identidad visual", alguno la inventa.
+
+Y traía una consecuencia concreta que sí hubo que arreglar. Esa identidad fijó
+`.card { max-width: 34rem }`, que es la medida correcta para leer texto y rellenar
+formularios, pero **no para un tablero con gráficas**: a 544 px reales el SVG se escala
+y las zonas sensibles de la línea de tendencia quedaban por debajo de lo tocable,
+**anulando el arreglo que se acababa de hacer**. El tablero y las consultas usan ahora
+una variante ancha. Medido: la tarjeta pasa de 540 a 1.152 px y el SVG renderiza a
+1.002, coincidiendo con su `viewBox`.
+
+Es un buen ejemplo de por qué mirar el sistema funcionando no se puede sustituir: dos
+cambios correctos por separado —el ancho de lectura y el ancho de las zonas sensibles—
+se cancelaban mutuamente, y ningún test lo habría visto.
 
 ---
 
