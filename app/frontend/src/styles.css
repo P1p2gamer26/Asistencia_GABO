@@ -234,17 +234,23 @@ tbody tr:hover { background: #fbfaf4; }
 .card.ancha { max-width: 72rem; }
 
 /* Calendario escolar: cuadricula de siete columnas, una por dia de la semana. */
+:root { --calendario-celda: 76px; }
 .calendario { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin: 12px 0; }
 .calendario-cabecera { text-align: center; font-size: .8rem; color: var(--tinta-suave);
                        padding: 4px 0; font-weight: 700; }
-.calendario-hueco { min-height: 76px; }
-.calendario-dia { min-height: 76px; border: 1px solid var(--rejilla); border-radius: 6px;
-                  padding: 4px 6px; display: flex; flex-direction: column; gap: 2px;
-                  font-size: .75rem; }
+.calendario-hueco { min-height: var(--calendario-celda); }
+.calendario-dia { min-height: var(--calendario-celda); border: 1px solid var(--rejilla);
+                  border-radius: 6px; padding: 4px 6px; display: flex; flex-direction: column;
+                  gap: 2px; font-size: .75rem; }
 .calendario-dia .numero { font-weight: 700; font-size: .95rem; }
 .calendario-dia .tipo { color: var(--tinta-suave); }
 .calendario-dia .motivo { color: var(--tinta-mute); font-size: .7rem; }
 .calendario-dia select { font-size: .7rem; padding: 2px; min-height: 0; margin-top: auto; }
+
+/* Version corta para pantallas estrechas: oculta por defecto, la muestra la media
+   query de abajo en vez de .tipo. El docente que no distingue colores esta MIRANDO
+   la pantalla, no usando lector, asi que el aria-label solo no basta aqui. */
+.calendario-dia .tipo-corto { display: none; color: var(--tinta-suave); font-weight: 700; }
 
 /* El color acompana a la etiqueta escrita, nunca la sustituye. */
 .dia-lectivo       { background: #eaf6ec; }
@@ -257,9 +263,14 @@ tbody tr:hover { background: #fbfaf4; }
 .muestra { width: 14px; height: 14px; border-radius: 3px; display: inline-block;
            border: 1px solid var(--rejilla); }
 
-/* En un telefono, siete columnas con texto no caben: se deja solo el numero y el color,
-   y la etiqueta escrita sigue estando en el aria-label para el lector de pantalla. */
+/* En un telefono, siete columnas con la palabra completa no caben: se cambia por
+   una forma corta visible ("Fest.", "Susp.") en vez de ocultarla, porque el color
+   solo no basta ahi donde mas se usa esta pantalla. El motivo si se oculta: es
+   informacion secundaria y el aria-label lo sigue llevando para el lector de
+   pantalla. */
 @media (max-width: 560px) {
-  .calendario-dia { min-height: 52px; }
-  .calendario-dia .tipo, .calendario-dia .motivo { display: none; }
+  :root { --calendario-celda: 52px; }
+  .calendario-dia .tipo { display: none; }
+  .calendario-dia .tipo-corto { display: block; }
+  .calendario-dia .motivo { display: none; }
 }

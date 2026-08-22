@@ -12,6 +12,17 @@ const ETIQUETA: Record<DayType, string> = {
   SUSPENDIDO: 'suspendido',
 };
 
+/** Version corta para pantallas de 360px: lectivo es el caso normal y no necesita
+ * etiqueta, pero un dia especial siempre debe decir por escrito que lo es, aunque
+ * no haya espacio para la palabra completa (nunca solo color). */
+const ETIQUETA_CORTA: Record<DayType, string> = {
+  LECTIVO: '',
+  FESTIVO: 'Fest.',
+  VACACIONES: 'Vac.',
+  INSTITUCIONAL: 'Inst.',
+  SUSPENDIDO: 'Susp.',
+};
+
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
                'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
@@ -22,8 +33,7 @@ const dosDigitos = (n: number) => String(n).padStart(2, '0');
 const fechaISO = (a: number, m: number, d: number) =>
   `${a}-${dosDigitos(m + 1)}-${dosDigitos(d)}`;
 
-export default function Calendario() {
-  const hoy = new Date();
+export default function Calendario({ hoy = new Date() }: { hoy?: Date }) {
   const [anio, setAnio] = useState(hoy.getFullYear());
   const [mes, setMes] = useState(hoy.getMonth());
   const [dias, setDias] = useState<Record<string, SchoolDay>>({});
@@ -110,12 +120,14 @@ export default function Calendario() {
           // Sin dato: fin de semana o fecha fuera del ano escolar sembrado.
           const clase = tipo ? `dia-${tipo.toLowerCase()}` : 'dia-sin-clase';
           const etiqueta = tipo ? ETIQUETA[tipo] : 'sin clase';
+          const etiquetaCorta = tipo ? ETIQUETA_CORTA[tipo] : '';
 
           return (
             <div key={fecha} role="gridcell" className={`calendario-dia ${clase}`}
                  aria-label={`${dia} de ${MESES[mes]}: ${etiqueta}`}>
               <span className="numero">{dia}</span>
               <span className="tipo">{etiqueta}</span>
+              {etiquetaCorta && <span className="tipo-corto">{etiquetaCorta}</span>}
               {info?.description && <span className="motivo">{info.description}</span>}
               {puedeEditar && info && (
                 <select aria-label={`Tipo de dia para ${fecha}`} value={tipo}
