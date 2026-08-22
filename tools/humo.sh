@@ -140,6 +140,25 @@ print(json.dumps({'records': [{'id': f'00000000-0000-4000-8000-{i:012d}', 'stude
 comprobar "un lote desmesurado se rechaza" "400"   "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/api/attendance/sync"      -H "$AUTH" -H 'Content-Type: application/json' --data-binary "@$LOTE_ENORME")"
 rm -f "$LOTE_ENORME"
 
+# --- La asistencia se guarda completa ------------------------------------------
+# De un curso de N estudiantes deben quedar N registros, no solo los que el docente
+# toco. Se comprueba contra el bloque de la semilla, que tiene 2 estudiantes en 601.
+FECHA_LIBRE="2026-03-10"
+LOTE_COMPLETO=$(mktemp)
+python -c "
+import json, uuid
+recs = [{'id': str(uuid.uuid4()), 'studentId': i, 'scheduleBlockId': 1,
+         'classDate': '$FECHA_LIBRE', 'status': 'P',
+         'recordedAt': '${FECHA_LIBRE}T12:00:00Z'} for i in (1, 2)]
+print(json.dumps({'records': recs}))" > "$LOTE_COMPLETO"
+curl -s -o /dev/null -X POST "$BASE/api/attendance/sync" -H "$AUTH" \
+  -H 'Content-Type: application/json' --data-binary "@$LOTE_COMPLETO"
+rm -f "$LOTE_COMPLETO"
+
+GUARDADOS=$(curl -s "$BASE/api/attendance?blockId=1&date=$FECHA_LIBRE" -H "$AUTH" \
+  | grep -o '"studentId"' | wc -l | tr -d ' ')
+comprobar "el curso se guarda completo" "2" "$GUARDADOS"
+
 # --- Resultado ----------------------------------------------------------------
 echo
 if [ "$FALLOS" -eq 0 ]; then

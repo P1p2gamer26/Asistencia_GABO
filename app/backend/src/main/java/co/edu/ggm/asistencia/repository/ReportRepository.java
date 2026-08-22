@@ -118,8 +118,13 @@ public interface ReportRepository extends Repository<Student, Long> {
             JOIN subjects sub ON sub.id = b.subject_id
             WHERE b.teacher_id = :teacherId
               AND b.weekday = :weekday
-              AND NOT EXISTS (SELECT 1 FROM attendance a
-                              WHERE a.schedule_block_id = b.id AND a.class_date = :day)
+              -- Un bloque esta pendiente mientras le falte algun estudiante, no solo
+              -- cuando no tenga ninguno: antes bastaba un registro para darlo por
+              -- completo y nadie avisaba de los que faltaban.
+              AND (SELECT count(*) FROM attendance a
+                    WHERE a.schedule_block_id = b.id AND a.class_date = :day)
+                  < (SELECT count(*) FROM students s
+                      WHERE s.grade = b.grade AND s.active)
             ORDER BY b.block_no
             """, nativeQuery = true)
     List<PendingBlock> pendingToday(@Param("teacherId") Long teacherId,
