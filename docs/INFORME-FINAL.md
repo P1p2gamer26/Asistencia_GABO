@@ -75,10 +75,10 @@ Todas las cifras siguientes se ejecutaron y se observaron; ninguna es estimada.
 | Comprobación | Resultado |
 |---|---|
 | Tests de backend (`mvn test`) | **94 de 94**, contra PostgreSQL 16 real, en tres órdenes de ejecución |
-| Tests de frontend (`npm test`) | **100 de 100** |
+| Tests de frontend (`npm test`) | **108 de 108** |
 | Compilación del frontend | Limpia · **95,5 KB gzip** el paquete inicial |
 | Integración continua | **Verde entera**: backend, frontend, imagen Docker y **prueba de humo** |
-| Commits | 124 |
+| Commits | 130 |
 
 El paquete inicial queda por debajo del objetivo de 200 KB. El segundo fragmento de
 107 KB es la librería de escaneo de códigos, que **solo se descarga en teléfonos sin
@@ -681,6 +681,48 @@ debe devolver ese mismo motivo al consultar `GET /api/attendance`.
 Un buzón de salida sirve para saber qué falta por enviar, no para saber qué hay. Cada
 vez que la pantalla usó la cola como memoria —las marcas al reabrir, el motivo al
 enviar— acabó mintiendo en cuanto la cola se vació.
+
+---
+
+## 6.k La cola de salida no puede ser la memoria de la pantalla
+
+Siguiendo el mismo hilo —la distancia entre lo que la pantalla promete y lo que el
+sistema guarda— aparecieron dos defectos más, y resultaron ser **el mismo error cometido
+dos veces**.
+
+**El motivo de una tardanza se perdía.** El docente marcaba "llegó tarde", escribía "el
+bus se demoró" y pulsaba Enviar: en la base quedaba `comment: NULL`. La causa tenía dos
+capas. La primera, que `markAttendance` usa `put`, que reemplaza el registro entero, de
+modo que cualquier llamada sin motivo lo borraba. La segunda, más profunda: aunque se
+conserve lo que hubiera en la cola, **la sincronización automática ya había vaciado la
+cola**, así que al enviar no había nada de donde conservarlo y el `upsert` del servidor
+sobrescribía el motivo bueno con vacío.
+
+Esto anulaba un requisito explícito de los docentes recogido en `Pruebas.docx`:
+*"permitir agregar comentarios de porque llego tarde o falto"*.
+
+**Reabrir una clase ya registrada la mostraba en blanco.** La pantalla nunca llamaba a
+`GET /api/attendance?blockId=&date=`, que existe justo para eso. Solo leía la cola local,
+y la cola se vacía al sincronizar. Un docente que revisaba la clase de ayer veía a los 40
+estudiantes en "P", sin rastro de las faltas que había puesto. Y si pulsaba Enviar —cosa
+razonable, porque la pantalla parecía vacía— **sobrescribía las faltas reales con
+presentes**.
+
+### La lección
+
+**Un buzón de salida sirve para saber qué falta por enviar, no para saber qué hay.** Cada
+vez que la pantalla usó la cola local como memoria, acabó mintiendo en cuanto la cola se
+vació. Ahora el estado de la pantalla es la fuente de verdad: se alimenta al abrir un
+bloque desde lo guardado en el servidor, con la cola local encima porque es más reciente,
+y avisa explícitamente cuando sin conexión no se puede comprobar.
+
+### Verificado con datos reales
+
+| Prueba | Antes | Ahora |
+|---|---|---|
+| Reabrir una clase registrada | Todo en "P" | 1 tardanza y 39 presentes, como en la base |
+| Enviar sin tocar nada | Borraba la tardanza | Los datos quedan intactos |
+| Escribir un motivo y enviar | Se perdía | `T -> motivo: El bus se demoro` |
 
 ---
 
