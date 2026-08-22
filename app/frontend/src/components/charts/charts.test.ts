@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { segmentosApilados, puntosLinea, dominioY } from './geometria';
+import { segmentosApilados, puntosLinea, dominioY, anchoZonaSensible } from './geometria';
 
 describe('geometria de las graficas', () => {
   it('los segmentos apilados cubren exactamente el ancho disponible', () => {
@@ -67,5 +67,33 @@ describe('geometria de las graficas', () => {
 
   it('una serie vacia sigue devolviendo 0 a 100', () => {
     expect(dominioY([])).toEqual({ min: 0, max: 100 });
+  });
+
+  it('con muchos puntos las zonas sensibles no se solapan', () => {
+    // Un semestre son 86 dias lectivos en 942 px utiles: los puntos quedan a ~11 px.
+    const separacion = 942 / 85;
+    const zona = anchoZonaSensible(86, 942);
+    expect(zona).toBeLessThanOrEqual(separacion);
+  });
+
+  it('con pocos puntos la zona no se hace diminuta', () => {
+    expect(anchoZonaSensible(3, 942)).toBeGreaterThanOrEqual(8);
+  });
+
+  it('con pocos puntos la zona tampoco se hace enorme', () => {
+    // Sin tope, con 3 puntos la zona ocuparia un tercio del grafico.
+    expect(anchoZonaSensible(3, 942)).toBeLessThanOrEqual(44);
+  });
+
+  it('con un solo punto devuelve algo tocable y finito', () => {
+    const zona = anchoZonaSensible(1, 942);
+    expect(zona).toBeGreaterThanOrEqual(8);
+    expect(Number.isFinite(zona)).toBe(true);
+  });
+
+  it('nunca devuelve cero ni negativo', () => {
+    for (const n of [0, 1, 2, 50, 200, 500]) {
+      expect(anchoZonaSensible(n, 942)).toBeGreaterThan(0);
+    }
   });
 });
