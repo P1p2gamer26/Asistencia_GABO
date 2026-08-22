@@ -18,6 +18,8 @@ Formato: `- [<tarea>] <estado> <fecha> — <nota>`
 - [V2-Task10..11] hecho 2026-08-21 — despliegue Vercel + Supabase + Fly.io: `apiUrl()` con `VITE_API_URL`, CORS por `APP_CORS_ORIGINS`, `vercel.json`, `fly.toml` y la Opcion C en `docs/DESPLIEGUE.md` (usar el Session pooler 5432 de Supabase, no el Transaction pooler 6543). Un test guardian falla si alguien vuelve a usar `fetch('/api/...')` relativo: ya cazo uno en `PanelCarga.tsx`.
 - [V2-Task12] PARCIAL 2026-08-21 — verificado: 77/77 backend en orden aleatorio, 67/67 frontend, build limpio (98.05 KB gzip), `humo.sh` con sus 16 invariantes en verde contra la aplicacion corriendo, los tres Excel comprobados celda a celda contra la API viva y el carnet con texto completo aceptado (`accepted:1`). **PENDIENTE: el recorrido en navegador real no se ejecuto porque la extension de Chrome no estaba conectada.** Tampoco se ha desplegado en Vercel/Supabase/Fly: la configuracion esta escrita y validada sintacticamente, pero sin desplegar es una hipotesis, igual que lo fue el Dockerfile en la cuarta iteracion.
 
+- [Pantalla-fiel-Task3] hecho 2026-08-22 — invariante del motivo de tardanza en `tools/humo.sh` (envia T con comentario y comprueba que `GET /api/attendance` lo devuelve) y seccion 6.k de `docs/INFORME-FINAL.md` con los dos defectos de la pantalla de asistencia (motivo perdido al enviar, clase registrada mostrada en blanco al reabrir) y la leccion: la cola local es un buzon de salida, no la memoria de la pantalla. No se ejecuto `humo.sh` en esta sesion por no tener la aplicacion levantada; solo se verifico la sintaxis del script.
+
 ## Cambios al contrato (requiere acuerdo de los tres)
 _(vacio)_
 ## Bloqueos
