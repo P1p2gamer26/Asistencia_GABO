@@ -148,6 +148,29 @@ sola.
 **Borrar `app/backend/src/main/resources/static/` al terminar**: es salida de
 compilación y no pertenece al repositorio.
 
+## Probar la hora punta
+
+El escenario real del colegio es que todos los docentes sincronizan a la vez, a las 7:00
+de la mañana. `tools/carga-concurrente.sh` lo simula contra la base de carga:
+
+```bash
+# Lista de docentes con bloque el lunes, que el script necesita
+psql -U postgres -d asistencia_carga -tAc "
+SELECT u.email||'|'||b.id||'|'||b.grade FROM schedule_blocks b JOIN users u ON u.id=b.teacher_id
+WHERE b.weekday=1 AND u.email LIKE 'docente%' ORDER BY u.id LIMIT 40" > /tmp/docentes.txt
+
+MIN_ID=1 TOTAL_ESTUDIANTES=1203   bash tools/carga-concurrente.sh http://localhost:8082 2026-07-13 40
+```
+
+Medido el 22 de agosto de 2026: **40 docentes, 1.600 registros, 305 ms de media, 599 ms
+el peor caso y 2,4 segundos en total**, sin errores ni bloqueos. PostgreSQL reporta cero
+interbloqueos.
+
+Se probó también el caso de contención de verdad —ocho docentes marcando **el mismo
+bloque y los mismos estudiantes** a la vez, que es lo que pasa con un reemplazo—: los
+ocho recibieron confirmación, quedaron **40 filas y no 320**, y el estado final fue el
+del docente con la marca más reciente, que es la regla de resolución diseñada.
+
 ## Documentación
 
 - **Despliegue en producción: `../docs/DESPLIEGUE.md`**
