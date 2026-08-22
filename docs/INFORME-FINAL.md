@@ -555,6 +555,48 @@ se cancelaban mutuamente, y ningún test lo habría visto.
 
 ---
 
+## 6.j La asistencia solo se guardaba a medias
+
+Verificación del 22 de agosto de 2026 contra la base de carga: en la prueba del ciclo
+offline se marcaron **3 faltas en un curso de 40 estudiantes**. Después, en la base de
+datos:
+
+```
+registros guardados:    3
+estudiantes del curso:  40
+ese bloque cuenta como ya marcado:  SI
+```
+
+**37 estudiantes que estaban presentes no tenían ningún registro.** La pantalla mostraba
+la "P" resaltada para los 40, así que el docente creía razonablemente que los estaba
+registrando a todos. Solo entraban a la cola los que se pulsaban.
+
+Las consecuencias encadenaban:
+
+- Un estudiante presente y uno cuya clase nadie registró eran **indistinguibles**: los
+  dos sin fila.
+- `GET /reports/pending-today` comprobaba `NOT EXISTS (... WHERE schedule_block_id = b.id
+  AND class_date = :day)`, así que **un solo registro bastaba** para que el bloque
+  desapareciera del aviso. Nadie le recordaba al docente que faltaban 37.
+- Los informes contaban sobre las filas que existían, de modo que el porcentaje salía
+  bien y **el hueco era invisible** en el tablero.
+- En el caso extremo —un curso que asiste completo y el docente no toca nada— el botón
+  de enviar estaba `disabled` porque `pendientes === 0`: **no se podía registrar nada
+  aunque se quisiera**.
+
+**El arreglo tiene dos partes.** El origen: `enviar()` en `TomarAsistencia.tsx` ahora
+recorre el curso completo al pulsar Enviar, no solo lo que el docente tocó, y el botón
+anuncia cuántos van a viajar de verdad (`app/frontend/src/pages/TomarAsistencia.tsx`).
+La red de seguridad que debió atraparlo: `pendingToday` en `ReportRepository.java`
+comparaba contra `EXISTS` un registro; ahora compara el conteo de registros contra el
+conteo de estudiantes activos del curso, así que un bloque a medias sigue apareciendo
+como pendiente.
+
+El invariante quedó comprobado en `tools/humo.sh`: un lote con los dos estudiantes del
+bloque de la semilla debe dejar exactamente dos filas en `attendance`.
+
+---
+
 ## 7. Lo que sigue faltando
 
 Requieren su propio plan:
