@@ -4,6 +4,7 @@ export type DayType = 'LECTIVO' | 'FESTIVO' | 'VACACIONES' | 'INSTITUCIONAL' | '
 
 export type Session = {
   token: string; refreshToken: string; role: Role; fullName: string; userId: number;
+  mustChangePassword: boolean;
 };
 export type Block = {
   id: number; grade: string; weekday: number; blockNo: number; subject: string; startTime: string;
