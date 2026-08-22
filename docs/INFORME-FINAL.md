@@ -74,11 +74,11 @@ Todas las cifras siguientes se ejecutaron y se observaron; ninguna es estimada.
 
 | Comprobación | Resultado |
 |---|---|
-| Tests de backend (`mvn test`) | **94 de 94**, contra PostgreSQL 16 real, en tres órdenes de ejecución |
-| Tests de frontend (`npm test`) | **109 de 109** |
+| Tests de backend (`mvn test`) | **98 de 98**, contra PostgreSQL 16 real, en tres órdenes de ejecución |
+| Tests de frontend (`npm test`) | **113 de 113** |
 | Compilación del frontend | Limpia · **95,5 KB gzip** el paquete inicial |
 | Integración continua | **Verde entera**: backend, frontend, imagen Docker y **prueba de humo** |
-| Commits | 136 |
+| Commits | 142 |
 
 El paquete inicial queda por debajo del objetivo de 200 KB. El segundo fragmento de
 107 KB es la librería de escaneo de códigos, que **solo se descarga en teléfonos sin
@@ -809,6 +809,44 @@ Ahora la pantalla distingue los tres casos que confundía en uno: el servidor co
 da el nombre; el servidor rechaza el carnet; o no hay conexión todavía, en cuyo caso dice
 que **el ingreso quedó registrado y se verificará al sincronizar** — porque decir lo
 contrario haría que alguien escaneara el mismo carnet tres veces.
+
+---
+
+## 6.m El informe en Excel está bien; el portal del acudiente no lo estaba
+
+**El Excel se verificó contra la base y cuadra exacto.** Se extrajo el contenido del
+`.xlsx` del curso 805 en un semestre y se comparó con SQL: 40 estudiantes, 18.964
+presentes, 836 tardanzas, 619 faltas y 221 evasiones, idénticos en ambos lados. Vale la
+pena decirlo: no todo lo que se revisa está roto.
+
+**El portal del acudiente sí tenía un defecto, y del tipo más delicado.** Un acudiente
+real veía una pantalla vacía mientras su hijo tenía 516 registros y 22 faltas en el
+semestre: el portal miraba una ventana fija de 30 días, y en agosto —tras el receso de
+mitad de año— eso es nada.
+
+Pero lo grave era el mensaje. La pantalla decía *"0 novedad(es) en los ultimos 30 dias"*,
+y un padre lo lee como **"a mi hijo le fue bien"**. El mismo mensaje aparecía cuando
+**nadie había tomado asistencia**. El portal prometía una tranquilidad que el sistema no
+podía respaldar, justo en contra del objetivo escrito para los padres: *"ayudar a los
+padres a conocer la situación de su hijo en el colegio"*.
+
+Ahora el endpoint informa cuántos días lectivos tuvo el periodo y en cuántos hay
+registro, y la pantalla distingue los tres casos. Verificado con el mismo acudiente:
+
+| Periodo | Días lectivos | Con registro | Qué ve |
+|---|---|---|---|
+| Marzo (con clases) | 19 | 19 | 9 novedades reales |
+| Agosto (sin registrar) | 27 | 0 | "Todavía no hay registros de este periodo" |
+
+### El patrón, ya con nombre
+
+Es el cuarto defecto de la misma familia, y a estas alturas se puede formular: **no es un
+problema de código, es de diseño.** La asistencia que se guardaba a medias, la clase que
+se mostraba en blanco, la portería que no reconocía a nadie y este "0 novedades"
+ambiguo son todos lo mismo: **resumir la ausencia de datos como si fuera un dato.**
+
+Cada vez que una pantalla resume, hay que preguntarse qué muestra cuando el dato de
+origen no existe. Ningún test unitario hace esa pregunta por su cuenta.
 
 ---
 
