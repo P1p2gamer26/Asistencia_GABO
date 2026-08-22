@@ -79,203 +79,26 @@ tools/
 ## Orden y dependencias
 
 ```
-Task 1  Datos locales          -> sin esto no se puede ver nada de lo demas
-Task 2  Aula (backend)         -> la necesita el horario
-Task 3  API de horario semanal -> la necesita la vista de horario
-Task 4  Vista de calendario    -> independiente
-Task 5  Vista de horario       -> depende de 2 y 3
-Task 6  Barra lateral y armazon-> independiente, pero conviene tras 4 y 5 para enlazarlas
-Task 7  Tablero de hoy         -> depende de 6 para tener donde vivir
+Task 1  Aula (backend)         -> la necesita el horario
+Task 2  API de horario semanal -> la necesita la vista de horario
+Task 3  Vista de calendario    -> independiente
+Task 4  Vista de horario       -> depende de 1 y 2
+Task 5  Barra lateral y armazon-> independiente, pero conviene tras 3 y 4 para enlazarlas
+Task 6  Tablero de hoy         -> depende de 5 para tener donde vivir
+Task 7  Datos locales          -> al final, cuando ya hay calendario y horarios que llenar
 ```
 
-Las tareas 4 y 6 pueden ir en paralelo con 2 y 3 si hay dos personas: la primera es solo
+Las tareas 3 y 5 pueden ir en paralelo con 1 y 2 si hay dos personas: la primera es solo
 frontend sobre una API que ya existe.
 
----
-
-## Task 1: Poblar la base local para poder ver algo
-
-**Files:**
-- Create: `tools/datos-locales.sql`
-- Modify: `app/README.md`
-
-**Interfaces:**
-- Consumes: el esquema completo, ya migrado por Flyway.
-- Produces: la base `asistencia` con datos suficientes para evaluar las vistas nuevas.
-
-Hoy la base de desarrollo tiene **3 estudiantes, 1 bloque de horario y 6 registros de
-asistencia**. Con eso el calendario se ve vacío, el horario tiene una casilla y el
-tablero muestra ceros. **No es posible juzgar ninguna pantalla.**
-
-Se siembra un colegio pequeño pero completo: **6 cursos de 30 estudiantes, 12 docentes,
-horario de 5 días con 6 bloques y aula, y el mes en curso de asistencia**. Es
-deliberadamente más chico que `tools/datos-de-carga.sql` (que sirve para medir
-rendimiento con 620.000 registros): aquí lo que se busca es **ver**, y una base que
-tarda cinco minutos en sembrarse estorba.
-
-- [ ] **Step 1: Escribir `tools/datos-locales.sql`**
-
-```sql
--- Datos de desarrollo: un colegio pequeno pero completo, para poder ver las pantallas.
--- Para medir rendimiento esta tools/datos-de-carga.sql, que siembra 620.000 registros.
---
---   psql -U postgres -d asistencia -f tools/datos-locales.sql
---
--- Es idempotente: se puede volver a ejecutar sin duplicar nada.
-
-\timing on
-
--- 12 docentes -----------------------------------------------------------------
-INSERT INTO users (email, password_hash, full_name, role, active, must_change_password)
-SELECT 'profe' || n || '@ggm.edu.co',
-       '$2a$10$Dj7iHjr8j08eQUlmQcVd5uM9.8ffEMX0WtxdQPz3IAsepUn6jQnTu',
-       (ARRAY['Ana','Luis','Marta','Carlos','Sofia','Jorge',
-              'Elena','Miguel','Paula','Andres','Clara','Diego'])[n]
-       || ' ' ||
-       (ARRAY['Rojas','Medina','Cardenas','Pineda','Vargas','Salazar',
-              'Duarte','Ochoa','Beltran','Quintero','Nieto','Moreno'])[n],
-       'DOCENTE', TRUE, FALSE
-FROM generate_series(1, 12) AS n
-ON CONFLICT (email) DO NOTHING;
-
--- 6 materias ------------------------------------------------------------------
-INSERT INTO subjects (name) VALUES
-  ('Matematicas'), ('Espanol'), ('Ciencias'), ('Sociales'), ('Ingles'), ('Informatica')
-ON CONFLICT (name) DO NOTHING;
-
--- 180 estudiantes en 6 cursos (601 a 606, 30 por curso) ------------------------
-INSERT INTO students (document_id, first_name, middle_name, last_name, second_surname,
-                      grade, active)
-SELECT lpad((1100000000 + n)::text, 10, '0'),
-       (ARRAY['Camila','Santiago','Valentina','Mateo','Isabella','Sebastian',
-              'Salome','Emiliano','Antonia','Tomas'])[1 + (n % 10)],
-       (ARRAY['Andrea','Jose','Lucia','David','Sofia','Alejandro',
-              'Marcela','Nicolas','Daniela','Felipe'])[1 + ((n * 3) % 10)],
-       (ARRAY['Gonzalez','Ramirez','Herrera','Castro','Molina','Reyes',
-              'Acosta','Peralta','Suarez','Mendoza'])[1 + ((n * 7) % 10)],
-       (ARRAY['Lopez','Torres','Rivas','Guzman','Pardo','Cordoba',
-              'Silva','Naranjo','Bonilla','Escobar'])[1 + ((n * 11) % 10)],
-       (600 + 1 + ((n - 1) / 30))::text,
-       TRUE
-FROM generate_series(1, 180) AS n
-ON CONFLICT (document_id) DO NOTHING;
-
--- Horario: 6 cursos x 5 dias x 6 bloques, con aula --------------------------------
--- El aula sigue la convencion del colegio: piso + numero. 601 esta en el aula 201.
-INSERT INTO schedule_blocks (grade, weekday, block_no, start_time, end_time,
-                             subject_id, teacher_id, room)
-SELECT g.grade,
-       d.weekday,
-       b.block_no,
-       (TIME '06:30' + (b.block_no - 1) * INTERVAL '55 minutes'),
-       (TIME '07:20' + (b.block_no - 1) * INTERVAL '55 minutes'),
-       (SELECT id FROM subjects ORDER BY id
-         LIMIT 1 OFFSET ((b.block_no - 1 + d.weekday) % 6)),
-       (SELECT id FROM users WHERE email LIKE 'profe%' ORDER BY id
-         LIMIT 1 OFFSET ((abs(hashtext(g.grade)) + b.block_no + d.weekday) % 12)),
-       CASE WHEN (b.block_no + d.weekday) % 7 = 0 THEN 'Laboratorio'
-            WHEN (b.block_no + d.weekday) % 5 = 0 THEN 'Sala de sistemas'
-            ELSE 'Aula ' || (200 + (g.grade::int - 600)) END
-FROM (SELECT DISTINCT grade FROM students WHERE grade LIKE '6%') g
-CROSS JOIN generate_series(1, 5) AS d(weekday)
-CROSS JOIN generate_series(1, 6) AS b(block_no)
-ON CONFLICT (grade, weekday, block_no) DO UPDATE
-  SET room = EXCLUDED.room, teacher_id = EXCLUDED.teacher_id;
-
--- Asistencia del mes en curso -----------------------------------------------------
--- Distribucion parecida a la real: ~92 % presentes, y el resto repartido.
-INSERT INTO attendance (id, student_id, schedule_block_id, class_date, status,
-                        recorded_by, recorded_at)
-SELECT gen_random_uuid(), s.id, b.id, c.calendar_date,
-       CASE WHEN random() < 0.92 THEN 'P'
-            WHEN random() < 0.50 THEN 'T'
-            WHEN random() < 0.75 THEN 'F'
-            ELSE 'E' END,
-       b.teacher_id,
-       c.calendar_date + TIME '07:00'
-FROM students s
-JOIN schedule_blocks b ON b.grade = s.grade
-JOIN school_calendar c ON c.day_type = 'LECTIVO'
-                      AND EXTRACT(ISODOW FROM c.calendar_date) = b.weekday
-                      AND c.calendar_date >= date_trunc('month', CURRENT_DATE)::date
-                      AND c.calendar_date < CURRENT_DATE
-WHERE s.grade LIKE '6%'
-ON CONFLICT ON CONSTRAINT attendance_unique_slot DO NOTHING;
-
--- Acudientes: uno por estudiante ---------------------------------------------------
-INSERT INTO users (email, password_hash, full_name, role, active, must_change_password)
-SELECT 'acudiente.' || s.document_id || '@correo.com',
-       '$2a$10$Dj7iHjr8j08eQUlmQcVd5uM9.8ffEMX0WtxdQPz3IAsepUn6jQnTu',
-       'Acudiente de ' || s.first_name || ' ' || s.last_name,
-       'ACUDIENTE', TRUE, FALSE
-FROM students s WHERE s.grade LIKE '6%'
-ON CONFLICT (email) DO NOTHING;
-
-INSERT INTO guardianships (student_id, guardian_id, relationship)
-SELECT s.id, u.id, 'Madre'
-FROM students s
-JOIN users u ON u.email = 'acudiente.' || s.document_id || '@correo.com'
-ON CONFLICT (student_id, guardian_id) DO NOTHING;
-
-ANALYZE;
-
-SELECT 'estudiantes' AS tabla, count(*) FROM students WHERE grade LIKE '6%'
-UNION ALL SELECT 'docentes',    count(*) FROM users WHERE email LIKE 'profe%'
-UNION ALL SELECT 'bloques',     count(*) FROM schedule_blocks
-UNION ALL SELECT 'asistencias', count(*) FROM attendance
-UNION ALL SELECT 'acudientes',  count(*) FROM users WHERE role = 'ACUDIENTE';
-```
-
-**Este script depende de la columna `room`, que crea la Task 2.** Ejecutarlo antes
-fallará con "column room does not exist"; ese es el orden correcto y está anotado en el
-Step 3.
-
-- [ ] **Step 2: Documentarlo en `app/README.md`**
-
-Añadir tras la sección de puesta en marcha:
-
-```markdown
-## Datos para desarrollo
-
-La base recién migrada trae solo tres estudiantes de ejemplo, con los que ninguna
-pantalla se puede evaluar. Para sembrar un colegio pequeño pero completo —6 cursos de
-30 estudiantes, 12 docentes, horario de la semana con aulas y el mes en curso de
-asistencia—:
-
-```bash
-psql -U postgres -d asistencia -f tools/datos-locales.sql
-```
-
-Tarda unos segundos y se puede repetir sin duplicar nada. Todos los usuarios sembrados
-entran con `cambiar123`.
-
-Para **medir rendimiento** con el volumen real del colegio (1.200 estudiantes y 620.000
-registros) está `tools/datos-de-carga.sql`, que va sobre una base aparte.
-```
-
-- [ ] **Step 3: Ejecutarlo, después de la Task 2**
-
-Run:
-```bash
-cd app/backend && DB_URL=jdbc:postgresql://localhost:5432/asistencia \
-  DB_USER=postgres DB_PASSWORD=postgres mvn spring-boot:run   # aplica V50
-# en otra terminal, una vez arrancado:
-psql -U postgres -d asistencia -f tools/datos-locales.sql
-```
-Expected: 180 estudiantes, 12 docentes, 180 bloques y varios miles de asistencias.
-
-- [ ] **Step 4: Commit**
-
-```bash
-git add tools/datos-locales.sql app/README.md
-git commit -m "test: datos de desarrollo para poder ver las pantallas
-
-Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
-```
+**La siembra va la ultima a peticion del colegio.** Hasta entonces las vistas se
+comprueban con los tests, que traen sus propios datos, y con las tres filas que ya hay
+en la base local. Al llegar a la Task 7 se siembra una sola vez, con el esquema ya
+cerrado, y se recorren las pantallas con datos de verdad.
 
 ---
 
-## Task 2: El aula donde se dicta cada bloque
+## Task 1: El aula donde se dicta cada bloque
 
 **Files:**
 - Create: `app/backend/src/main/resources/db/migration/V50__aula.sql`
@@ -458,7 +281,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-## Task 3: API del horario semanal
+## Task 2: API del horario semanal
 
 **Files:**
 - Modify: `app/backend/src/main/java/co/edu/ggm/asistencia/repository/ScheduleRepository.java`
@@ -466,7 +289,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Test: `app/backend/src/test/java/co/edu/ggm/asistencia/schedule/HorarioTest.java`
 
 **Interfaces:**
-- Consumes: `schedule_blocks` con `room` (Task 2), `JwtService.currentUserId()`.
+- Consumes: `schedule_blocks` con `room` (Task 1), `JwtService.currentUserId()`.
 - Produces:
   - `GET /api/schedule/week` (cualquier usuario autenticado) -> el horario de **quien entró**: `[{id, grade, weekday, blockNo, subject, startTime, endTime, room, teacherName}]`
   - `GET /api/schedule/week?grade=601` (COORDINADOR, ADMIN) -> el horario **de un curso**, con el nombre del docente de cada bloque.
@@ -708,7 +531,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-## Task 4: Calendario escolar en pantalla
+## Task 3: Calendario escolar en pantalla
 
 **Files:**
 - Create: `app/frontend/src/pages/Calendario.tsx`
@@ -1014,9 +837,13 @@ con `import Calendario from './pages/Calendario';`.
 Run: `cd app/frontend && npm test && npm run build`
 Expected: PASS todo, paquete por debajo de 200 KB gzip.
 
-- [ ] **Step 7: Mirarlo con datos reales**
+- [ ] **Step 7: Anotar el recorrido manual, que se hace en la Task 7**
 
-Con la base local sembrada (Task 1) y la aplicación levantada, abrir `/calendario`:
+La base local todavía no está sembrada, así que esto **no se ejecuta aquí**: se deja
+apuntado y se recorre entero en la Task 7 Step 5, con datos de verdad. No marcar la
+casilla como hecha "porque los tests pasan": son cosas distintas.
+
+Con la base sembrada y la aplicación levantada, abrir `/calendario`:
 1. El mes en curso se pinta y los festivos aparecen en su color **con la palabra**.
 2. Como docente **no** hay desplegables; como coordinación sí.
 3. Cambiar un día a "suspendido" y comprobar que en `/asistencia` ese día ya no deja marcar.
@@ -1033,7 +860,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-## Task 5: Horario semanal, y entrar a tomar la lista desde ahí
+## Task 4: Horario semanal, y entrar a tomar la lista desde ahí
 
 **Files:**
 - Create: `app/frontend/src/pages/Horario.tsx`
@@ -1043,7 +870,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Modify: `app/frontend/src/styles.css`
 
 **Interfaces:**
-- Consumes: `GET /api/schedule/week` (Task 3).
+- Consumes: `GET /api/schedule/week` (Task 2).
 - Produces: ruta `/horario`. Los enlaces "Tomar la lista" navegan a `/asistencia?bloque={id}`, y `TomarAsistencia` preselecciona ese bloque.
 
 Esta es la pantalla que pidió el colegio con más detalle: *"que el docente pueda ver en
@@ -1318,9 +1145,12 @@ con `import Horario from './pages/Horario';`.
 Run: `cd app/frontend && npm test && npm run build`
 Expected: PASS todo.
 
-- [ ] **Step 8: Comprobar el recorrido completo con datos reales**
+- [ ] **Step 8: Anotar el recorrido manual, que se hace en la Task 7**
 
-Con la base local sembrada y la aplicación levantada, entrar como `profe1@ggm.edu.co`:
+Igual que en el calendario: sin base sembrada esto no se puede ver. Se recorre en la
+Task 7 Step 5.
+
+Con la base sembrada y la aplicación levantada, entrar como `profe1@ggm.edu.co`:
 1. `/horario` muestra su semana con curso, materia y **aula**.
 2. La columna de hoy está resaltada.
 3. Pulsar "Tomar la lista de 6xx" lleva a `/asistencia` **con el curso y el bloque ya
@@ -1341,7 +1171,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-## Task 6: Barra lateral y armazón de la aplicación
+## Task 5: Barra lateral y armazón de la aplicación
 
 **Files:**
 - Create: `app/frontend/src/components/Menu.tsx`
@@ -1606,7 +1436,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-## Task 7: El administrador aterriza en el día de hoy
+## Task 6: El administrador aterriza en el día de hoy
 
 **Files:**
 - Create: `app/backend/src/main/java/co/edu/ggm/asistencia/service/TodayService.java`
@@ -2084,6 +1914,234 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
+## Task 7: Poblar la base local para poder ver algo
+
+**Files:**
+- Create: `tools/datos-locales.sql`
+- Modify: `app/README.md`
+
+**Interfaces:**
+- Consumes: el esquema completo, ya migrado por Flyway.
+- Produces: la base `asistencia` con datos suficientes para evaluar las vistas nuevas.
+
+Hoy la base de desarrollo tiene **3 estudiantes, 1 bloque de horario y 6 registros de
+asistencia**. Con eso el calendario se ve vacío, el horario tiene una casilla y el
+tablero muestra ceros. **No es posible juzgar ninguna pantalla.**
+
+Se siembra un colegio pequeño pero completo: **6 cursos de 30 estudiantes, 12 docentes,
+horario de 5 días con 6 bloques y aula, y el mes en curso de asistencia**. Es
+deliberadamente más chico que `tools/datos-de-carga.sql` (que sirve para medir
+rendimiento con 620.000 registros): aquí lo que se busca es **ver**, y una base que
+tarda cinco minutos en sembrarse estorba.
+
+- [ ] **Step 1: Escribir `tools/datos-locales.sql`**
+
+```sql
+-- Datos de desarrollo: un colegio pequeno pero completo, para poder ver las pantallas.
+-- Para medir rendimiento esta tools/datos-de-carga.sql, que siembra 620.000 registros.
+--
+--   psql -U postgres -d asistencia -f tools/datos-locales.sql
+--
+-- Es idempotente: se puede volver a ejecutar sin duplicar nada.
+
+\timing on
+
+-- 12 docentes -----------------------------------------------------------------
+INSERT INTO users (email, password_hash, full_name, role, active, must_change_password)
+SELECT 'profe' || n || '@ggm.edu.co',
+       '$2a$10$Dj7iHjr8j08eQUlmQcVd5uM9.8ffEMX0WtxdQPz3IAsepUn6jQnTu',
+       (ARRAY['Ana','Luis','Marta','Carlos','Sofia','Jorge',
+              'Elena','Miguel','Paula','Andres','Clara','Diego'])[n]
+       || ' ' ||
+       (ARRAY['Rojas','Medina','Cardenas','Pineda','Vargas','Salazar',
+              'Duarte','Ochoa','Beltran','Quintero','Nieto','Moreno'])[n],
+       'DOCENTE', TRUE, FALSE
+FROM generate_series(1, 12) AS n
+ON CONFLICT (email) DO NOTHING;
+
+-- 6 materias ------------------------------------------------------------------
+INSERT INTO subjects (name) VALUES
+  ('Matematicas'), ('Espanol'), ('Ciencias'), ('Sociales'), ('Ingles'), ('Informatica')
+ON CONFLICT (name) DO NOTHING;
+
+-- 180 estudiantes en 6 cursos (601 a 606, 30 por curso) ------------------------
+INSERT INTO students (document_id, first_name, middle_name, last_name, second_surname,
+                      grade, active)
+SELECT lpad((1100000000 + n)::text, 10, '0'),
+       (ARRAY['Camila','Santiago','Valentina','Mateo','Isabella','Sebastian',
+              'Salome','Emiliano','Antonia','Tomas'])[1 + (n % 10)],
+       (ARRAY['Andrea','Jose','Lucia','David','Sofia','Alejandro',
+              'Marcela','Nicolas','Daniela','Felipe'])[1 + ((n * 3) % 10)],
+       (ARRAY['Gonzalez','Ramirez','Herrera','Castro','Molina','Reyes',
+              'Acosta','Peralta','Suarez','Mendoza'])[1 + ((n * 7) % 10)],
+       (ARRAY['Lopez','Torres','Rivas','Guzman','Pardo','Cordoba',
+              'Silva','Naranjo','Bonilla','Escobar'])[1 + ((n * 11) % 10)],
+       (600 + 1 + ((n - 1) / 30))::text,
+       TRUE
+FROM generate_series(1, 180) AS n
+ON CONFLICT (document_id) DO NOTHING;
+
+-- Horario: 6 cursos x 5 dias x 6 bloques, con aula --------------------------------
+-- El aula sigue la convencion del colegio: piso + numero. 601 esta en el aula 201.
+INSERT INTO schedule_blocks (grade, weekday, block_no, start_time, end_time,
+                             subject_id, teacher_id, room)
+SELECT g.grade,
+       d.weekday,
+       b.block_no,
+       (TIME '06:30' + (b.block_no - 1) * INTERVAL '55 minutes'),
+       (TIME '07:20' + (b.block_no - 1) * INTERVAL '55 minutes'),
+       (SELECT id FROM subjects ORDER BY id
+         LIMIT 1 OFFSET ((b.block_no - 1 + d.weekday) % 6)),
+       (SELECT id FROM users WHERE email LIKE 'profe%' ORDER BY id
+         LIMIT 1 OFFSET ((abs(hashtext(g.grade)) + b.block_no + d.weekday) % 12)),
+       CASE WHEN (b.block_no + d.weekday) % 7 = 0 THEN 'Laboratorio'
+            WHEN (b.block_no + d.weekday) % 5 = 0 THEN 'Sala de sistemas'
+            ELSE 'Aula ' || (200 + (g.grade::int - 600)) END
+FROM (SELECT DISTINCT grade FROM students WHERE grade LIKE '6%') g
+CROSS JOIN generate_series(1, 5) AS d(weekday)
+CROSS JOIN generate_series(1, 6) AS b(block_no)
+ON CONFLICT (grade, weekday, block_no) DO UPDATE
+  SET room = EXCLUDED.room, teacher_id = EXCLUDED.teacher_id;
+
+-- Asistencia del mes en curso -----------------------------------------------------
+-- Distribucion parecida a la real: ~92 % presentes, y el resto repartido.
+INSERT INTO attendance (id, student_id, schedule_block_id, class_date, status,
+                        recorded_by, recorded_at)
+SELECT gen_random_uuid(), s.id, b.id, c.calendar_date,
+       CASE WHEN random() < 0.92 THEN 'P'
+            WHEN random() < 0.50 THEN 'T'
+            WHEN random() < 0.75 THEN 'F'
+            ELSE 'E' END,
+       b.teacher_id,
+       c.calendar_date + TIME '07:00'
+FROM students s
+JOIN schedule_blocks b ON b.grade = s.grade
+JOIN school_calendar c ON c.day_type = 'LECTIVO'
+                      AND EXTRACT(ISODOW FROM c.calendar_date) = b.weekday
+                      AND c.calendar_date >= date_trunc('month', CURRENT_DATE)::date
+                      AND c.calendar_date < CURRENT_DATE
+WHERE s.grade LIKE '6%'
+ON CONFLICT ON CONSTRAINT attendance_unique_slot DO NOTHING;
+
+-- Acudientes: uno por estudiante ---------------------------------------------------
+INSERT INTO users (email, password_hash, full_name, role, active, must_change_password)
+SELECT 'acudiente.' || s.document_id || '@correo.com',
+       '$2a$10$Dj7iHjr8j08eQUlmQcVd5uM9.8ffEMX0WtxdQPz3IAsepUn6jQnTu',
+       'Acudiente de ' || s.first_name || ' ' || s.last_name,
+       'ACUDIENTE', TRUE, FALSE
+FROM students s WHERE s.grade LIKE '6%'
+ON CONFLICT (email) DO NOTHING;
+
+INSERT INTO guardianships (student_id, guardian_id, relationship)
+SELECT s.id, u.id, 'Madre'
+FROM students s
+JOIN users u ON u.email = 'acudiente.' || s.document_id || '@correo.com'
+ON CONFLICT (student_id, guardian_id) DO NOTHING;
+
+ANALYZE;
+
+SELECT 'estudiantes' AS tabla, count(*) FROM students WHERE grade LIKE '6%'
+UNION ALL SELECT 'docentes',    count(*) FROM users WHERE email LIKE 'profe%'
+UNION ALL SELECT 'bloques',     count(*) FROM schedule_blocks
+UNION ALL SELECT 'asistencias', count(*) FROM attendance
+UNION ALL SELECT 'acudientes',  count(*) FROM users WHERE role = 'ACUDIENTE';
+```
+
+**Este script depende de la columna `room`, que crea la Task 1.** Ejecutarlo antes
+fallará con "column room does not exist"; ese es el orden correcto y está anotado en el
+Step 3.
+
+- [ ] **Step 2: Documentarlo en `app/README.md`**
+
+Añadir tras la sección de puesta en marcha:
+
+```markdown
+## Datos para desarrollo
+
+La base recién migrada trae solo tres estudiantes de ejemplo, con los que ninguna
+pantalla se puede evaluar. Para sembrar un colegio pequeño pero completo —6 cursos de
+30 estudiantes, 12 docentes, horario de la semana con aulas y el mes en curso de
+asistencia—:
+
+```bash
+psql -U postgres -d asistencia -f tools/datos-locales.sql
+```
+
+Tarda unos segundos y se puede repetir sin duplicar nada. Todos los usuarios sembrados
+entran con `cambiar123`.
+
+Para **medir rendimiento** con el volumen real del colegio (1.200 estudiantes y 620.000
+registros) está `tools/datos-de-carga.sql`, que va sobre una base aparte.
+```
+
+- [ ] **Step 3: Ejecutarlo, después de la Task 1**
+
+Run:
+```bash
+cd app/backend && DB_URL=jdbc:postgresql://localhost:5432/asistencia \
+  DB_USER=postgres DB_PASSWORD=postgres mvn spring-boot:run   # aplica V50
+# en otra terminal, una vez arrancado:
+psql -U postgres -d asistencia -f tools/datos-locales.sql
+```
+Expected: 180 estudiantes, 12 docentes, 180 bloques y varios miles de asistencias.
+
+- [ ] **Step 4: Commit de los datos**
+
+```bash
+git add tools/datos-locales.sql app/README.md
+git commit -m "chore: datos de siembra para la base local
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
+```
+
+- [ ] **Step 5: Recorrer las pantallas con datos de verdad**
+
+Este es el paso que pidió el colegio: *"poblar la base local con fines de testear como
+se ve"*. Ahora sí hay calendario, horarios y aulas que mirar. Se levantan backend y
+frontend y se recorre **todo**, anotando lo que no cuadre:
+
+Como docente (`profe1@ggm.edu.co`):
+1. `/horario` muestra su semana con curso, materia y **aula**, y la columna de hoy resaltada.
+2. Pulsar "Tomar la lista de 6xx" abre `/asistencia` **con el curso y el bloque ya elegidos**
+   y la lista cargada.
+3. `/calendario` pinta el mes con los festivos **con la palabra**, no solo en color.
+4. A 360 px de ancho ni la rejilla del horario ni la del calendario desbordan la página.
+
+Como coordinación:
+5. En `/horario`, escribir `601` muestra ese curso **con el nombre del docente** y sin
+   enlaces para marcar.
+6. En `/calendario` sí aparecen los desplegables para cambiar el tipo de día.
+7. Cambiar un día a "suspendido" y comprobar que en `/asistencia` ese día ya no deja marcar.
+
+Como administrador:
+8. Al entrar aterriza en el tablero de hoy, con el mes de contexto.
+9. El primer dato es **cuántos bloques han reportado de cuántos**, no un porcentaje suelto.
+10. Si hoy no es día lectivo, la pantalla lo dice — no pinta ceros.
+11. La barra lateral lleva a los siete destinos y en el teléfono se abre como cajón.
+
+**Lo que se encuentre roto aquí se arregla aquí**, no se apunta para después: es la
+primera vez que estas pantallas ven datos de verdad y es donde van a aparecer los fallos
+que los tests no cubren.
+
+- [ ] **Step 6: Ejecutar la batería completa**
+
+Run: `cd app/backend && mvn -q test` y `cd app/frontend && npm test && npm run build`
+Expected: PASS todo.
+
+Luego `bash tools/humo.sh` contra la aplicación levantada, para que las invariantes de
+siempre no se hayan roto por el camino.
+
+- [ ] **Step 7: Commit de los arreglos del recorrido**
+
+```bash
+git add -A
+git commit -m "fix: lo que aparecio al recorrer las pantallas con datos reales
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
+```
+
+---
+
 ## Fuera de alcance
 
 Lo que **no** se hace, con su motivo. Vale tanto como lo que sí:
@@ -2107,10 +2165,10 @@ Lo que **no** se hace, con su motivo. Vale tanto como lo que sí:
 | Riesgo | Impacto | Mitigación |
 |---|---|---|
 | `countBlocksReported` hace dos subconsultas por bloque | El resumen de hoy podría tardar | Son ~36 bloques al día y los índices ya existen; si pasara de 300 ms, medir antes de optimizar |
-| La barra lateral rompe tests de `Home` que buscaban sus enlaces | Falsos rojos | Está anotado en la Task 6 Step 8: se borran esas comprobaciones porque el comportamiento se movió a `Menu`, donde ya está probado |
+| La barra lateral rompe tests de `Home` que buscaban sus enlaces | Falsos rojos | Está anotado en la Task 5 Step 8: se borran esas comprobaciones porque el comportamiento se movió a `Menu`, donde ya está probado |
 | El calendario en 390 px oculta las etiquetas escritas | Se dependería del color | El `aria-label` conserva la etiqueta y el mes navegable permite tocar cada día |
-| `datos-locales.sql` se ejecuta antes de `V50` | Falla con "column room does not exist" | Es el orden correcto y está dicho en la Task 1 Step 3 |
-| Preseleccionar el bloque por URL con una copia local desactualizada | El bloque no se encuentra | No se hace nada y el docente elige a mano; está en la Task 5 Step 4 |
+| `datos-locales.sql` se ejecuta antes de `V50` | Falla con "column room does not exist" | Es el orden correcto y está dicho en la Task 7 Step 3 |
+| Preseleccionar el bloque por URL con una copia local desactualizada | El bloque no se encuentra | No se hace nada y el docente elige a mano; está en la Task 4 Step 4 |
 
 ## Self-review
 
@@ -2119,23 +2177,23 @@ Lo que **no** se hace, con su motivo. Vale tanto como lo que sí:
 | Pedido | Tarea |
 |---|---|
 | El escudo real en la aplicación | Hecho antes de este plan (`components/Escudo.tsx`) |
-| Barra lateral con el resto de sitios | Task 6 |
-| Que el administrador entre a un tablero del día y del mes | Task 7 |
-| Calendario que diga qué días hay clase, con festivos | Task 4 (sobre `school_calendar`, que ya existía) |
+| Barra lateral con el resto de sitios | Task 5 |
+| Que el administrador entre a un tablero del día y del mes | Task 6 |
+| Calendario que diga qué días hay clase, con festivos | Task 3 (sobre `school_calendar`, que ya existía) |
 | Horario semanal por curso | Tasks 3 y 5 |
-| Que el docente sepa **dónde** tiene clase | Task 2 (columna `room`) y Task 5 |
-| Tener su horario en el celular | Task 5, rejilla desplazable y bloque de hoy resaltado |
-| "Voy a tomar la lista de tal curso" | Task 5 Steps 3 y 4 |
-| Poblar la base local para ver cómo queda | Task 1 |
+| Que el docente sepa **dónde** tiene clase | Task 1 (columna `room`) y Task 4 |
+| Tener su horario en el celular | Task 4, rejilla desplazable y bloque de hoy resaltado |
+| "Voy a tomar la lista de tal curso" | Task 4 Steps 3 y 4 |
+| Poblar la base local para ver cómo queda | Task 7 |
 
 **Sin marcadores de posición.** Cada paso trae el código o el comando exacto. La única
 instrucción de borrado —la línea muerta de `TodayService`— está señalada explícitamente
 en su propio paso.
 
 **Consistencia de nombres.** `room` es el mismo campo en la migración, la entidad,
-`BlockDto`, `WeekBlock`, el CSV y `contract.ts`. `WeekRow` se declara en la Task 3
+`BlockDto`, `WeekBlock`, el CSV y `contract.ts`. `WeekRow` se declara en la Task 2
 Step 3 y se consume en el Step 4. `ResumenDeHoy` tiene los mismos campos en el servicio,
-el endpoint y el tipo del frontend. `Layout` y `Menu` se declaran en la Task 6 y se usan
+el endpoint y el tipo del frontend. `Layout` y `Menu` se declaran en la Task 5 y se usan
 en `App.tsx` en esa misma tarea.
 
 **Lo que este plan hereda del proyecto.** Dos reglas que ya costaron caro y que aquí se
