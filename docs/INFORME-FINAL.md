@@ -78,7 +78,7 @@ Todas las cifras siguientes se ejecutaron y se observaron; ninguna es estimada.
 | Tests de frontend (`npm test`) | **113 de 113** |
 | Compilación del frontend | Limpia · **95,5 KB gzip** el paquete inicial |
 | Integración continua | **Verde entera**: backend, frontend, imagen Docker y **prueba de humo** |
-| Commits | 142 |
+| Commits | 143 |
 
 El paquete inicial queda por debajo del objetivo de 200 KB. El segundo fragmento de
 107 KB es la librería de escaneo de códigos, que **solo se descarga en teléfonos sin
@@ -847,6 +847,35 @@ ambiguo son todos lo mismo: **resumir la ausencia de datos como si fuera un dato
 
 Cada vez que una pantalla resume, hay que preguntarse qué muestra cuando el dato de
 origen no existe. Ningún test unitario hace esa pregunta por su cuenta.
+
+---
+
+## 6.n La hora punta: el escenario que faltaba probar
+
+Quedaba un desconocido técnico y era justo el de producción: **todos los docentes
+sincronizando a la vez a las 7:00 de la mañana**, con transacciones por registro y
+upserts contra la misma restricción única. Se simuló contra la base de carga.
+
+| | |
+|---|---|
+| 40 docentes simultáneos | 1.600 registros, **todos aceptados** |
+| Latencia media | **305 ms** |
+| Peor caso | 599 ms |
+| Tiempo total | **2,4 segundos** para todo el colegio |
+| Errores del servidor | 0 |
+| Interbloqueos según PostgreSQL | **0** |
+
+Y el caso de contención real —**ocho docentes marcando el mismo bloque y los mismos
+estudiantes a la vez**, que es lo que pasa con un reemplazo—: los ocho recibieron
+confirmación, quedaron **40 filas y no 320**, y el estado final fue el del docente con la
+marca más reciente. Es exactamente la regla de resolución que el diseño especifica
+(`recorded_at <= EXCLUDED.recorded_at`), funcionando bajo concurrencia real.
+
+**Esta ronda no encontró ningún defecto**, y conviene decirlo con la misma claridad con
+que se reportan los que sí aparecen: el diseño de sincronización aguanta el escenario para
+el que se hizo.
+
+El simulador queda en `tools/carga-concurrente.sh`, documentado en `app/README.md`.
 
 ---
 
