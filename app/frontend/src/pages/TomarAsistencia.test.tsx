@@ -145,4 +145,66 @@ describe('TomarAsistencia', () => {
     await waitFor(() =>
       expect(screen.getByLabelText(/bloque/i)).toHaveTextContent(/lunes/i));
   });
+
+  async function elegirCursoYBloque() {
+    render(<MemoryRouter><TomarAsistencia /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByLabelText(/curso/i)).toBeInTheDocument());
+    await userEvent.clear(screen.getByLabelText(/fecha/i));
+    await userEvent.type(screen.getByLabelText(/fecha/i), '2026-08-17');   // lunes
+    await userEvent.selectOptions(screen.getByLabelText(/curso/i), '601');
+    await waitFor(() => expect(screen.getByLabelText(/bloque/i)).not.toBeDisabled());
+    const opciones = Array.from(screen.getByLabelText(/bloque/i).querySelectorAll('option'))
+      .map((o) => o.value).filter(Boolean);
+    await userEvent.selectOptions(screen.getByLabelText(/bloque/i), opciones[0]);
+    await screen.findByText('ANA LOPEZ');
+  }
+
+  it('enviar registra a TODOS los estudiantes, no solo a los tocados', async () => {
+    await elegirCursoYBloque();
+
+    // Se marca una sola falta; los demas se quedan como estan (presentes por defecto).
+    const grupo = screen.getByRole('group', { name: /ANA LOPEZ/i });
+    await userEvent.click(within(grupo).getByRole('button', { name: 'F' }));
+
+    await userEvent.click(screen.getByRole('button', { name: /enviar asistencia/i }));
+
+    await waitFor(async () => {
+      const cola = await db.outbox.toArray();
+      // Este era el defecto: quedaba 1 registro de un curso de 2 estudiantes.
+      expect(cola).toHaveLength(2);
+    });
+    const cola = await db.outbox.toArray();
+    expect(cola.find((r) => r.studentId === 10)?.status).toBe('F');
+    expect(cola.find((r) => r.studentId === 11)?.status).toBe('P');
+  });
+
+  it('un curso que asiste completo tambien se puede enviar', async () => {
+    await elegirCursoYBloque();
+
+    // Sin tocar nada: antes el boton estaba deshabilitado y no se podia registrar nada.
+    const boton = screen.getByRole('button', { name: /enviar asistencia/i });
+    expect(boton).not.toBeDisabled();
+    await userEvent.click(boton);
+
+    await waitFor(async () => {
+      const cola = await db.outbox.toArray();
+      expect(cola).toHaveLength(2);
+      expect(cola.every((r) => r.status === 'P')).toBe(true);
+    });
+  });
+
+  it('el boton dice cuantos se van a enviar, no cuantos se tocaron', async () => {
+    await elegirCursoYBloque();
+    const grupo = screen.getByRole('group', { name: /ANA LOPEZ/i });
+    await userEvent.click(within(grupo).getByRole('button', { name: 'F' }));
+
+    // Con 2 estudiantes en el curso y 1 tocado, debe anunciar 2.
+    expect(screen.getByRole('button', { name: /enviar asistencia \(2\)/i })).toBeInTheDocument();
+  });
+
+  it('sin bloque elegido no ofrece enviar', async () => {
+    render(<MemoryRouter><TomarAsistencia /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByLabelText(/curso/i)).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: /enviar asistencia/i })).toBeDisabled();
+  });
 });
