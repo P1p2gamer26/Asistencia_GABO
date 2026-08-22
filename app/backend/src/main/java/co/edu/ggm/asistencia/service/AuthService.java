@@ -12,23 +12,55 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class AuthService {
 
-    public record Session(String token, String refreshToken, String role, String fullName, Long userId) {}
+    public record Session(String token, String refreshToken, String role, String fullName, Long userId,
+                          boolean mustChangePassword) {}
 
     private final UserRepository users;
     private final PasswordEncoder encoder;
     private final JwtService jwt;
+    private final LoginAttemptService intentos;
 
-    public AuthService(UserRepository users, PasswordEncoder encoder, JwtService jwt) {
+    public AuthService(UserRepository users, PasswordEncoder encoder, JwtService jwt, LoginAttemptService intentos) {
         this.users = users;
         this.encoder = encoder;
         this.jwt = jwt;
+        this.intentos = intentos;
     }
 
     public Session login(String email, String password) {
-        User user = users.findByEmailAndActiveTrue(email.trim().toLowerCase())
-                .filter(u -> encoder.matches(password, u.getPasswordHash()))
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciales invalidas"));
-        return sessionFor(user);
+        String correo = email.trim().toLowerCase();
+        intentos.check(correo);
+
+        var user = users.findByEmailAndActiveTrue(correo)
+                .filter(u -> encoder.matches(password, u.getPasswordHash()));
+
+        if (user.isEmpty()) {
+            intentos.fail(correo);
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciales invalidas");
+        }
+        intentos.success(correo);
+        return sessionFor(user.get());
+    }
+
+    public void changePassword(Long userId, String currentPassword, String newPassword) {
+        User user = users.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+
+        if (!encoder.matches(currentPassword, user.getPasswordHash())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "La contrasena actual no coincide");
+        }
+        if (newPassword.length() < 8) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "La contrasena nueva debe tener al menos 8 caracteres");
+        }
+        if (encoder.matches(newPassword, user.getPasswordHash())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "La contrasena nueva debe ser distinta de la actual");
+        }
+
+        user.setPasswordHash(encoder.encode(newPassword));
+        user.setMustChangePassword(false);
+        users.save(user);
     }
 
     public Session refresh(String refreshToken) {
@@ -47,6 +79,6 @@ public class AuthService {
     private Session sessionFor(User user) {
         String role = user.getRole().name();
         return new Session(jwt.issueAccess(user.getId(), role), jwt.issueRefresh(user.getId(), role),
-                role, user.getFullName(), user.getId());
+                role, user.getFullName(), user.getId(), user.isMustChangePassword());
     }
 }

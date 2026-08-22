@@ -46,6 +46,7 @@ public class AdminUserService {
         u.setFullName(fullName.trim());
         u.setRole(role);
         u.setActive(true);
+        u.setMustChangePassword(true);
         u.setPasswordHash(encoder.encode(TEMPORAL));
         return users.save(u);
     }
@@ -65,6 +66,7 @@ public class AdminUserService {
         User u = users.findById(id).orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No existe ese usuario"));
         u.setPasswordHash(encoder.encode(TEMPORAL));
+        u.setMustChangePassword(true);
         users.save(u);
         return TEMPORAL;
     }

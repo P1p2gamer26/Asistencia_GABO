@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { getSession } from './api/client';
 
 // Track B rellena estos:
@@ -11,12 +11,20 @@ import Consultas from './pages/Consultas';
 import Dashboard from './pages/Dashboard';
 import Padre from './pages/Padre';
 import Admin from './pages/Admin';
+import CambiarClave from './pages/CambiarClave';
 
 const PERSONAL = ['DOCENTE', 'COORDINADOR', 'ADMIN'];
+
+/** Con la contrasena temporal no se puede hacer nada mas que cambiarla. */
+function useDesvioPorClave(session: ReturnType<typeof getSession>) {
+  const location = useLocation();
+  return session?.mustChangePassword && location.pathname !== '/cambiar-clave';
+}
 
 function SoloRoles({ roles, children }: { roles: string[]; children: React.ReactNode }) {
   const session = getSession();
   if (!session) return <Navigate to="/login" replace />;
+  if (useDesvioPorClave(session)) return <Navigate to="/cambiar-clave" replace />;
   return roles.includes(session.role) ? <>{children}</> : <Navigate to="/" replace />;
 }
 
@@ -24,7 +32,14 @@ function SoloRoles({ roles, children }: { roles: string[]; children: React.React
 function Inicio() {
   const session = getSession();
   if (!session) return <Navigate to="/login" replace />;
+  if (useDesvioPorClave(session)) return <Navigate to="/cambiar-clave" replace />;
   return session.role === 'ACUDIENTE' ? <Padre /> : <Home />;
+}
+
+function Protegida({ children }: { children: React.ReactNode }) {
+  const session = getSession();
+  if (!session) return <Navigate to="/login" replace />;
+  return <>{children}</>;
 }
 
 export default function App() {
@@ -32,6 +47,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<Inicio />} />
+      <Route path="/cambiar-clave" element={<Protegida><CambiarClave /></Protegida>} />
       {/* El acudiente tiene sesion valida pero no puede ver el curso completo de
           nadie: estas dos rutas son de personal del colegio, no de familias. */}
       <Route path="/asistencia"

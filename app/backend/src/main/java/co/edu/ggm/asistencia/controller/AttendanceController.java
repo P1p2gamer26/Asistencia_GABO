@@ -6,6 +6,7 @@ import co.edu.ggm.asistencia.service.JwtService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -35,7 +36,12 @@ public class AttendanceController {
     public record RecordDto(@NotNull UUID id, @NotNull Long studentId, @NotNull Long scheduleBlockId,
                             @NotNull LocalDate classDate, @NotNull String status,
                             String comment, @NotNull Instant recordedAt) {}
-    public record SyncRequest(@NotEmpty List<RecordDto> records) {}
+    /**
+     * 500 registros: un curso son 40 estudiantes y una jornada completa unos 240.
+     * Deja holgura para un docente que estuvo una semana sin senal, y ataja el caso
+     * de un almacen local corrupto, donde cada registro abre su propia transaccion.
+     */
+    public record SyncRequest(@NotEmpty @Size(max = 500) List<RecordDto> records) {}
     public record Rejection(UUID id, String reason) {}
     public record SyncResult(int accepted, List<Rejection> rejected) {}
     public record SavedDto(UUID id, Long studentId, String status, String comment) {}
