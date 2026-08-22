@@ -481,6 +481,54 @@ ejecución, y los 21 invariantes de la prueba de humo en pie.
 
 ---
 
+## 6.g Séptima iteración: medir con el volumen real del colegio
+
+Todo lo anterior se probó y se auditó con tres estudiantes. El 22 de agosto de 2026 se
+generó el volumen real —1.200 estudiantes, 80 docentes, 900 bloques de horario y un
+semestre completo de asistencia: **620.748 registros, 146 MB**— con
+`tools/datos-de-carga.sql`, y se midió cada petición contra esa base.
+
+**El backend no necesita nada:**
+
+| Petición | Tiempo | Tamaño |
+|---|---|---|
+| Paquete de arranque del docente | 87 ms | 9,6 KB |
+| Bloques pendientes de hoy | 67 ms | — |
+| Tablero, 30 días | 163 ms | 3,1 KB |
+| Tablero, semestre entero | 210 ms | 6,4 KB |
+| Resumen de un curso | 79 ms | 7,3 KB |
+| **Resumen de todo el colegio** | **355 ms** | **218 KB** |
+| Informe en Excel del semestre | 972 ms | 64 KB |
+| Sincronizar un curso (40 registros) | 101 ms | — |
+| Sincronizar una jornada (240 registros) | 290 ms | — |
+| Portal del acudiente | 32 ms | — |
+
+También se validó el dimensionamiento que el informe venía afirmando sin medir:
+**230 bytes por fila reales** contra los 250 estimados. La cifra de ~400 MB al año se
+sostiene.
+
+Los problemas que sí aparecieron fueron de interfaz, los tres con la misma causa: se
+diseñaron mirando tres estudiantes, no 1.200.
+
+- **`Consultas` se traía el colegio entero.** Sin filtro de curso eran 1.203 filas y
+  218 KB pintadas de una vez. Ahora exige elegir un curso —desplegable poblado desde el
+  propio resumen, ya no texto libre— y la descarga en Excel sigue permitiendo todos los
+  cursos, que es la herramienta correcta para el análisis global.
+- **El gráfico de tendencia amontonaba las zonas sensibles.** Con 86 días lectivos los
+  puntos quedaban a ~11 px y las zonas de toque medían 20 px fijos: se solapaban, y
+  tocar un día devolvía otro. `anchoZonaSensible` las acota entre 8 y 44 px según la
+  separación real entre puntos.
+- **El gráfico de barras crecía sin límite.** 30 cursos eran 1.020 px de alto y el
+  usuario perdía la leyenda al desplazarse. Ahora el SVG vive dentro de
+  `.grafica-scroll` (`max-height: 60vh`, desplazable), y la leyenda queda siempre a la
+  vista.
+
+Los tres arreglos son de presentación —aritmética y un `overflow`, sin dependencias
+nuevas—, y a propósito no tocan el backend: le sobra margen por un orden de magnitud
+frente a lo medido.
+
+---
+
 ## 7. Lo que sigue faltando
 
 Requieren su propio plan:

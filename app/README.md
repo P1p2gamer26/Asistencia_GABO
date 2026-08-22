@@ -82,6 +82,25 @@ Variables de entorno de los tests (con estos valores por defecto):
 `TEST_DB_URL=jdbc:postgresql://localhost:5432/asistencia_test`,
 `TEST_DB_USER=postgres`, `TEST_DB_PASSWORD=postgres`.
 
+## Medir con el volumen real
+
+Las pruebas normales usan tres estudiantes. Para medir con el volumen del colegio
+—1.200 estudiantes, 900 bloques de horario y un semestre de asistencia, unos 620.000
+registros y 146 MB— hay que crear una base aparte, dejar que Flyway la migre y
+sembrarla:
+
+```bash
+psql -U postgres -c "CREATE DATABASE asistencia_carga"
+
+cd app/backend && DB_URL=jdbc:postgresql://localhost:5432/asistencia_carga \
+  DB_USER=postgres DB_PASSWORD=postgres SERVER_PORT=8082 mvn spring-boot:run
+# una vez arrancado (crea el esquema), en otra terminal:
+psql -U postgres -d asistencia_carga -f tools/datos-de-carga.sql
+```
+
+El script tarda unos minutos y deja las estadísticas al día. **No apuntar la aplicación
+de verdad a esa base**: son datos inventados.
+
 ## Carga de datos
 
 Tres importadores CSV, en `POST /api/admin/import/{students,schedule,guardians}`
