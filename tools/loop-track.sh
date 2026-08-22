@@ -220,6 +220,12 @@ for TAREA in $TAREAS; do
       fi
       grep -iE "session limit|usage limit|resets" "$SALIDA" | head -2 >>"$LOG"
       rm -f "$SALIDA"
+      # Nunca se duerme mas de 20 minutos de un tiron, aunque el mensaje anuncie tres
+      # horas: esa hora es una estimacion y la cuota puede volver antes. Dormir a
+      # ciegas hasta la hora anunciada costo tres horas de espera inutil una vez.
+      # Al despertar se reintenta; si sigue agotada, este mismo bloque vuelve a esperar.
+      [ "$dormir" -gt 1200 ] && dormir=1200
+      log "Duermo ${dormir}s y reintento (por si la cuota vuelve antes de lo anunciado)."
       sleep "$dormir"
       continue
     fi
