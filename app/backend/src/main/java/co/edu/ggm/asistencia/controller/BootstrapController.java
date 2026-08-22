@@ -32,7 +32,8 @@ public class BootstrapController {
         this.schedules = schedules; this.students = students; this.calendar = calendar;
     }
 
-    public record BlockDto(Long id, String grade, int weekday, int blockNo, String subject, String startTime) {}
+    public record BlockDto(Long id, String grade, int weekday, int blockNo, String subject, String startTime,
+                           String room) {}
     public record StudentDto(Long id, String documentId, String fullName, String grade) {}
     public record Bootstrap(List<BlockDto> blocks, List<StudentDto> students,
                             List<CalendarController.DayDto> schoolDays) {}
@@ -71,6 +72,7 @@ public class BootstrapController {
     private static BlockDto toDto(ScheduleBlock b) {
         LocalTime start = b.getStartTime();
         return new BlockDto(b.getId(), b.getGrade(), b.getWeekday(), b.getBlockNo(),
-                b.getSubject().getName(), String.format("%02d:%02d", start.getHour(), start.getMinute()));
+                b.getSubject().getName(), String.format("%02d:%02d", start.getHour(), start.getMinute()),
+                b.getRoom());
     }
 }

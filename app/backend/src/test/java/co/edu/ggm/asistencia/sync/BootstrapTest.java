@@ -69,4 +69,20 @@ class BootstrapTest extends AbstractIntegrationTest {
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.blocks[0].startTime").value("06:30"));
     }
+
+    @Test
+    void el_bloque_dice_en_que_aula_es() throws Exception {
+        jdbcBase.update("UPDATE schedule_blocks SET room = 'Aula 201' WHERE id = 1");
+        mvc.perform(get("/api/sync/bootstrap").header("Authorization", tokenDocente()))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.blocks[0].room").value("Aula 201"));
+    }
+
+    @Test
+    void un_bloque_sin_aula_no_rompe_nada() throws Exception {
+        jdbcBase.update("UPDATE schedule_blocks SET room = NULL WHERE id = 1");
+        mvc.perform(get("/api/sync/bootstrap").header("Authorization", tokenDocente()))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.blocks[0].grade").value("601"));
+    }
 }

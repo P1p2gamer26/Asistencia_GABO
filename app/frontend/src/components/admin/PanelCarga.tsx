@@ -6,7 +6,7 @@ const CARGAS = [
   { clave: 'students',  titulo: 'Estudiantes',
     cabecera: 'document_id,first_name,middle_name,last_name,second_surname,grade' },
   { clave: 'schedule',  titulo: 'Horario',
-    cabecera: 'grade,weekday,block_no,start_time,end_time,subject,teacher_email' },
+    cabecera: 'grade,weekday,block_no,start_time,end_time,subject,teacher_email,room' },
   { clave: 'guardians', titulo: 'Acudientes',
     cabecera: 'document_id,guardian_name,guardian_email,relationship' },
 ] as const;

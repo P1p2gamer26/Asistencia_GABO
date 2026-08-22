@@ -8,6 +8,7 @@ export type Session = {
 };
 export type Block = {
   id: number; grade: string; weekday: number; blockNo: number; subject: string; startTime: string;
+  room?: string;
 };
 export type PendingBlock = { blockId: number; grade: string; subject: string; blockNo: number };
 export type StudentDto = { id: number; documentId: string; fullName: string; grade: string };
