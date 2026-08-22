@@ -13,6 +13,7 @@ import Padre from './pages/Padre';
 import Admin from './pages/Admin';
 import CambiarClave from './pages/CambiarClave';
 import Calendario from './pages/Calendario';
+import Horario from './pages/Horario';
 
 const PERSONAL = ['DOCENTE', 'COORDINADOR', 'ADMIN'];
 
@@ -61,6 +62,7 @@ export default function App() {
              element={<SoloRoles roles={['COORDINADOR', 'ADMIN']}><Dashboard /></SoloRoles>} />
       <Route path="/admin" element={<SoloRoles roles={['ADMIN']}><Admin /></SoloRoles>} />
       <Route path="/calendario" element={<Protegida><Calendario /></Protegida>} />
+      <Route path="/horario" element={<Protegida><Horario /></Protegida>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

@@ -274,3 +274,22 @@ tbody tr:hover { background: #fbfaf4; }
   .calendario-dia .tipo-corto { display: block; }
   .calendario-dia .motivo { display: none; }
 }
+
+/* Horario semanal: una columna por dia, una fila por bloque. */
+.horario { display: grid; gap: 4px; min-width: 640px; }
+.horario-esquina { }
+.horario-cabecera { text-align: center; font-weight: 700; padding: 6px 0;
+                    text-transform: capitalize; color: var(--tinta-suave); }
+.horario-cabecera.hoy { color: var(--tinta); }
+.etiqueta-hoy { display: block; font-size: .65rem; font-weight: 400; color: var(--ocre); }
+.horario-bloque { display: flex; flex-direction: column; align-items: center;
+                  justify-content: center; padding: 0 8px; color: var(--tinta-suave); }
+.horario-bloque small { font-size: .7rem; }
+.horario-celda { border: 1px solid var(--rejilla); border-radius: 6px; padding: 6px;
+                 display: flex; flex-direction: column; gap: 2px; font-size: .78rem;
+                 min-height: 72px; }
+.horario-celda.vacia { background: var(--fondo); border-style: dashed; }
+/* El bloque de hoy se distingue: el docente que abre esto a las 7 quiere ver el suyo. */
+.horario-celda.hoy { border-color: var(--verde); background: #f2f8f4; }
+.horario-celda .aula { color: var(--ocre); font-weight: 700; }
+.tomar-lista { margin-top: auto; font-size: .72rem; }
