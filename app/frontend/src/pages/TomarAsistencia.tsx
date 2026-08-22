@@ -113,10 +113,32 @@ export default function TomarAsistencia() {
     }
   }
 
+  /**
+   * Registra el curso completo y lo sincroniza.
+   *
+   * Antes solo viajaban los estudiantes a los que el docente habia pulsado un boton,
+   * aunque la pantalla mostrara la "P" resaltada para todos: de un curso de 40 con 3
+   * faltas se guardaban 3 filas y los 37 presentes no existian en la base. El estado
+   * efectivo de cada uno es el que se ve en pantalla, y eso es lo que se envia.
+   */
   async function enviar() {
-    const { pending, alcanzable: hay } = await flushOutbox();
-    setPendientes(pending);
-    setAlcanzable(hay);
+    if (!blockId || !lectivo || students.length === 0) return;
+    setError('');
+    try {
+      for (const s of students) {
+        await markAttendance({
+          studentId: s.id,
+          scheduleBlockId: blockId,
+          classDate: fecha,
+          status: marcas[s.id] ?? 'P',
+        });
+      }
+      const { pending, alcanzable: hay } = await flushOutbox();
+      setPendientes(pending);
+      setAlcanzable(hay);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo enviar');
+    }
   }
 
   return (
@@ -182,8 +204,16 @@ export default function TomarAsistencia() {
             </ul>
           )}
 
-      <button type="button" onClick={() => void enviar()} disabled={pendientes === 0 || !lectivo}>
-        Enviar asistencia ({pendientes})
+      {blockId !== null && lectivo && students.length > 0 && (
+        <p className="meta">
+          Se registraran los {students.length} estudiantes del curso. Los que no haya
+          cambiado quedan como presentes.
+        </p>
+      )}
+
+      <button type="button" onClick={() => void enviar()}
+              disabled={blockId === null || !lectivo || students.length === 0}>
+        Enviar asistencia ({students.length})
       </button>
     </main>
   );
