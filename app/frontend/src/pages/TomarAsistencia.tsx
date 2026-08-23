@@ -237,7 +237,7 @@ export default function TomarAsistencia() {
                       </button>
                     ))}
                   </div>
-                  {(marcas[s.id] === 'T' || marcas[s.id] === 'F') && (
+                  {(marcas[s.id] === 'T' || marcas[s.id] === 'F' || marcas[s.id] === 'E') && (
                     <input className="comentario" type="text" maxLength={280}
                            aria-label={`Motivo para ${s.fullName}`}
                            placeholder="Motivo (opcional)"
