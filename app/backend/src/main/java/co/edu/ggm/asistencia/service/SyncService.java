@@ -40,4 +40,18 @@ public class SyncService {
                     limpio, recordedBy, recordedAt);
         }
     }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public int editar(UUID id, String status, String comment, Long editedBy) {
+        if (!ESTADOS.contains(status)) {
+            throw new IllegalArgumentException("Estado invalido: " + status);
+        }
+        String limpio = (comment == null || comment.isBlank()) ? null : comment.trim();
+        return repo.editar(id, status, limpio, editedBy);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public int borrar(UUID id, Long deletedBy) {
+        return repo.borrar(id, deletedBy);
+    }
 }

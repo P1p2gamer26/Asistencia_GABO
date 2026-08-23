@@ -13,19 +13,45 @@ import java.util.UUID;
 
 public interface AttendanceRepository extends JpaRepository<Attendance, UUID> {
 
-    List<Attendance> findByScheduleBlockIdAndClassDate(Long scheduleBlockId, LocalDate classDate);
+    List<Attendance> findByScheduleBlockIdAndClassDateAndDeletedAtIsNull(Long scheduleBlockId, LocalDate classDate);
 
     long countByScheduleBlockId(Long scheduleBlockId);
 
     List<Attendance> findByStudentIdAndClassDateBetweenOrderByClassDateDesc(
             Long studentId, LocalDate desde, LocalDate hasta);
 
+    interface DetalleRow {
+        java.util.UUID getId(); Long getStudentId(); String getFullName(); String getDocumentId();
+        String getStatus(); String getComment();
+        Long getRecordedBy(); String getRecordedByName(); Instant getRecordedAt();
+        Long getEditedBy(); String getEditedByName(); Instant getEditedAt();
+    }
+
+    /** Lo ya registrado para un bloque/fecha, con quien lo tomo y quien lo corrigio (NULL si nadie). */
+    @Query(value = """
+            SELECT a.id AS id, a.student_id AS studentId,
+                   trim(regexp_replace(concat_ws(' ', st.first_name, st.middle_name, st.last_name,
+                        st.second_surname), '\\s+', ' ', 'g')) AS fullName,
+                   st.document_id AS documentId,
+                   a.status AS status, a.comment AS comment,
+                   a.recorded_by AS recordedBy, ru.full_name AS recordedByName, a.recorded_at AS recordedAt,
+                   a.edited_by AS editedBy, eu.full_name AS editedByName, a.edited_at AS editedAt
+              FROM attendance a
+              JOIN students st ON st.id = a.student_id
+              LEFT JOIN users ru ON ru.id = a.recorded_by
+              LEFT JOIN users eu ON eu.id = a.edited_by
+             WHERE a.schedule_block_id = :blockId AND a.class_date = :classDate AND a.deleted_at IS NULL
+             ORDER BY 3
+            """, nativeQuery = true)
+    List<DetalleRow> detalle(@Param("blockId") Long blockId, @Param("classDate") LocalDate classDate);
+
     /** Actualiza la marca existente de ese estudiante/bloque/fecha. Devuelve 1 si actualizo algo. */
     @Modifying
     @Query(value = """
             UPDATE attendance
                SET status = :status, comment = :comment, recorded_by = :recordedBy,
-                   recorded_at = :recordedAt, synced_at = now()
+                   recorded_at = :recordedAt, synced_at = now(),
+                   deleted_by = NULL, deleted_at = NULL
              WHERE student_id = :studentId
                AND schedule_block_id = :blockId
                AND class_date = :classDate
@@ -56,4 +82,23 @@ public interface AttendanceRepository extends JpaRepository<Attendance, UUID> {
                        @Param("comment") String comment,
                        @Param("recordedBy") Long recordedBy,
                        @Param("recordedAt") Instant recordedAt);
+
+    /** Corrige un registro existente y deja constancia de quien lo cambio, sin perder quien lo tomo. */
+    @Modifying
+    @Query(value = """
+            UPDATE attendance
+               SET previous_status = status, status = :status, comment = :comment,
+                   edited_by = :editedBy, edited_at = now()
+             WHERE id = :id AND deleted_at IS NULL
+            """, nativeQuery = true)
+    int editar(@Param("id") UUID id, @Param("status") String status,
+              @Param("comment") String comment, @Param("editedBy") Long editedBy);
+
+    /** Borrado logico: la fila se conserva, solo se marca como borrada y por quien. */
+    @Modifying
+    @Query(value = """
+            UPDATE attendance SET deleted_by = :deletedBy, deleted_at = now()
+             WHERE id = :id AND deleted_at IS NULL
+            """, nativeQuery = true)
+    int borrar(@Param("id") UUID id, @Param("deletedBy") Long deletedBy);
 }
