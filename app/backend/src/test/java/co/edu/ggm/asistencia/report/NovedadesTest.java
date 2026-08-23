@@ -18,11 +18,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Se prueba el servicio con fechas explicitas, no el endpoint con "hoy": un test que
  * dependa del dia se salta datos segun cuando se corra (ver HoyTest, misma razon).
+ *
+ * Grado (997) y fecha (2026-01-26) propios, sin compartir con HoyTest ni con
+ * PendientesTest: esta suite reutiliza el mismo contexto de Spring y la misma
+ * base entre varias clases sin limpiar entre medio, y las consultas agregadas
+ * (TodayService, pendingToday) no filtran por clase de test -- compartir un
+ * grado o una fecha con otro archivo deja el resultado a merced del orden en
+ * que Maven decida correr las clases.
  */
 @AutoConfigureMockMvc
 class NovedadesTest extends AbstractIntegrationTest {
 
-    private static final LocalDate LUNES = LocalDate.parse("2026-03-09");
+    private static final LocalDate LUNES = LocalDate.parse("2026-01-26"); // lunes lectivo propio: distinto del que usa HoyTest (misma clase de contexto Spring, TodayService cuenta asistencia global por fecha sin filtrar grado)
 
     @Autowired MockMvc mvc;
     @Autowired NovedadesService novedades;
@@ -44,29 +51,29 @@ class NovedadesTest extends AbstractIntegrationTest {
                 "INSERT INTO subjects (name) VALUES ('MateriaNov') ON CONFLICT (name) DO NOTHING");
         jdbcBase.update("""
                 INSERT INTO students (document_id, first_name, last_name, grade, active)
-                VALUES ('9990000001','UNO','NOV','999',TRUE), ('9990000002','DOS','NOV','999',TRUE)
+                VALUES ('9970000001','UNO','NOV','997',TRUE), ('9970000002','DOS','NOV','997',TRUE)
                 ON CONFLICT (document_id) DO NOTHING
                 """);
         jdbcBase.update("""
                 INSERT INTO schedule_blocks (grade, weekday, block_no, start_time, end_time,
                                              subject_id, teacher_id)
-                VALUES ('999', 1, 6, '12:00', '12:50',
+                VALUES ('997', 1, 6, '12:00', '12:50',
                         (SELECT id FROM subjects WHERE name='MateriaNov'), ?)
                 ON CONFLICT (grade, weekday, block_no) DO UPDATE SET teacher_id = EXCLUDED.teacher_id
                 """, docenteId);
         bloqueId = jdbcBase.queryForObject(
-                "SELECT id FROM schedule_blocks WHERE grade='999' AND block_no=6", Long.class);
+                "SELECT id FROM schedule_blocks WHERE grade='997' AND block_no=6", Long.class);
         // Segundo bloque del mismo curso el mismo dia de la semana, para poder
         // sembrar una ausencia de "dia completo" (varios bloques, un estudiante).
         jdbcBase.update("""
                 INSERT INTO schedule_blocks (grade, weekday, block_no, start_time, end_time,
                                              subject_id, teacher_id)
-                VALUES ('999', 1, 7, '13:00', '13:50',
+                VALUES ('997', 1, 7, '13:00', '13:50',
                         (SELECT id FROM subjects WHERE name='MateriaNov'), ?)
                 ON CONFLICT (grade, weekday, block_no) DO UPDATE SET teacher_id = EXCLUDED.teacher_id
                 """, docenteId);
         bloqueId2 = jdbcBase.queryForObject(
-                "SELECT id FROM schedule_blocks WHERE grade='999' AND block_no=7", Long.class);
+                "SELECT id FROM schedule_blocks WHERE grade='997' AND block_no=7", Long.class);
         jdbcBase.update("DELETE FROM attendance WHERE schedule_block_id IN (?, ?)", bloqueId, bloqueId2);
     }
 
@@ -92,27 +99,27 @@ class NovedadesTest extends AbstractIntegrationTest {
 
     @Test
     void separa_evasiones_de_ausencias_y_trae_el_curso() {
-        marcar("9990000001", "E", "se salio del salon");
-        marcar("9990000002", "F", null);
+        marcar("9970000001", "E", "se salio del salon");
+        marcar("9970000002", "F", null);
 
         var r = novedades.build(LUNES.minusDays(1), LUNES, 10);
 
         assertThat(r.evasiones()).hasSize(1);
         assertThat(r.evasiones().get(0).fullName()).contains("UNO NOV");
-        assertThat(r.evasiones().get(0).grade()).isEqualTo("999");
+        assertThat(r.evasiones().get(0).grade()).isEqualTo("997");
         assertThat(r.evasiones().get(0).comment()).isEqualTo("se salio del salon");
 
         assertThat(r.ausencias()).hasSize(1);
         assertThat(r.ausencias().get(0).fullName()).contains("DOS NOV");
-        assertThat(r.ausencias().get(0).grade()).isEqualTo("999");
+        assertThat(r.ausencias().get(0).grade()).isEqualTo("997");
     }
 
     @Test
     void sin_novedades_en_el_periodo_lo_dice_sin_fingir_que_nadie_tomo_asistencia() {
         // Se marco asistencia (hay registros) pero nadie evadio ni falto: el
         // cuadro debe decir "no hay evasiones/ausencias", no quedarse mudo.
-        marcar("9990000001", "P", null);
-        marcar("9990000002", "T", null);
+        marcar("9970000001", "P", null);
+        marcar("9970000002", "T", null);
 
         var r = novedades.build(LUNES.minusDays(1), LUNES, 10);
 
@@ -138,8 +145,8 @@ class NovedadesTest extends AbstractIntegrationTest {
         // El curso 999 tiene 2 bloques el lunes (block_no 6 y 7). Ausente en los
         // dos = ausente el dia completo, no dos filas del cuadro ocupadas por el
         // mismo estudiante desplazando a los demas.
-        marcarEnBloque("9990000001", "F", null, bloqueId);
-        marcarEnBloque("9990000001", "F", null, bloqueId2);
+        marcarEnBloque("9970000001", "F", null, bloqueId);
+        marcarEnBloque("9970000001", "F", null, bloqueId2);
 
         var r = novedades.build(LUNES.minusDays(1), LUNES, 10);
 
@@ -149,8 +156,8 @@ class NovedadesTest extends AbstractIntegrationTest {
 
     @Test
     void un_estudiante_ausente_en_parte_de_los_bloques_dice_cuantos_de_cuantos() {
-        marcarEnBloque("9990000001", "F", null, bloqueId);
-        marcarEnBloque("9990000001", "P", null, bloqueId2);
+        marcarEnBloque("9970000001", "F", null, bloqueId);
+        marcarEnBloque("9970000001", "P", null, bloqueId2);
 
         var r = novedades.build(LUNES.minusDays(1), LUNES, 10);
 
@@ -162,9 +169,9 @@ class NovedadesTest extends AbstractIntegrationTest {
     void el_limite_de_ausencias_cuenta_estudiantes_no_filas() {
         // Sin agrupar, un solo estudiante ausente en 2 bloques ocuparia 2 de los
         // 10 cupos del limite; agrupado, ocupa 1, tal como promete el parametro.
-        marcarEnBloque("9990000001", "F", null, bloqueId);
-        marcarEnBloque("9990000001", "F", null, bloqueId2);
-        marcarEnBloque("9990000002", "F", null, bloqueId);
+        marcarEnBloque("9970000001", "F", null, bloqueId);
+        marcarEnBloque("9970000001", "F", null, bloqueId2);
+        marcarEnBloque("9970000002", "F", null, bloqueId);
 
         var r = novedades.build(LUNES.minusDays(1), LUNES, 10);
 
@@ -174,13 +181,14 @@ class NovedadesTest extends AbstractIntegrationTest {
     @Test
     void el_que_falto_todo_el_dia_no_lo_tapa_el_que_falto_a_una_sola_clase() {
         // Grado propio ('998') y fecha propia (OTRA_FECHA), no los compartidos
-        // '999'/LUNES de los demas tests de esta clase: PendientesTest cuenta
-        // estudiantes activos de grado 999 para decidir si un bloque ya quedo
-        // completo, y esta suite no limpia la base entre clases de test (ver
-        // TestDatabaseConfig) -- sumar un estudiante mas ahi rompe ese conteo
-        // en una clase que ni se toca aqui. Una fecha distinta evita ademas que
-        // estas 5 filas nuevas se cuelen en el build(LUNES-1, LUNES, ...) que
-        // usan los demas tests de este archivo (no hay rollback entre metodos).
+        // '997'/LUNES de los demas tests de esta clase: PendientesTest usa su
+        // propio grado (999) y cuenta sus estudiantes activos para decidir si un
+        // bloque ya quedo completo; esta suite no limpia la base entre clases de
+        // test (ver TestDatabaseConfig), asi que sumar un estudiante mas a ese
+        // grado rompe ese conteo en una clase que ni se toca aqui. Una fecha
+        // distinta evita ademas que estas 5 filas nuevas se cuelen en el
+        // build(LUNES-1, LUNES, ...) que usan los demas tests de este archivo
+        // (no hay rollback entre metodos).
         //
         // 5 estudiantes el mismo dia: cuatro faltan a una sola clase (el caso
         // leve, ids mas bajos -- van primero en cualquier orden incidental de la
@@ -233,8 +241,8 @@ class NovedadesTest extends AbstractIntegrationTest {
 
     @Test
     void respeta_el_limite() {
-        marcar("9990000001", "E", "uno");
-        marcar("9990000002", "E", "dos");
+        marcar("9970000001", "E", "uno");
+        marcar("9970000002", "E", "dos");
         var r = novedades.build(LUNES.minusDays(1), LUNES, 1);
         assertThat(r.evasiones()).hasSize(1);
     }
