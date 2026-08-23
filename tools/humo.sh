@@ -27,8 +27,20 @@ consulta_bd() { # sql -> primera fila, sin cabecera ni bordes
     -t -A -c "$1" 2>/dev/null | tr -d '\r' | head -1
 }
 
-ok()    { printf '  OK    %s\n' "$1"; }
-falla() { printf '  FALLA %s\n     esperado: %s\n     recibido: %s\n' "$1" "$2" "$3"; FALLOS=$((FALLOS + 1)); }
+OMITIDAS=0
+
+ok()      { printf '  OK    %s\n' "$1"; }
+falla()   { printf '  FALLA %s\n     esperado: %s\n     recibido: %s\n' "$1" "$2" "$3"; FALLOS=$((FALLOS + 1)); }
+omitida() { printf '  OMITE %s (%s)\n' "$1" "$2"; OMITIDAS=$((OMITIDAS + 1)); }
+
+# Se detecta el acceso a la base UNA vez al principio, no en cada comprobacion.
+# Sin ella (por ejemplo corriendo contra Fly.io/un VPS sin psql ni credenciales a
+# mano, ver docs/DESPLIEGUE.md) las comprobaciones que la necesitan se OMITEN en
+# vez de fallar: un rojo por falta de acceso es tan ruidoso como el que este
+# arreglo elimino. Si la base SI responde y una consulta puntual no trae nada,
+# eso ya no es "sin acceso": sigue siendo una FALLA real.
+BD_OK=0
+[ -n "$(consulta_bd "select 1;")" ] && BD_OK=1
 
 comprobar() { # nombre, esperado, recibido
   if [ "$2" = "$3" ]; then ok "$1"; else falla "$1" "$2" "$3"; fi
@@ -92,17 +104,21 @@ AUTH="Authorization: Bearer $TOKEN"
 BOOT=$(curl -s "$BASE/api/sync/bootstrap" -H "$AUTH")
 contiene "el bootstrap trae el calendario" '"schoolDays"' "$BOOT"
 
-HORA_BD=$(consulta_bd "select to_char(b.start_time,'HH24:MI'), u.email from schedule_blocks b join users u on u.id=b.teacher_id where b.id=1;")
-BLOQUE_HORA=$(printf '%s' "$HORA_BD" | cut -d'|' -f1)
-BLOQUE_DOCENTE=$(printf '%s' "$HORA_BD" | cut -d'|' -f2)
-if [ -n "$BLOQUE_HORA" ] && [ -n "$BLOQUE_DOCENTE" ]; then
-  TOKEN_BLOQUE=$(curl -s -X POST "$BASE/api/auth/login" -H 'Content-Type: application/json' \
-    -d "{\"email\":\"$BLOQUE_DOCENTE\",\"password\":\"cambiar123\"}" \
-    | sed -E 's/.*"token":"([^"]+)".*/\1/')
-  BOOT_BLOQUE=$(curl -s "$BASE/api/sync/bootstrap" -H "Authorization: Bearer $TOKEN_BLOQUE")
-  contiene "la hora del bloque no se desplaza" "\"startTime\":\"$BLOQUE_HORA\"" "$BOOT_BLOQUE"
+if [ "$BD_OK" -eq 1 ]; then
+  HORA_BD=$(consulta_bd "select to_char(b.start_time,'HH24:MI'), u.email from schedule_blocks b join users u on u.id=b.teacher_id where b.id=1;")
+  BLOQUE_HORA=$(printf '%s' "$HORA_BD" | cut -d'|' -f1)
+  BLOQUE_DOCENTE=$(printf '%s' "$HORA_BD" | cut -d'|' -f2)
+  if [ -n "$BLOQUE_HORA" ] && [ -n "$BLOQUE_DOCENTE" ]; then
+    TOKEN_BLOQUE=$(curl -s -X POST "$BASE/api/auth/login" -H 'Content-Type: application/json' \
+      -d "{\"email\":\"$BLOQUE_DOCENTE\",\"password\":\"cambiar123\"}" \
+      | sed -E 's/.*"token":"([^"]+)".*/\1/')
+    BOOT_BLOQUE=$(curl -s "$BASE/api/sync/bootstrap" -H "Authorization: Bearer $TOKEN_BLOQUE")
+    contiene "la hora del bloque no se desplaza" "\"startTime\":\"$BLOQUE_HORA\"" "$BOOT_BLOQUE"
+  else
+    falla "la hora del bloque no se desplaza" "leer start_time/docente del bloque id=1 en la BD" "consulta vacia (el bloque id=1 no existe)"
+  fi
 else
-  falla "la hora del bloque no se desplaza" "leer start_time/docente del bloque id=1 en la BD" "consulta vacia (¿psql sin acceso a $DB_NAME?)"
+  omitida "la hora del bloque no se desplaza" "sin acceso a la base; se omite"
 fi
 
 # --- Idempotencia -------------------------------------------------------------
@@ -212,11 +228,15 @@ ENTRADA=$(curl -s -X POST "$BASE/api/entry/sync" -H "Authorization: Bearer $COOR
   -d '{"entries":[{"id":"22222222-0000-4000-8000-000000000002","documentId":"1010101010","scannedAt":"2026-05-04T07:00:00Z"}]}')
 # El nombre esperado se lee de la base (no un literal fijo), asi que sobrevive a
 # que se resiembren los estudiantes con otros nombres.
-NOMBRE_BD=$(consulta_bd "select first_name from students where document_id='1010101010';")
-if [ -n "$NOMBRE_BD" ]; then
-  contiene "el ingreso devuelve el nombre del estudiante" "$NOMBRE_BD" "$ENTRADA"
+if [ "$BD_OK" -eq 1 ]; then
+  NOMBRE_BD=$(consulta_bd "select first_name from students where document_id='1010101010';")
+  if [ -n "$NOMBRE_BD" ]; then
+    contiene "el ingreso devuelve el nombre del estudiante" "$NOMBRE_BD" "$ENTRADA"
+  else
+    falla "el ingreso devuelve el nombre del estudiante" "leer first_name del estudiante 1010101010 en la BD" "consulta vacia (el estudiante 1010101010 no existe)"
+  fi
 else
-  falla "el ingreso devuelve el nombre del estudiante" "leer first_name del estudiante 1010101010 en la BD" "consulta vacia (¿psql sin acceso a $DB_NAME?)"
+  omitida "el ingreso devuelve el nombre del estudiante" "sin acceso a la base; se omite"
 fi
 
 ENTRADA_MALA=$(curl -s -X POST "$BASE/api/entry/sync" -H "Authorization: Bearer $COORD" \
@@ -227,7 +247,11 @@ contiene "un carnet desconocido se rechaza con motivo" 'no registrado' "$ENTRADA
 # --- Resultado ----------------------------------------------------------------
 echo
 if [ "$FALLOS" -eq 0 ]; then
-  echo "== Todos los invariantes se mantienen."
+  if [ "$OMITIDAS" -gt 0 ]; then
+    echo "== Todos los invariantes se mantienen ($OMITIDAS comprobacion(es) omitidas)."
+  else
+    echo "== Todos los invariantes se mantienen."
+  fi
   exit 0
 fi
 echo "== $FALLOS comprobacion(es) fallida(s)."
