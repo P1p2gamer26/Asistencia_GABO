@@ -52,6 +52,11 @@ public interface ScheduleRepository extends JpaRepository<ScheduleBlock, Long> {
      *
      * Los conteos van como subconsultas y no como JOIN contra `attendance`: un JOIN
      * dejaria fuera los bloques sin marcar, que son precisamente los que hay que ver.
+     *
+     * `marcados` solo cuenta asistencia de estudiantes activos: un estudiante retirado
+     * conserva su asistencia pasada (no se borra), pero si se contara aqui el numerador
+     * hablaria de un curso distinto al del denominador (`estudiantes`, ya filtrado por
+     * activos) y podria superarlo, ej. "31 de 30".
      */
     @org.springframework.data.jpa.repository.Query(value = """
             SELECT b.id AS id, b.block_no AS blockNo, b.grade AS grade,
@@ -60,6 +65,7 @@ public interface ScheduleRepository extends JpaRepository<ScheduleBlock, Long> {
                    (SELECT count(*) FROM students st
                      WHERE st.grade = b.grade AND st.active) AS estudiantes,
                    (SELECT count(*) FROM attendance a
+                     JOIN students st2 ON st2.id = a.student_id AND st2.active
                      WHERE a.schedule_block_id = b.id AND a.class_date = :fecha) AS marcados
               FROM schedule_blocks b
               JOIN subjects s ON s.id = b.subject_id
