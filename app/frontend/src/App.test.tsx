@@ -47,4 +47,13 @@ describe('rutas por rol', () => {
     abrir('/asistencia');
     await waitFor(() => expect(screen.queryByText(/Asistencia de mis hijos/i)).not.toBeInTheDocument());
   });
+
+  it('con contrasena temporal, /horario desvia a cambiar la clave', async () => {
+    localStorage.setItem('ggm.session', JSON.stringify({
+      token: 't', refreshToken: 'r', role: 'DOCENTE', fullName: 'Ana Perez', userId: 9,
+      mustChangePassword: true,
+    }));
+    abrir('/horario');
+    await waitFor(() => expect(screen.getByLabelText(/nueva contrasena/i)).toBeInTheDocument());
+  });
 });

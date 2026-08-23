@@ -8,6 +8,7 @@ import co.edu.ggm.asistencia.repository.StudentRepository;
 import co.edu.ggm.asistencia.service.DashboardService;
 import co.edu.ggm.asistencia.service.ExcelReportService;
 import co.edu.ggm.asistencia.service.JwtService;
+import co.edu.ggm.asistencia.service.TodayService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpHeaders;
@@ -33,13 +34,14 @@ public class ReportController {
     private final DashboardService dashboardService;
     private final CalendarRepository calendar;
     private final StudentRepository students;
+    private final TodayService todayService;
 
     public ReportController(ReportRepository repo, ExcelReportService excel,
                             DashboardService dashboardService, CalendarRepository calendar,
-                            StudentRepository students) {
+                            StudentRepository students, TodayService todayService) {
         this.repo = repo; this.excel = excel;
         this.dashboardService = dashboardService; this.calendar = calendar;
-        this.students = students;
+        this.students = students; this.todayService = todayService;
     }
 
     @GetMapping("/summary")
@@ -112,5 +114,11 @@ public class ReportController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return dashboardService.build(grade, from, to);
+    }
+
+    @GetMapping("/today")
+    @PreAuthorize("hasAnyRole('COORDINADOR','ADMIN')")
+    public TodayService.ResumenDeHoy today() {
+        return todayService.resumen(LocalDate.now(TodayService.BOGOTA));
     }
 }
