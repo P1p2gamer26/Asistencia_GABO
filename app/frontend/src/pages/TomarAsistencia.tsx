@@ -232,9 +232,8 @@ export default function TomarAsistencia() {
                       <button key={e.valor} type="button"
                               className={`estado ${e.valor} ${(marcas[s.id] ?? 'P') === e.valor ? 'activo' : ''}`}
                               aria-pressed={(marcas[s.id] ?? 'P') === e.valor}
-                              title={e.etiqueta}
                               onClick={() => void marcar(s.id, e.valor)}>
-                        {e.valor}
+                        {(marcas[s.id] ?? 'P') === e.valor ? '✓ ' : ''}{e.etiqueta}
                       </button>
                     ))}
                   </div>

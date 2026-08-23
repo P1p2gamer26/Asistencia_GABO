@@ -54,6 +54,33 @@ describe('TomarAsistencia', () => {
     expect(screen.queryByText('CARLA DIAZ')).not.toBeInTheDocument();
   });
 
+  it('los botones de estado muestran la palabra completa y el seleccionado se distingue sin depender del color', async () => {
+    render(<MemoryRouter><TomarAsistencia /></MemoryRouter>);
+    await waitFor(() => expect(
+      screen.getByLabelText(/curso/i).querySelectorAll('option').length).toBeGreaterThan(1));
+    await userEvent.clear(screen.getByLabelText(/fecha/i));
+    await userEvent.type(screen.getByLabelText(/fecha/i), '2026-08-17');   // lunes
+    await userEvent.selectOptions(screen.getByLabelText(/curso/i), '601');
+    await waitFor(() => expect(screen.getByLabelText(/bloque/i)).not.toBeDisabled());
+    await userEvent.selectOptions(screen.getByLabelText(/bloque/i), '1');
+
+    const grupo = await screen.findByRole('group', { name: /ANA LOPEZ/i });
+    const botonPresente = within(grupo).getByRole('button', { name: /presente/i });
+    const botonFalta = within(grupo).getByRole('button', { name: /falta/i });
+    expect(within(grupo).getByRole('button', { name: /^tarde$/i })).toBeInTheDocument();
+    expect(within(grupo).getByRole('button', { name: /^evasion$/i })).toBeInTheDocument();
+
+    // Sin marcar nada, Presente queda seleccionado por defecto: el nombre
+    // accesible ya lleva la marca de verificacion, no solo el color de fondo.
+    expect(botonPresente).toHaveAccessibleName('✓ Presente');
+    expect(botonFalta).toHaveAccessibleName('Falta');
+
+    await userEvent.click(botonFalta);
+
+    await waitFor(() => expect(botonFalta).toHaveAccessibleName('✓ Falta'));
+    expect(botonPresente).toHaveAccessibleName('Presente');
+  });
+
   it('marcar una falta la deja en la cola local, sin tocar la red', async () => {
     render(<MemoryRouter><TomarAsistencia /></MemoryRouter>);
     await waitFor(() => expect(
@@ -65,7 +92,7 @@ describe('TomarAsistencia', () => {
     await userEvent.selectOptions(screen.getByLabelText(/bloque/i), '1');
 
     const grupo = await screen.findByRole('group', { name: /ANA LOPEZ/i });
-    await userEvent.click(within(grupo).getByRole('button', { name: 'F' }));
+    await userEvent.click(within(grupo).getByRole('button', { name: /falta/i }));
 
     await waitFor(async () => {
       const cola = await db.outbox.toArray();
@@ -164,7 +191,7 @@ describe('TomarAsistencia', () => {
 
     // Se marca una sola falta; los demas se quedan como estan (presentes por defecto).
     const grupo = screen.getByRole('group', { name: /ANA LOPEZ/i });
-    await userEvent.click(within(grupo).getByRole('button', { name: 'F' }));
+    await userEvent.click(within(grupo).getByRole('button', { name: /falta/i }));
 
     await userEvent.click(screen.getByRole('button', { name: /enviar asistencia/i }));
 
@@ -196,7 +223,7 @@ describe('TomarAsistencia', () => {
   it('el boton dice cuantos se van a enviar, no cuantos se tocaron', async () => {
     await elegirCursoYBloque();
     const grupo = screen.getByRole('group', { name: /ANA LOPEZ/i });
-    await userEvent.click(within(grupo).getByRole('button', { name: 'F' }));
+    await userEvent.click(within(grupo).getByRole('button', { name: /falta/i }));
 
     // Con 2 estudiantes en el curso y 1 tocado, debe anunciar 2.
     expect(screen.getByRole('button', { name: /enviar asistencia \(2\)/i })).toBeInTheDocument();
@@ -212,7 +239,7 @@ describe('TomarAsistencia', () => {
     await elegirCursoYBloque();
 
     const grupo = screen.getByRole('group', { name: /ANA LOPEZ/i });
-    await userEvent.click(within(grupo).getByRole('button', { name: 'T' }));
+    await userEvent.click(within(grupo).getByRole('button', { name: /tarde/i }));
 
     const motivo = await screen.findByLabelText(/motivo/i);
     await userEvent.type(motivo, 'El bus se demoro');
@@ -233,12 +260,12 @@ describe('TomarAsistencia', () => {
     await elegirCursoYBloque();
 
     const grupo = screen.getByRole('group', { name: /ANA LOPEZ/i });
-    await userEvent.click(within(grupo).getByRole('button', { name: 'T' }));
+    await userEvent.click(within(grupo).getByRole('button', { name: /tarde/i }));
     await userEvent.type(await screen.findByLabelText(/motivo/i), 'El bus se demoro');
     await userEvent.tab();
 
     // Se lo piensa mejor y lo pone como falta
-    await userEvent.click(within(grupo).getByRole('button', { name: 'F' }));
+    await userEvent.click(within(grupo).getByRole('button', { name: /falta/i }));
     await userEvent.click(screen.getByRole('button', { name: /enviar asistencia/i }));
 
     await waitFor(async () => {
@@ -252,10 +279,10 @@ describe('TomarAsistencia', () => {
     await elegirCursoYBloque();
 
     const grupo = screen.getByRole('group', { name: /ANA LOPEZ/i });
-    await userEvent.click(within(grupo).getByRole('button', { name: 'T' }));
+    await userEvent.click(within(grupo).getByRole('button', { name: /tarde/i }));
     await userEvent.type(await screen.findByLabelText(/motivo/i), 'El bus se demoro');
     await userEvent.tab();
-    await userEvent.click(within(grupo).getByRole('button', { name: 'P' }));
+    await userEvent.click(within(grupo).getByRole('button', { name: /presente/i }));
 
     await userEvent.click(screen.getByRole('button', { name: /enviar asistencia/i }));
 
@@ -282,7 +309,7 @@ describe('TomarAsistencia', () => {
 
     await waitFor(() => {
       const ana = screen.getByRole('group', { name: /ANA LOPEZ/i });
-      expect(within(ana).getByRole('button', { name: 'F' })).toHaveAttribute('aria-pressed', 'true');
+      expect(within(ana).getByRole('button', { name: /falta/i })).toHaveAttribute('aria-pressed', 'true');
     });
     expect(screen.getByDisplayValue('Cita medica')).toBeInTheDocument();
   });
@@ -304,7 +331,7 @@ describe('TomarAsistencia', () => {
 
     await waitFor(() => {
       const ana = screen.getByRole('group', { name: /ANA LOPEZ/i });
-      expect(within(ana).getByRole('button', { name: 'P' })).toHaveAttribute('aria-pressed', 'true');
+      expect(within(ana).getByRole('button', { name: /presente/i })).toHaveAttribute('aria-pressed', 'true');
     });
   });
 
