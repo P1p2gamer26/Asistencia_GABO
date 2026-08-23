@@ -39,23 +39,42 @@ public class ScheduleController {
                             String startTime, String endTime, String room, String teacherName) {}
 
     @GetMapping("/week")
-    public List<WeekBlock> week(@RequestParam(required = false) String grade) {
+    public List<WeekBlock> week(@RequestParam(required = false) String grade,
+                                @RequestParam(required = false) String room) {
         List<ScheduleRepository.WeekRow> filas;
 
-        if (grade == null || grade.isBlank()) {
+        if (room != null && !room.isBlank()) {
+            // "Quien esta usando el laboratorio el martes": igual que pedir el horario
+            // de un curso ajeno, muestra cursos y docentes que no son los del que
+            // pregunta, asi que exige el mismo rol.
+            exigirCoordinacion("Solo coordinacion puede consultar el horario de un salon");
+            filas = schedules.weekOfRoom(room.trim());
+        } else if (grade == null || grade.isBlank()) {
             // "Donde tengo clase yo": la pregunta del docente desde el celular.
             filas = schedules.weekOfTeacher(JwtService.currentUserId());
         } else {
             // "Quien le da ciencias a 601": la pregunta de coordinacion. El horario de
             // un docente es suyo, asi que pedir el de un curso exige otro rol.
-            if (!tieneRol("ROLE_COORDINADOR") && !tieneRol("ROLE_ADMIN")) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                        "Solo coordinacion puede consultar el horario de un curso");
-            }
+            exigirCoordinacion("Solo coordinacion puede consultar el horario de un curso");
             filas = schedules.weekOfGrade(grade.trim());
         }
 
         return filas.stream().map(ScheduleController::toDto).toList();
+    }
+
+    public record Salones(List<String> rooms, long withoutRoom) {}
+
+    /** Lista de salones con clase asignada, y cuantos bloques no tienen aula: util para coordinacion. */
+    @GetMapping("/rooms")
+    public Salones rooms() {
+        exigirCoordinacion("Solo coordinacion puede consultar la lista de salones");
+        return new Salones(schedules.distinctRooms(), schedules.countWithoutRoom());
+    }
+
+    private static void exigirCoordinacion(String mensaje) {
+        if (!tieneRol("ROLE_COORDINADOR") && !tieneRol("ROLE_ADMIN")) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, mensaje);
+        }
     }
 
     private static boolean tieneRol(String rol) {

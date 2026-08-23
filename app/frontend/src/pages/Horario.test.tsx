@@ -72,3 +72,53 @@ describe('Horario', () => {
       expect(screen.getByRole('alert')).toHaveTextContent(/no se pudo cargar/i));
   });
 });
+
+const SEMANA_SALON = [
+  { id: 21, grade: '603', weekday: 1, blockNo: 2, subject: 'Informatica',
+    startTime: '07:25', endTime: '08:15', room: 'Aula 203', teacherName: 'Ana Rojas' },
+];
+
+function pintarComo(role: string) {
+  localStorage.setItem('ggm.session', JSON.stringify({
+    token: 't', refreshToken: 'r', role, fullName: 'Coord Persona', userId: 9,
+    mustChangePassword: false,
+  }));
+  return render(
+    <MemoryRouter initialEntries={['/horario']}>
+      <Routes><Route path="/horario" element={<Horario />} /></Routes>
+    </MemoryRouter>);
+}
+
+describe('Horario: salones', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url.includes('/api/schedule/rooms')) {
+        return respuesta({ rooms: ['Aula 203', 'Laboratorio 1'], withoutRoom: 3 });
+      }
+      if (url.includes('room=')) return respuesta(SEMANA_SALON);
+      return respuesta(SEMANA);
+    }));
+  });
+
+  it('coordinacion ve la lista de salones y cuantos bloques no tienen aula', async () => {
+    pintarComo('COORDINADOR');
+    expect(await screen.findByRole('button', { name: 'Aula 203' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Laboratorio 1' })).toBeInTheDocument();
+    expect(screen.getByText(/3 bloques sin aula asignada/i)).toBeInTheDocument();
+  });
+
+  it('un docente no ve la lista de salones', async () => {
+    pintarComo('DOCENTE');
+    await waitFor(() => expect(screen.getByText(/Ciencias/)).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: 'Aula 203' })).not.toBeInTheDocument();
+  });
+
+  it('al elegir un salon se ve que clases se dictan alli, de que curso y con que docente', async () => {
+    pintarComo('COORDINADOR');
+    await userEvent.click(await screen.findByRole('button', { name: 'Aula 203' }));
+    expect(await screen.findByText(/Horario del salon Aula 203/i)).toBeInTheDocument();
+    expect(screen.getByText('603')).toBeInTheDocument();
+    expect(screen.getByText('Informatica')).toBeInTheDocument();
+    expect(screen.getByText('Ana Rojas')).toBeInTheDocument();
+  });
+});
