@@ -3,7 +3,6 @@ import { getSession } from './api/client';
 
 // Track B rellena estos:
 import Login from './pages/Login';
-import Home from './pages/Home';
 import TomarAsistencia from './pages/TomarAsistencia';
 import Ingreso from './pages/Ingreso';
 // Track C rellena estos:
@@ -46,7 +45,7 @@ function Inicio() {
   if (session.role === 'ADMIN' || session.role === 'COORDINADOR') return <Layout><InicioAdmin /></Layout>;
   // El docente llega preguntando donde tiene clase hoy y que ya marco.
   if (session.role === 'DOCENTE') return <Layout><InicioDocente /></Layout>;
-  return <Layout><Home /></Layout>;
+  return <Navigate to="/login" replace />;
 }
 
 function Protegida({ children, armazon = true }: { children: React.ReactNode; armazon?: boolean }) {
