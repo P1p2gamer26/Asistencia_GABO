@@ -32,6 +32,14 @@ export type Dashboard = {
 export type AdminUser = {
   id: number; email: string; fullName: string; role: Role; active: boolean;
 };
+
+export type ScheduleBlockAdmin = {
+  id: number; grade: string; weekday: number; blockNo: number;
+  subject: string; subjectId: number; startTime: string; endTime: string;
+  room?: string; teacherId: number; teacherName: string;
+  createdBy?: number; createdByName?: string; createdAt?: string;
+  updatedBy?: number; updatedByName?: string; updatedAt?: string;
+};
 export type ImportResult = { imported: number; errors: string[] };
 
 /** Orden de apilado y colores de estado. Validado; ver Task C2. No reordenar. */
