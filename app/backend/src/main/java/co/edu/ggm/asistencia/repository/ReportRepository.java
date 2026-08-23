@@ -390,6 +390,28 @@ public interface ReportRepository extends Repository<Student, Long> {
     // hace INNER JOIN contra attendance), esta arranca de los cursos activos y
     // les hace LEFT JOIN: el curso que nadie ha marcado en el periodo sale
     // igual, con todo en cero, para poder distinguirlo de uno con 100% real.
+    interface DiaNoLectivoConMarcas {
+        LocalDate getFecha();
+        String getTipo();
+        int getMarcas();
+    }
+
+    // El calendario puede suspender un dia DESPUES de que ya se paso lista (el
+    // caso real: 2026-08-03 quedo SUSPENDIDO con 180 marcas de 604 ya tomadas).
+    // La app no borra lo ya registrado -- eso lo decide el colegio -- pero hay
+    // que poder verlo: cuantas marcas quedaron en un dia que el calendario dice
+    // que no fue lectivo.
+    @Query(value = """
+            SELECT c.calendar_date AS fecha, c.day_type AS tipo, count(*) AS marcas
+            FROM school_calendar c
+            JOIN attendance a ON a.class_date = c.calendar_date
+            WHERE c.day_type <> 'LECTIVO' AND c.calendar_date BETWEEN :from AND :to
+            GROUP BY c.calendar_date, c.day_type
+            ORDER BY c.calendar_date
+            """, nativeQuery = true)
+    List<DiaNoLectivoConMarcas> diasNoLectivosConMarcas(@Param("from") LocalDate from,
+                                                        @Param("to") LocalDate to);
+
     @Query(value = """
             SELECT g.grade AS grade,
                    count(*) FILTER (WHERE a.status = 'P') AS present,

@@ -56,8 +56,9 @@ describe('Consultas', () => {
     await userEvent.click(screen.getByRole('button', { name: /^consultar/i }));
 
     await waitFor(() => expect(screen.getByText('ANA LOPEZ')).toBeInTheDocument());
-    const ultimaLlamada = f.mock.lastCall![0];
-    expect(String(ultimaLlamada)).toContain('grade=601');
+    const llamadas = f.mock.calls.map((c) => String(c[0]));
+    expect(llamadas.some((url) => url.includes('/api/reports/summary') && url.includes('grade=601')))
+      .toBe(true);
   });
 
   it('los encabezados dejan claro que P/T/F/E son marcas por clase, no dias', async () => {
@@ -94,6 +95,46 @@ describe('Consultas', () => {
     await waitFor(() => expect(screen.getByText('SIN DATOS PEREZ')).toBeInTheDocument());
     expect(screen.getByText('Sin datos')).toBeInTheDocument();
     expect(screen.queryByText('0%')).not.toBeInTheDocument();
+  });
+
+  it('avisa cuando hay dias no lectivos con marcas en el periodo consultado', async () => {
+    const f = vi.fn(async (url: string) => {
+      if (String(url).includes('/dias-no-lectivos-con-marcas')) {
+        return respuesta([{ fecha: '2026-08-03', tipo: 'SUSPENDIDO', marcas: 180 }]);
+      }
+      return respuesta(FILAS);
+    });
+    vi.stubGlobal('fetch', f);
+    render(<Consultas />);
+
+    await waitFor(() => expect(screen.getByRole('option', { name: '601' })).toBeInTheDocument());
+    await userEvent.selectOptions(screen.getByLabelText(/curso/i), '601');
+    await userEvent.type(screen.getByLabelText(/desde/i), '2026-08-01');
+    await userEvent.type(screen.getByLabelText(/hasta/i), '2026-08-22');
+    await userEvent.click(screen.getByRole('button', { name: /^consultar/i }));
+
+    await waitFor(() => expect(screen.getByText(/dia.* no lectivo.* con asistencia/i))
+      .toBeInTheDocument());
+    expect(screen.getByText(/2026-08-03/)).toBeInTheDocument();
+    expect(screen.getByText(/SUSPENDIDO/)).toBeInTheDocument();
+  });
+
+  it('sin dias no lectivos con marcas, no aparece el aviso', async () => {
+    const f = vi.fn(async (url: string) => {
+      if (String(url).includes('/dias-no-lectivos-con-marcas')) return respuesta([]);
+      return respuesta(FILAS);
+    });
+    vi.stubGlobal('fetch', f);
+    render(<Consultas />);
+
+    await waitFor(() => expect(screen.getByRole('option', { name: '601' })).toBeInTheDocument());
+    await userEvent.selectOptions(screen.getByLabelText(/curso/i), '601');
+    await userEvent.type(screen.getByLabelText(/desde/i), '2026-02-01');
+    await userEvent.type(screen.getByLabelText(/hasta/i), '2026-06-30');
+    await userEvent.click(screen.getByRole('button', { name: /^consultar/i }));
+
+    await waitFor(() => expect(screen.getByText('ANA LOPEZ')).toBeInTheDocument());
+    expect(screen.queryByText(/dia.* no lectivo.* con asistencia/i)).not.toBeInTheDocument();
   });
 
   it('la descarga en Excel si permite todos los cursos', async () => {
