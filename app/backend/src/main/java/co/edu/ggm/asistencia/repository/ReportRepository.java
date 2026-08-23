@@ -46,7 +46,7 @@ public interface ReportRepository extends Repository<Student, Long> {
             WHERE s.active AND (:grade IS NULL OR s.grade = :grade)
             GROUP BY s.id, s.document_id, s.first_name, s.middle_name,
                      s.last_name, s.second_surname, s.grade
-            ORDER BY s.grade, s.last_name, s.first_name
+            ORDER BY orden_curso(s.grade), s.grade, s.last_name, s.first_name
             """, nativeQuery = true)
     List<Row> summary(@Param("grade") String grade,
                       @Param("from") LocalDate from,
@@ -72,7 +72,7 @@ public interface ReportRepository extends Repository<Student, Long> {
             FROM students s
             LEFT JOIN attendance a ON a.student_id = s.id AND a.class_date BETWEEN :from AND :to
             WHERE s.active AND (:grade IS NULL OR s.grade = :grade)
-            ORDER BY s.grade, s.last_name, s.first_name, a.class_date
+            ORDER BY orden_curso(s.grade), s.grade, s.last_name, s.first_name, a.class_date
             """, nativeQuery = true)
     List<MatrixRow> matrix(@Param("grade") String grade,
                            @Param("from") LocalDate from,
@@ -186,7 +186,7 @@ public interface ReportRepository extends Repository<Student, Long> {
             WHERE a.class_date BETWEEN :from AND :to
               AND (:grade IS NULL OR s.grade = :grade)
             GROUP BY s.grade
-            ORDER BY s.grade
+            ORDER BY orden_curso(s.grade), s.grade
             """, nativeQuery = true)
     List<GradeRow> byGrade(@Param("grade") String grade,
                            @Param("from") LocalDate from,
@@ -422,7 +422,7 @@ public interface ReportRepository extends Repository<Student, Long> {
             LEFT JOIN students s ON s.grade = g.grade AND s.active
             LEFT JOIN attendance a ON a.student_id = s.id AND a.class_date BETWEEN :from AND :to
             GROUP BY g.grade
-            ORDER BY g.grade
+            ORDER BY orden_curso(g.grade), g.grade
             """, nativeQuery = true)
     List<CursoPeriodoRow> cursosDelPeriodo(@Param("from") LocalDate from, @Param("to") LocalDate to);
 }
