@@ -12,6 +12,7 @@ import java.util.Optional;
 
 public interface StudentRepository extends JpaRepository<Student, Long> {
     List<Student> findByActiveTrueAndGradeInOrderByLastNameAscFirstNameAsc(Collection<String> grades);
+    List<Student> findByActiveTrueOrderByLastNameAscFirstNameAsc();
     List<Student> findByActiveTrueAndGradeOrderByLastNameAscFirstNameAsc(String grade);
     Optional<Student> findByDocumentIdAndActiveTrue(String documentId);
 

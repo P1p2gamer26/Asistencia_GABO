@@ -8,6 +8,7 @@ import co.edu.ggm.asistencia.service.JwtService;
 import co.edu.ggm.asistencia.model.Student;
 import co.edu.ggm.asistencia.repository.StudentRepository;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -40,12 +41,27 @@ public class BootstrapController {
 
     @GetMapping("/sync/bootstrap")
     public Bootstrap bootstrap() {
-        List<ScheduleBlock> myBlocks = schedules
-                .findByTeacherIdOrderByWeekdayAscBlockNoAsc(JwtService.currentUserId());
-        Set<String> grades = myBlocks.stream().map(ScheduleBlock::getGrade).collect(Collectors.toSet());
-        List<Student> myStudents = grades.isEmpty()
-                ? List.of()
-                : students.findByActiveTrueAndGradeInOrderByLastNameAscFirstNameAsc(grades);
+        // Coordinacion y rectoria necesitan ver todos los cursos para poder tomar
+        // asistencia por cualquiera de ellos, no solo los que tengan asignados a su
+        // propio nombre (que normalmente son cero). El docente sigue viendo solo lo
+        // suyo: es la unica via que impide que un docente vea datos de otro curso.
+        boolean vecTodoElColegio = tieneRol("ROLE_COORDINADOR") || tieneRol("ROLE_ADMIN");
+
+        List<ScheduleBlock> myBlocks = vecTodoElColegio
+                ? schedules.findAllByOrderByWeekdayAscBlockNoAsc()
+                : schedules.findByTeacherIdOrderByWeekdayAscBlockNoAsc(JwtService.currentUserId());
+
+        List<Student> myStudents;
+        if (vecTodoElColegio) {
+            // Con ~1200 estudiantes reales esto trae todos: aceptable y medido en
+            // este proyecto (bootstrap se pide una vez al abrir la app, no por curso).
+            myStudents = students.findByActiveTrueOrderByLastNameAscFirstNameAsc();
+        } else {
+            Set<String> grades = myBlocks.stream().map(ScheduleBlock::getGrade).collect(Collectors.toSet());
+            myStudents = grades.isEmpty()
+                    ? List.of()
+                    : students.findByActiveTrueAndGradeInOrderByLastNameAscFirstNameAsc(grades);
+        }
 
         // Ventana corta a proposito: un mes atras para corregir dias pasados,
         // tres adelante para planear. El ano entero serian ~250 fechas de mas.
@@ -67,6 +83,12 @@ public class BootstrapController {
     @GetMapping("/schedule/mine")
     public List<BlockDto> mine() {
         return bootstrap().blocks();
+    }
+
+    private static boolean tieneRol(String rol) {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> rol.equals(a.getAuthority()));
     }
 
     private static BlockDto toDto(ScheduleBlock b) {
