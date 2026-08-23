@@ -81,4 +81,31 @@ public interface ScheduleRepository extends JpaRepository<ScheduleBlock, Long> {
         String getRoom(); java.time.LocalTime getStartTime(); java.time.LocalTime getEndTime();
         int getEstudiantes(); int getMarcados();
     }
+
+    @org.springframework.data.jpa.repository.Query(value = """
+            SELECT b.id AS id, b.grade AS grade, b.weekday AS weekday, b.block_no AS blockNo,
+                   s.name AS subject, b.start_time AS startTime, b.end_time AS endTime,
+                   b.room AS room, u.full_name AS teacherName
+            FROM schedule_blocks b
+            JOIN subjects s ON s.id = b.subject_id
+            JOIN users u ON u.id = b.teacher_id
+            WHERE b.room = :room
+            ORDER BY b.weekday, b.block_no
+            """, nativeQuery = true)
+    java.util.List<WeekRow> weekOfRoom(
+            @org.springframework.data.repository.query.Param("room") String room);
+
+    /** Salones distintos con al menos un bloque asignado, en orden alfabetico. */
+    @org.springframework.data.jpa.repository.Query(value = """
+            SELECT DISTINCT b.room FROM schedule_blocks b
+            WHERE b.room IS NOT NULL AND b.room <> ''
+            ORDER BY b.room
+            """, nativeQuery = true)
+    java.util.List<String> distinctRooms();
+
+    /** Bloques sin aula asignada: la columna es opcional y eso es informacion util para coordinacion. */
+    @org.springframework.data.jpa.repository.Query(value = """
+            SELECT count(*) FROM schedule_blocks b WHERE b.room IS NULL OR b.room = ''
+            """, nativeQuery = true)
+    long countWithoutRoom();
 }

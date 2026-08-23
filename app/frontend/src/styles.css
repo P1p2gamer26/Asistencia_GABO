@@ -222,6 +222,10 @@ tbody tr:hover { background: #fbfaf4; }
 .leyenda i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
 .no-lectivo { background: #f1efe6; color: var(--tinta-mute); }
 
+.lista-salones { list-style: none; padding: 0; margin: 8px 0 0;
+                 display: flex; flex-wrap: wrap; gap: var(--e2); }
+.lista-salones button[aria-pressed="true"] { background: var(--verde); color: #fff; }
+
 /* --- Pendientes de hoy -------------------------------------------------- */
 .pendientes-hoy {
   border-left: 3px solid var(--ocre);

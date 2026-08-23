@@ -37,7 +37,17 @@ class HorarioTest extends AbstractIntegrationTest {
                 INSERT INTO schedule_blocks (grade, weekday, block_no, start_time, end_time,
                                              subject_id, teacher_id, room)
                 VALUES ('888', 2, 3, '08:15', '09:05',
-                        (SELECT id FROM subjects WHERE name = 'CienciasHorario'), ?, 'Laboratorio 1')
+                        (SELECT id FROM subjects WHERE name = 'CienciasHorario'), ?, 'AulaHorarioTest')
+                ON CONFLICT (grade, weekday, block_no) DO UPDATE
+                  SET teacher_id = EXCLUDED.teacher_id, room = EXCLUDED.room
+                """, docenteId);
+        // Un bloque propio sin aula asignada: la lista de salones no debe inventarle
+        // un salon llamado "" ni contarlo como si tuviera uno.
+        jdbcBase.update("""
+                INSERT INTO schedule_blocks (grade, weekday, block_no, start_time, end_time,
+                                             subject_id, teacher_id, room)
+                VALUES ('888', 3, 3, '08:15', '09:05',
+                        (SELECT id FROM subjects WHERE name = 'CienciasHorario'), ?, NULL)
                 ON CONFLICT (grade, weekday, block_no) DO UPDATE
                   SET teacher_id = EXCLUDED.teacher_id, room = EXCLUDED.room
                 """, docenteId);
@@ -48,11 +58,10 @@ class HorarioTest extends AbstractIntegrationTest {
         mvc.perform(get("/api/schedule/week")
                         .header("Authorization", "Bearer " + jwt.issueAccess(docenteId, "DOCENTE")))
            .andExpect(status().isOk())
-           .andExpect(jsonPath("$[?(@.grade=='888')].subject").value("CienciasHorario"))
-           .andExpect(jsonPath("$[?(@.grade=='888')].room").value("Laboratorio 1"))
-           .andExpect(jsonPath("$[?(@.grade=='888')].weekday").value(2))
-           .andExpect(jsonPath("$[?(@.grade=='888')].startTime").value("08:15"))
-           .andExpect(jsonPath("$[?(@.grade=='888')].endTime").value("09:05"));
+           .andExpect(jsonPath("$[?(@.grade=='888' && @.weekday==2)].subject").value("CienciasHorario"))
+           .andExpect(jsonPath("$[?(@.grade=='888' && @.weekday==2)].room").value("AulaHorarioTest"))
+           .andExpect(jsonPath("$[?(@.grade=='888' && @.weekday==2)].startTime").value("08:15"))
+           .andExpect(jsonPath("$[?(@.grade=='888' && @.weekday==2)].endTime").value("09:05"));
     }
 
     @Test
@@ -71,7 +80,7 @@ class HorarioTest extends AbstractIntegrationTest {
                         .header("Authorization", tokenDe("coord@ggm.edu.co", "COORDINADOR")))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$[0].teacherName").value("Pepito Perez"))
-           .andExpect(jsonPath("$[0].room").value("Laboratorio 1"));
+           .andExpect(jsonPath("$[0].room").value("AulaHorarioTest"));
     }
 
     @Test
@@ -84,5 +93,39 @@ class HorarioTest extends AbstractIntegrationTest {
     @Test
     void sin_token_no_se_ve_ningun_horario() throws Exception {
         mvc.perform(get("/api/schedule/week")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void coordinacion_ve_el_salon_de_prueba_y_cuenta_los_bloques_sin_aula() throws Exception {
+        mvc.perform(get("/api/schedule/rooms")
+                        .header("Authorization", tokenDe("coord@ggm.edu.co", "COORDINADOR")))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.rooms").value(org.hamcrest.Matchers.hasItem("AulaHorarioTest")))
+           .andExpect(jsonPath("$.withoutRoom").value(org.hamcrest.Matchers.greaterThanOrEqualTo(1)));
+    }
+
+    @Test
+    void un_docente_no_puede_pedir_la_lista_de_salones() throws Exception {
+        mvc.perform(get("/api/schedule/rooms")
+                        .header("Authorization", "Bearer " + jwt.issueAccess(docenteId, "DOCENTE")))
+           .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void coordinacion_puede_ver_el_detalle_de_un_salon() throws Exception {
+        mvc.perform(get("/api/schedule/week").param("room", "AulaHorarioTest")
+                        .header("Authorization", tokenDe("coord@ggm.edu.co", "COORDINADOR")))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$[0].grade").value("888"))
+           .andExpect(jsonPath("$[0].subject").value("CienciasHorario"))
+           .andExpect(jsonPath("$[0].teacherName").value("Pepito Perez"))
+           .andExpect(jsonPath("$[0].room").value("AulaHorarioTest"));
+    }
+
+    @Test
+    void un_docente_no_puede_pedir_el_horario_de_un_salon() throws Exception {
+        mvc.perform(get("/api/schedule/week").param("room", "AulaHorarioTest")
+                        .header("Authorization", "Bearer " + jwt.issueAccess(docenteId, "DOCENTE")))
+           .andExpect(status().isForbidden());
     }
 }
