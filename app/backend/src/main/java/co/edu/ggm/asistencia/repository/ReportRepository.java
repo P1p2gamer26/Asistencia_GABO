@@ -202,8 +202,13 @@ public interface ReportRepository extends Repository<Student, Long> {
             """, nativeQuery = true)
     int countBlocksPending(@Param("weekday") int weekday, @Param("day") LocalDate day);
 
+    // El mismo guardia que countBlocksReported: un bloque de un curso sin
+    // estudiantes activos (huerfano de una migracion o de un horario importado
+    // antes que los estudiantes) no debe contar como "esperado", o "faltan"
+    // queda positivo para siempre y nunca se puede apagar desde la interfaz.
     @Query(value = """
-            SELECT count(*) FROM schedule_blocks WHERE weekday = :weekday
+            SELECT count(*) FROM schedule_blocks b WHERE b.weekday = :weekday
+              AND EXISTS (SELECT 1 FROM students s WHERE s.grade = b.grade AND s.active)
             """, nativeQuery = true)
     int countBlocksOfWeekday(@Param("weekday") int weekday);
 
@@ -224,10 +229,17 @@ public interface ReportRepository extends Repository<Student, Long> {
         int getEvasiones();
     }
 
+    // "attendance" tiene una fila por (estudiante, bloque, dia): un estudiante ausente
+    // el dia entero deja ~6 filas 'F', una por bloque. ausentes/tarde cuentan
+    // estudiantes distintos (igual que countAbsentOn, que alimenta el mismo KPI
+    // "Ausentes hoy" en el Tablero) para que las dos pantallas no den numeros
+    // distintos bajo la misma etiqueta. presentes y evasiones se dejan por evento:
+    // estar presente en varios bloques del dia es normal y no es lo mismo repetido,
+    // y una evasion es un hecho por clase, no por estudiante.
     @Query(value = """
             SELECT count(*) FILTER (WHERE status = 'P') AS presentes,
-                   count(*) FILTER (WHERE status = 'T') AS tarde,
-                   count(*) FILTER (WHERE status = 'F') AS ausentes,
+                   count(DISTINCT student_id) FILTER (WHERE status = 'T') AS tarde,
+                   count(DISTINCT student_id) FILTER (WHERE status = 'F') AS ausentes,
                    count(*) FILTER (WHERE status = 'E') AS evasiones
             FROM attendance WHERE class_date = :day
             """, nativeQuery = true)
