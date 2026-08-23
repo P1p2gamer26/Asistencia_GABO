@@ -9,6 +9,7 @@ type Destino = { a: string; texto: string; roles: Role[] };
 /** El orden es el de la jornada: primero lo que se usa a diario. */
 const DESTINOS: Destino[] = [
   { a: '/',            texto: 'Inicio',         roles: ['ADMIN', 'COORDINADOR', 'DOCENTE'] },
+  { a: '/',            texto: 'Mis hijos',      roles: ['ACUDIENTE'] },
   { a: '/asistencia',  texto: 'Asistencia a clase', roles: ['ADMIN', 'COORDINADOR', 'DOCENTE'] },
   { a: '/horario',     texto: 'Horario',        roles: ['ADMIN', 'COORDINADOR', 'DOCENTE'] },
   { a: '/calendario',  texto: 'Calendario',     roles: ['ADMIN', 'COORDINADOR', 'DOCENTE', 'ACUDIENTE'] },
