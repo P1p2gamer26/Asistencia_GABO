@@ -34,17 +34,30 @@ UPDATE attendance a
 -- 2. Motivos escritos en las novedades -----------------------------------------
 -- Un listado de ausencias sin motivo no deja actuar: el rector necesita distinguir
 -- la incapacidad avisada del que simplemente no llego.
+--
+-- El motivo tiene que corresponder AL ESTADO. La primera version repartia los textos
+-- sin mirarlo y en el portal del acudiente salia "No asistio -- Llego despues del
+-- descanso", que se contradice solo y le quita credibilidad a toda la pantalla.
 UPDATE attendance a
    SET comment = m.texto
   FROM (VALUES
-          (0, 'Cita medica, presento soporte'),
-          (1, 'La acudiente aviso por telefono'),
-          (2, 'Llego despues del descanso'),
-          (3, 'Se ausento sin permiso'),
-          (4, 'Problema de transporte en la ruta'))
-        AS m(resto, texto)
- WHERE a.status IN ('F', 'T', 'E')
-   AND a.comment IS NULL
+          ('F', 0, 'Cita medica, presento soporte'),
+          ('F', 1, 'La acudiente aviso por telefono'),
+          ('F', 2, 'No asistio y nadie ha reportado el motivo'),
+          ('F', 3, 'Incapacidad medica'),
+          ('F', 4, 'Problema de transporte en la ruta'),
+          ('T', 0, 'Llego despues del descanso'),
+          ('T', 1, 'Llego tarde por la ruta escolar'),
+          ('T', 2, 'Entro 20 minutos despues de iniciada la clase'),
+          ('T', 3, 'Llego tarde, la acudiente lo trajo'),
+          ('T', 4, 'Se presento al final del primer bloque'),
+          ('E', 0, 'Salio del salon y no regreso'),
+          ('E', 1, 'No entro a clase estando en el colegio'),
+          ('E', 2, 'Se ausento sin permiso'),
+          ('E', 3, 'Se retiro del salon sin autorizacion'),
+          ('E', 4, 'No volvio despues del descanso'))
+        AS m(estado, resto, texto)
+ WHERE a.status = m.estado
    AND (a.student_id % 5) = m.resto
    AND (a.student_id % 2) = 0;
 
