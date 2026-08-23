@@ -108,4 +108,68 @@ public interface ScheduleRepository extends JpaRepository<ScheduleBlock, Long> {
             SELECT count(*) FROM schedule_blocks b WHERE b.room IS NULL OR b.room = ''
             """, nativeQuery = true)
     long countWithoutRoom();
+
+    /** Otro bloque del mismo docente en el mismo dia/bloque horario (para detectar choque). */
+    @org.springframework.data.jpa.repository.Query(value = """
+            SELECT b.id AS id, b.grade AS grade, b.weekday AS weekday, b.block_no AS blockNo,
+                   s.name AS subject, b.start_time AS startTime, b.end_time AS endTime,
+                   b.room AS room, u.full_name AS teacherName
+            FROM schedule_blocks b
+            JOIN subjects s ON s.id = b.subject_id
+            JOIN users u ON u.id = b.teacher_id
+            WHERE b.teacher_id = :teacherId AND b.weekday = :weekday AND b.block_no = :blockNo
+              AND (:excludeId IS NULL OR b.id <> :excludeId)
+            """, nativeQuery = true)
+    java.util.List<WeekRow> choqueDeDocente(
+            @org.springframework.data.repository.query.Param("teacherId") Long teacherId,
+            @org.springframework.data.repository.query.Param("weekday") int weekday,
+            @org.springframework.data.repository.query.Param("blockNo") int blockNo,
+            @org.springframework.data.repository.query.Param("excludeId") Long excludeId);
+
+    /** Otro bloque en la misma aula en el mismo dia/bloque horario (para detectar choque). */
+    @org.springframework.data.jpa.repository.Query(value = """
+            SELECT b.id AS id, b.grade AS grade, b.weekday AS weekday, b.block_no AS blockNo,
+                   s.name AS subject, b.start_time AS startTime, b.end_time AS endTime,
+                   b.room AS room, u.full_name AS teacherName
+            FROM schedule_blocks b
+            JOIN subjects s ON s.id = b.subject_id
+            JOIN users u ON u.id = b.teacher_id
+            WHERE b.room = :room AND b.weekday = :weekday AND b.block_no = :blockNo
+              AND (:excludeId IS NULL OR b.id <> :excludeId)
+            """, nativeQuery = true)
+    java.util.List<WeekRow> choqueDeAula(
+            @org.springframework.data.repository.query.Param("room") String room,
+            @org.springframework.data.repository.query.Param("weekday") int weekday,
+            @org.springframework.data.repository.query.Param("blockNo") int blockNo,
+            @org.springframework.data.repository.query.Param("excludeId") Long excludeId);
+
+    interface AdminRow {
+        Long getId(); String getGrade(); int getWeekday(); int getBlockNo();
+        String getSubject(); Long getSubjectId();
+        java.time.LocalTime getStartTime(); java.time.LocalTime getEndTime();
+        String getRoom(); Long getTeacherId(); String getTeacherName();
+        Long getCreatedBy(); String getCreatedByName(); java.time.Instant getCreatedAt();
+        Long getUpdatedBy(); String getUpdatedByName(); java.time.Instant getUpdatedAt();
+    }
+
+    /** Lista completa para el panel de administracion, con nombres de autoria (NULL si no hay registro). */
+    @org.springframework.data.jpa.repository.Query(value = """
+            SELECT b.id AS id, b.grade AS grade, b.weekday AS weekday, b.block_no AS blockNo,
+                   s.name AS subject, s.id AS subjectId,
+                   b.start_time AS startTime, b.end_time AS endTime,
+                   b.room AS room, b.teacher_id AS teacherId, u.full_name AS teacherName,
+                   b.created_by AS createdBy, cu.full_name AS createdByName, b.created_at AS createdAt,
+                   b.updated_by AS updatedBy, uu.full_name AS updatedByName, b.updated_at AS updatedAt
+            FROM schedule_blocks b
+            JOIN subjects s ON s.id = b.subject_id
+            JOIN users u ON u.id = b.teacher_id
+            LEFT JOIN users cu ON cu.id = b.created_by
+            LEFT JOIN users uu ON uu.id = b.updated_by
+            WHERE (:grade IS NULL OR b.grade = :grade)
+              AND (:teacherId IS NULL OR b.teacher_id = :teacherId)
+            ORDER BY b.grade, b.weekday, b.block_no
+            """, nativeQuery = true)
+    java.util.List<AdminRow> paraAdmin(
+            @org.springframework.data.repository.query.Param("grade") String grade,
+            @org.springframework.data.repository.query.Param("teacherId") Long teacherId);
 }

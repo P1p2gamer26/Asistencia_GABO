@@ -15,6 +15,8 @@ public interface AttendanceRepository extends JpaRepository<Attendance, UUID> {
 
     List<Attendance> findByScheduleBlockIdAndClassDate(Long scheduleBlockId, LocalDate classDate);
 
+    long countByScheduleBlockId(Long scheduleBlockId);
+
     List<Attendance> findByStudentIdAndClassDateBetweenOrderByClassDateDesc(
             Long studentId, LocalDate desde, LocalDate hasta);
 
