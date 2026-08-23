@@ -28,7 +28,7 @@ export default function TomarAsistencia() {
   const [blockId, setBlockId] = useState<number | null>(
     params.get('blockId') ? Number(params.get('blockId')) : null,
   );
-  const [fecha, setFecha] = useState(hoyISO());
+  const [fecha, setFecha] = useState(params.get('fecha') ?? hoyISO());
   const [lectivo, setLectivo] = useState(true);
   const [marcas, setMarcas] = useState<Record<number, Status>>({});
   const [motivos, setMotivos] = useState<Record<number, string>>({});

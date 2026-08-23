@@ -131,6 +131,36 @@ public interface ReportRepository extends Repository<Student, Long> {
                                     @Param("weekday") int weekday,
                                     @Param("day") LocalDate day);
 
+    interface PendingRecentBlock {
+        LocalDate getFecha();
+        Long getBlockId();
+        String getGrade();
+        String getSubject();
+        String getRoom();
+        int getBlockNo();
+    }
+
+    // Mismo criterio de "pendiente" que pendingToday (menos registros que estudiantes
+    // activos, y solo si el curso tiene alguno), pero recorriendo una lista de dias
+    // lectivos pasados en vez de uno solo: son las listas que el docente dejo sin
+    // tomar en dias anteriores, no las de hoy.
+    @Query(value = """
+            SELECT c.calendar_date AS fecha, b.id AS blockId, b.grade AS grade, sub.name AS subject,
+                   b.room AS room, b.block_no AS blockNo
+            FROM school_calendar c
+            JOIN schedule_blocks b
+              ON b.teacher_id = :teacherId AND b.weekday = EXTRACT(ISODOW FROM c.calendar_date)
+            JOIN subjects sub ON sub.id = b.subject_id
+            WHERE c.calendar_date IN (:dias)
+              AND EXISTS (SELECT 1 FROM students s WHERE s.grade = b.grade AND s.active)
+              AND (SELECT count(*) FROM attendance a
+                    WHERE a.schedule_block_id = b.id AND a.class_date = c.calendar_date)
+                  < (SELECT count(*) FROM students s WHERE s.grade = b.grade AND s.active)
+            ORDER BY c.calendar_date DESC, b.block_no ASC
+            """, nativeQuery = true)
+    List<PendingRecentBlock> pendingRecent(@Param("teacherId") Long teacherId,
+                                           @Param("dias") List<LocalDate> dias);
+
     interface GradeRow {
         String getGrade();
         int getPresent();

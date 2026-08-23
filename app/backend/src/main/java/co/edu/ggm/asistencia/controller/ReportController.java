@@ -5,6 +5,7 @@ import co.edu.ggm.asistencia.model.SchoolDay;
 import co.edu.ggm.asistencia.repository.CalendarRepository;
 import co.edu.ggm.asistencia.repository.ReportRepository;
 import co.edu.ggm.asistencia.repository.StudentRepository;
+import co.edu.ggm.asistencia.service.CalendarService;
 import co.edu.ggm.asistencia.service.DashboardService;
 import co.edu.ggm.asistencia.service.ExcelReportService;
 import co.edu.ggm.asistencia.service.JwtService;
@@ -37,15 +38,16 @@ public class ReportController {
     private final StudentRepository students;
     private final TodayService todayService;
     private final NovedadesService novedadesService;
+    private final CalendarService calendarioService;
 
     public ReportController(ReportRepository repo, ExcelReportService excel,
                             DashboardService dashboardService, CalendarRepository calendar,
                             StudentRepository students, TodayService todayService,
-                            NovedadesService novedadesService) {
+                            NovedadesService novedadesService, CalendarService calendarioService) {
         this.repo = repo; this.excel = excel;
         this.dashboardService = dashboardService; this.calendar = calendar;
         this.students = students; this.todayService = todayService;
-        this.novedadesService = novedadesService;
+        this.novedadesService = novedadesService; this.calendarioService = calendarioService;
     }
 
     @GetMapping("/summary")
@@ -109,6 +111,29 @@ public class ReportController {
     public List<ReportRepository.PendingBlock> pendingToday() {
         LocalDate hoy = LocalDate.now(BOGOTA);
         return repo.pendingToday(JwtService.currentUserId(), hoy.getDayOfWeek().getValue(), hoy);
+    }
+
+    public record PendienteReciente(LocalDate fecha, Long blockId, String grade,
+                                    String subject, String room, int blockNo) {}
+
+    /**
+     * Las listas que el docente dejo sin tomar en dias lectivos pasados (no hoy).
+     *
+     * `hoy` es opcional y existe para poder probar esto sin depender del reloj del
+     * servidor, igual que en /schedule/my-day.
+     */
+    @GetMapping("/pending-recent")
+    public List<PendienteReciente> pendingRecent(
+            @RequestParam(required = false, defaultValue = "7") int dias,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hoy) {
+        LocalDate ref = hoy != null ? hoy : LocalDate.now(BOGOTA);
+        List<LocalDate> lectivosPrevios = calendarioService.ultimosLectivosAntesDe(ref, dias);
+        if (lectivosPrevios.isEmpty()) return List.of();
+        return repo.pendingRecent(JwtService.currentUserId(), lectivosPrevios).stream()
+                .map(r -> new PendienteReciente(r.getFecha(), r.getBlockId(), r.getGrade(),
+                        r.getSubject(), r.getRoom(), r.getBlockNo()))
+                .toList();
     }
 
     @GetMapping("/dashboard")
