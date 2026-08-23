@@ -13,6 +13,20 @@ set -uo pipefail
 BASE="${1:-http://localhost:8080}"
 FALLOS=0
 
+# Conexion a la base para derivar valores esperados en tiempo de ejecucion, en vez
+# de dejarlos escritos como literales que se rompen cada vez que alguien resiembra.
+DB_HOST="${DB_HOST:-localhost}"
+DB_PORT="${DB_PORT:-5432}"
+DB_NAME="${DB_NAME:-asistencia}"
+DB_USER="${DB_USER:-postgres}"
+DB_PASSWORD="${DB_PASSWORD:-postgres}"
+PSQL_BIN="${PSQL_BIN:-psql}"
+
+consulta_bd() { # sql -> primera fila, sin cabecera ni bordes
+  PGPASSWORD="$DB_PASSWORD" "$PSQL_BIN" -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" \
+    -t -A -c "$1" 2>/dev/null | tr -d '\r' | head -1
+}
+
 ok()    { printf '  OK    %s\n' "$1"; }
 falla() { printf '  FALLA %s\n     esperado: %s\n     recibido: %s\n' "$1" "$2" "$3"; FALLOS=$((FALLOS + 1)); }
 
@@ -71,9 +85,25 @@ AUTH="Authorization: Bearer $TOKEN"
 
 # --- Horas sin desfase de zona horaria ----------------------------------------
 # El bug que 41 tests unitarios no vieron: un bloque de 06:30 llegaba como 01:30.
+# La hora esperada se lee de la base en el momento de correr la prueba (no un
+# literal fijo), asi que sobrevive a que se resiembre con otros bloques. El
+# bloque id=1 es el mismo que usan las pruebas de sincronizacion mas abajo; se
+# resuelve su docente para pedir el bootstrap con las credenciales correctas.
 BOOT=$(curl -s "$BASE/api/sync/bootstrap" -H "$AUTH")
-contiene "la hora del bloque no se desplaza" '"startTime":"06:30"' "$BOOT"
 contiene "el bootstrap trae el calendario" '"schoolDays"' "$BOOT"
+
+HORA_BD=$(consulta_bd "select to_char(b.start_time,'HH24:MI'), u.email from schedule_blocks b join users u on u.id=b.teacher_id where b.id=1;")
+BLOQUE_HORA=$(printf '%s' "$HORA_BD" | cut -d'|' -f1)
+BLOQUE_DOCENTE=$(printf '%s' "$HORA_BD" | cut -d'|' -f2)
+if [ -n "$BLOQUE_HORA" ] && [ -n "$BLOQUE_DOCENTE" ]; then
+  TOKEN_BLOQUE=$(curl -s -X POST "$BASE/api/auth/login" -H 'Content-Type: application/json' \
+    -d "{\"email\":\"$BLOQUE_DOCENTE\",\"password\":\"cambiar123\"}" \
+    | sed -E 's/.*"token":"([^"]+)".*/\1/')
+  BOOT_BLOQUE=$(curl -s "$BASE/api/sync/bootstrap" -H "Authorization: Bearer $TOKEN_BLOQUE")
+  contiene "la hora del bloque no se desplaza" "\"startTime\":\"$BLOQUE_HORA\"" "$BOOT_BLOQUE"
+else
+  falla "la hora del bloque no se desplaza" "leer start_time/docente del bloque id=1 en la BD" "consulta vacia (¿psql sin acceso a $DB_NAME?)"
+fi
 
 # --- Idempotencia -------------------------------------------------------------
 UUID="5a0e0e00-0000-4000-8000-$(date +%H%M%S)$(printf %06d $((RANDOM % 1000000)))"
@@ -180,7 +210,14 @@ contiene "el motivo de la tardanza se guarda" 'El bus se demoro' "$MOTIVO"
 ENTRADA=$(curl -s -X POST "$BASE/api/entry/sync" -H "Authorization: Bearer $COORD" \
   -H 'Content-Type: application/json' \
   -d '{"entries":[{"id":"22222222-0000-4000-8000-000000000002","documentId":"1010101010","scannedAt":"2026-05-04T07:00:00Z"}]}')
-contiene "el ingreso devuelve el nombre del estudiante" 'LINDA' "$ENTRADA"
+# El nombre esperado se lee de la base (no un literal fijo), asi que sobrevive a
+# que se resiembren los estudiantes con otros nombres.
+NOMBRE_BD=$(consulta_bd "select first_name from students where document_id='1010101010';")
+if [ -n "$NOMBRE_BD" ]; then
+  contiene "el ingreso devuelve el nombre del estudiante" "$NOMBRE_BD" "$ENTRADA"
+else
+  falla "el ingreso devuelve el nombre del estudiante" "leer first_name del estudiante 1010101010 en la BD" "consulta vacia (¿psql sin acceso a $DB_NAME?)"
+fi
 
 ENTRADA_MALA=$(curl -s -X POST "$BASE/api/entry/sync" -H "Authorization: Bearer $COORD" \
   -H 'Content-Type: application/json' \
