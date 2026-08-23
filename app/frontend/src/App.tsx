@@ -14,6 +14,7 @@ import Admin from './pages/Admin';
 import CambiarClave from './pages/CambiarClave';
 import Calendario from './pages/Calendario';
 import Horario from './pages/Horario';
+import InicioAdmin from './pages/InicioAdmin';
 import Layout from './components/Layout';
 
 const PERSONAL = ['DOCENTE', 'COORDINADOR', 'ADMIN'];
@@ -38,12 +39,17 @@ function Inicio() {
   const session = getSession();
   if (!session) return <Navigate to="/login" replace />;
   if (useDesvioPorClave(session)) return <Navigate to="/cambiar-clave" replace />;
-  return <Layout>{session.role === 'ACUDIENTE' ? <Padre /> : <Home />}</Layout>;
+  if (session.role === 'ACUDIENTE') return <Layout><Padre /></Layout>;
+  // Coordinacion y administracion entran preguntando "como va hoy"; el docente entra
+  // a tomar la lista, asi que su inicio sigue siendo el de siempre.
+  if (session.role === 'ADMIN' || session.role === 'COORDINADOR') return <Layout><InicioAdmin /></Layout>;
+  return <Layout><Home /></Layout>;
 }
 
 function Protegida({ children, armazon = true }: { children: React.ReactNode; armazon?: boolean }) {
   const session = getSession();
   if (!session) return <Navigate to="/login" replace />;
+  if (useDesvioPorClave(session)) return <Navigate to="/cambiar-clave" replace />;
   return armazon ? <Layout>{children}</Layout> : <>{children}</>;
 }
 

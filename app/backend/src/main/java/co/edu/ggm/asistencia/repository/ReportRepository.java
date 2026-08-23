@@ -201,4 +201,38 @@ public interface ReportRepository extends Repository<Student, Long> {
                               WHERE a.schedule_block_id = b.id AND a.class_date = :day)
             """, nativeQuery = true)
     int countBlocksPending(@Param("weekday") int weekday, @Param("day") LocalDate day);
+
+    @Query(value = """
+            SELECT count(*) FROM schedule_blocks WHERE weekday = :weekday
+            """, nativeQuery = true)
+    int countBlocksOfWeekday(@Param("weekday") int weekday);
+
+    @Query(value = """
+            SELECT count(*) FROM schedule_blocks b
+            WHERE b.weekday = :weekday
+              AND (SELECT count(*) FROM attendance a
+                    WHERE a.schedule_block_id = b.id AND a.class_date = :day)
+                  >= (SELECT count(*) FROM students s WHERE s.grade = b.grade AND s.active)
+              AND EXISTS (SELECT 1 FROM students s WHERE s.grade = b.grade AND s.active)
+            """, nativeQuery = true)
+    int countBlocksReported(@Param("weekday") int weekday, @Param("day") LocalDate day);
+
+    interface DayCounts {
+        int getPresentes();
+        int getTarde();
+        int getAusentes();
+        int getEvasiones();
+    }
+
+    @Query(value = """
+            SELECT count(*) FILTER (WHERE status = 'P') AS presentes,
+                   count(*) FILTER (WHERE status = 'T') AS tarde,
+                   count(*) FILTER (WHERE status = 'F') AS ausentes,
+                   count(*) FILTER (WHERE status = 'E') AS evasiones
+            FROM attendance WHERE class_date = :day
+            """, nativeQuery = true)
+    DayCounts countsOfDay(@Param("day") LocalDate day);
+
+    @Query(value = "SELECT count(*) FROM entry_log WHERE entry_date = :day", nativeQuery = true)
+    int countEntries(@Param("day") LocalDate day);
 }
