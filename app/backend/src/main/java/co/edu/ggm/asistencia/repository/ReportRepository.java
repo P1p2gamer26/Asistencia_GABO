@@ -235,4 +235,65 @@ public interface ReportRepository extends Repository<Student, Long> {
 
     @Query(value = "SELECT count(*) FROM entry_log WHERE entry_date = :day", nativeQuery = true)
     int countEntries(@Param("day") LocalDate day);
+
+    interface NovedadRow {
+        Long getStudentId();
+        String getFullName();
+        String getGrade();
+        LocalDate getClassDate();
+        String getSubject();
+        String getComment();
+    }
+
+    @Query(value = """
+            SELECT s.id AS studentId,
+                   trim(regexp_replace(concat_ws(' ', s.first_name, s.middle_name,
+                        s.last_name, s.second_surname), '\\s+', ' ', 'g')) AS fullName,
+                   s.grade AS grade,
+                   a.class_date AS classDate,
+                   sub.name AS subject,
+                   a.comment AS comment
+            FROM attendance a
+            JOIN students s ON s.id = a.student_id
+            JOIN schedule_blocks b ON b.id = a.schedule_block_id
+            JOIN subjects sub ON sub.id = b.subject_id
+            WHERE a.status = :status AND a.class_date BETWEEN :from AND :to
+            ORDER BY a.class_date DESC
+            LIMIT :limite
+            """, nativeQuery = true)
+    List<NovedadRow> novedadesPorEstado(@Param("status") String status,
+                                        @Param("from") LocalDate from,
+                                        @Param("to") LocalDate to,
+                                        @Param("limite") int limite);
+
+    @Query(value = """
+            SELECT count(*) FROM attendance a WHERE a.class_date BETWEEN :from AND :to
+            """, nativeQuery = true)
+    int countAttendanceRecords(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    interface CursoPeriodoRow {
+        String getGrade();
+        int getPresent();
+        int getLate();
+        int getAbsent();
+        int getEvasion();
+    }
+
+    // A diferencia de byGrade (que solo trae cursos con algun registro, porque
+    // hace INNER JOIN contra attendance), esta arranca de los cursos activos y
+    // les hace LEFT JOIN: el curso que nadie ha marcado en el periodo sale
+    // igual, con todo en cero, para poder distinguirlo de uno con 100% real.
+    @Query(value = """
+            SELECT g.grade AS grade,
+                   count(*) FILTER (WHERE a.status = 'P') AS present,
+                   count(*) FILTER (WHERE a.status = 'T') AS late,
+                   count(*) FILTER (WHERE a.status = 'F') AS absent,
+                   count(*) FILTER (WHERE a.status = 'E') AS evasion
+            FROM (SELECT DISTINCT grade FROM students WHERE active) g
+            LEFT JOIN students s ON s.grade = g.grade AND s.active
+            LEFT JOIN attendance a ON a.student_id = s.id AND a.class_date BETWEEN :from AND :to
+            GROUP BY g.grade
+            ORDER BY g.grade
+            """, nativeQuery = true)
+    List<CursoPeriodoRow> cursosDelPeriodo(@Param("from") LocalDate from, @Param("to") LocalDate to);
 }

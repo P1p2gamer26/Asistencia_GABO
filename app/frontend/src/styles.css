@@ -233,6 +233,17 @@ tbody tr:hover { background: #fbfaf4; }
    con graficas o tablas anchas usan esta variante. */
 .card.ancha { max-width: 72rem; }
 
+/* Dos cuadros de novedades lado a lado en escritorio; en el telefono, uno
+   encima del otro para que quepan sin desbordar a 360px. */
+.novedades-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--e3); margin-top: var(--e4); }
+@media (max-width: 640px) {
+  .novedades-grid { grid-template-columns: 1fr; }
+}
+.novedad-lista { list-style: none; margin: var(--e2) 0 0; padding: 0; display: grid; gap: var(--e2); }
+.novedad-item { border-left: 3px solid var(--rejilla); padding-left: var(--e2); }
+.novedad-item .curso { color: var(--tinta-suave); }
+.curso-sin-registros { color: var(--tinta-mute); font-style: italic; }
+
 /* Calendario escolar: cuadricula de siete columnas, una por dia de la semana. */
 :root { --calendario-celda: 76px; }
 .calendario { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin: 12px 0; }
