@@ -8,6 +8,7 @@ import { ESTADOS } from '../api/contract';
 import { flushOutbox, markAttendance, pendingCount, startAutoSync } from '../sync/engine';
 import BannerEstado from '../components/BannerEstado';
 import SelectorFecha from '../components/SelectorFecha';
+import { ordenCurso } from '../lib/ordenCurso';
 
 const hoyISO = () => new Date().toLocaleDateString('en-CA');   // YYYY-MM-DD en hora local
 
@@ -66,7 +67,7 @@ export default function TomarAsistencia() {
   }, [params, blocks]);
 
   const grados = useMemo(
-    () => [...new Set(blocks.map((b) => b.grade))].sort(),
+    () => [...new Set(blocks.map((b) => b.grade))].sort(ordenCurso),
     [blocks],
   );
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, apiUrl, getSession } from '../api/client';
+import { ordenCurso } from '../lib/ordenCurso';
 
 type Fila = {
   studentId: number; documentId: string; fullName: string; grade: string;
@@ -25,7 +26,7 @@ export default function Consultas() {
   useEffect(() => {
     const hoy = new Date().toLocaleDateString('en-CA');
     api.get<Fila[]>(`/api/reports/summary?from=${hoy}&to=${hoy}`)
-       .then((filas) => setCursos([...new Set(filas.map((f) => f.grade))].sort()))
+       .then((filas) => setCursos([...new Set(filas.map((f) => f.grade))].sort(ordenCurso)))
        .catch(() => {});   // sin conexion se queda vacio y el aviso lo explica
   }, []);
 
