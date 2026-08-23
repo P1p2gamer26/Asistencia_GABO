@@ -28,6 +28,7 @@ class NovedadesTest extends AbstractIntegrationTest {
     @Autowired NovedadesService novedades;
 
     private Long bloqueId;
+    private Long bloqueId2;
     private Long docenteId;
 
     @BeforeEach
@@ -55,10 +56,25 @@ class NovedadesTest extends AbstractIntegrationTest {
                 """, docenteId);
         bloqueId = jdbcBase.queryForObject(
                 "SELECT id FROM schedule_blocks WHERE grade='999' AND block_no=6", Long.class);
-        jdbcBase.update("DELETE FROM attendance WHERE schedule_block_id = ?", bloqueId);
+        // Segundo bloque del mismo curso el mismo dia de la semana, para poder
+        // sembrar una ausencia de "dia completo" (varios bloques, un estudiante).
+        jdbcBase.update("""
+                INSERT INTO schedule_blocks (grade, weekday, block_no, start_time, end_time,
+                                             subject_id, teacher_id)
+                VALUES ('999', 1, 7, '13:00', '13:50',
+                        (SELECT id FROM subjects WHERE name='MateriaNov'), ?)
+                ON CONFLICT (grade, weekday, block_no) DO UPDATE SET teacher_id = EXCLUDED.teacher_id
+                """, docenteId);
+        bloqueId2 = jdbcBase.queryForObject(
+                "SELECT id FROM schedule_blocks WHERE grade='999' AND block_no=7", Long.class);
+        jdbcBase.update("DELETE FROM attendance WHERE schedule_block_id IN (?, ?)", bloqueId, bloqueId2);
     }
 
     private void marcar(String documento, String estado, String comentario) {
+        marcarEnBloque(documento, estado, comentario, bloqueId);
+    }
+
+    private void marcarEnBloque(String documento, String estado, String comentario, Long bloque) {
         jdbcBase.update("""
                 INSERT INTO attendance (id, student_id, schedule_block_id, class_date,
                                         status, comment, recorded_by, recorded_at)
@@ -66,7 +82,7 @@ class NovedadesTest extends AbstractIntegrationTest {
                         ?, ?, ?, ?, ?, now())
                 ON CONFLICT ON CONSTRAINT attendance_unique_slot
                   DO UPDATE SET status = EXCLUDED.status, comment = EXCLUDED.comment
-                """, documento, bloqueId, LUNES, estado, comentario, docenteId);
+                """, documento, bloque, LUNES, estado, comentario, docenteId);
     }
 
     @Test
@@ -110,6 +126,44 @@ class NovedadesTest extends AbstractIntegrationTest {
         assertThat(r.evasiones()).isEmpty();
         assertThat(r.ausencias()).isEmpty();
         assertThat(r.sinRegistros()).isTrue();
+    }
+
+    @Test
+    void un_estudiante_ausente_en_todos_los_bloques_del_dia_aparece_una_sola_vez() {
+        // El curso 999 tiene 2 bloques el lunes (block_no 6 y 7). Ausente en los
+        // dos = ausente el dia completo, no dos filas del cuadro ocupadas por el
+        // mismo estudiante desplazando a los demas.
+        marcarEnBloque("9990000001", "F", null, bloqueId);
+        marcarEnBloque("9990000001", "F", null, bloqueId2);
+
+        var r = novedades.build(LUNES.minusDays(1), LUNES, 10);
+
+        assertThat(r.ausencias()).hasSize(1);
+        assertThat(r.ausencias().get(0).comment()).containsIgnoringCase("dia completo");
+    }
+
+    @Test
+    void un_estudiante_ausente_en_parte_de_los_bloques_dice_cuantos_de_cuantos() {
+        marcarEnBloque("9990000001", "F", null, bloqueId);
+        marcarEnBloque("9990000001", "P", null, bloqueId2);
+
+        var r = novedades.build(LUNES.minusDays(1), LUNES, 10);
+
+        assertThat(r.ausencias()).hasSize(1);
+        assertThat(r.ausencias().get(0).comment()).isEqualTo("1 de 2 clases");
+    }
+
+    @Test
+    void el_limite_de_ausencias_cuenta_estudiantes_no_filas() {
+        // Sin agrupar, un solo estudiante ausente en 2 bloques ocuparia 2 de los
+        // 10 cupos del limite; agrupado, ocupa 1, tal como promete el parametro.
+        marcarEnBloque("9990000001", "F", null, bloqueId);
+        marcarEnBloque("9990000001", "F", null, bloqueId2);
+        marcarEnBloque("9990000002", "F", null, bloqueId);
+
+        var r = novedades.build(LUNES.minusDays(1), LUNES, 10);
+
+        assertThat(r.ausencias()).hasSize(2);
     }
 
     @Test
