@@ -59,6 +59,29 @@ class ReportTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void el_resumen_trae_porcentaje_de_asistencia_calculado_sobre_las_marcas() throws Exception {
+        // LINDA tiene 1 P, 1 F, 1 E en el periodo -> 1 de 3 marcas fue presente.
+        mvc.perform(get("/api/reports/summary")
+                        .param("grade", "601").param("from", "2026-06-01").param("to", "2026-06-30")
+                        .header("Authorization", token()))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$[0].fullName").value("LINDA ISABELLA AREVALO FIGUEROA"))
+           .andExpect(jsonPath("$[0].attendanceRate").value(33.3));
+    }
+
+    @Test
+    void un_estudiante_sin_ninguna_marca_no_muestra_un_porcentaje_inventado() throws Exception {
+        // El curso 602 (Daniel) no tiene bloques de horario ni asistencia en el periodo.
+        mvc.perform(get("/api/reports/summary")
+                        .param("grade", "602").param("from", "2026-06-01").param("to", "2026-06-30")
+                        .header("Authorization", token()))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$[0].fullName").value("DANIEL ALEJANDRO BARRIOS PARATES"))
+           .andExpect(jsonPath("$[0].present").value(0))
+           .andExpect(jsonPath("$[0].attendanceRate").doesNotExist());
+    }
+
+    @Test
     void el_excel_se_descarga_y_es_un_libro_valido_con_encabezados() throws Exception {
         byte[] bytes = mvc.perform(get("/api/reports/excel")
                         .param("grade", "601").param("from", "2026-06-01").param("to", "2026-06-30")
