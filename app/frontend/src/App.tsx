@@ -15,6 +15,7 @@ import CambiarClave from './pages/CambiarClave';
 import Calendario from './pages/Calendario';
 import Horario from './pages/Horario';
 import InicioAdmin from './pages/InicioAdmin';
+import InicioDocente from './pages/InicioDocente';
 import Layout from './components/Layout';
 
 const PERSONAL = ['DOCENTE', 'COORDINADOR', 'ADMIN'];
@@ -43,6 +44,8 @@ function Inicio() {
   // Coordinacion y administracion entran preguntando "como va hoy"; el docente entra
   // a tomar la lista, asi que su inicio sigue siendo el de siempre.
   if (session.role === 'ADMIN' || session.role === 'COORDINADOR') return <Layout><InicioAdmin /></Layout>;
+  // El docente llega preguntando donde tiene clase hoy y que ya marco.
+  if (session.role === 'DOCENTE') return <Layout><InicioDocente /></Layout>;
   return <Layout><Home /></Layout>;
 }
 
