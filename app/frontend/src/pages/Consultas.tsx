@@ -8,6 +8,8 @@ type Fila = {
   attendanceRate?: number;
 };
 
+type DiaNoLectivoConMarcas = { fecha: string; tipo: string; marcas: number };
+
 export default function Consultas() {
   const [grade, setGrade] = useState('');
   const [from, setFrom] = useState('');
@@ -16,6 +18,7 @@ export default function Consultas() {
   const [filas, setFilas] = useState<Fila[]>([]);
   const [error, setError] = useState('');
   const [cursos, setCursos] = useState<string[]>([]);
+  const [diasNoLectivos, setDiasNoLectivos] = useState<DiaNoLectivoConMarcas[]>([]);
 
   // Los cursos salen de un resumen de un solo dia: es la consulta mas barata que
   // devuelve la lista completa, y evita inventar un endpoint nuevo para esto.
@@ -33,6 +36,11 @@ export default function Consultas() {
     setError('');
     try {
       setFilas(await api.get<Fila[]>(`/api/reports/summary?${query()}`));
+      // No borra ni excluye nada de los totales: solo hace visible que el periodo
+      // tiene marcas en dias que el calendario dice que no fueron lectivos, para
+      // que un total raro se pueda explicar (ver informe del hallazgo).
+      setDiasNoLectivos(await api.get<DiaNoLectivoConMarcas[]>(
+        `/api/reports/dias-no-lectivos-con-marcas?from=${from}&to=${to}`));
     } catch {
       setError('No se pudo consultar. Requiere conexion.');
     }
@@ -88,6 +96,13 @@ export default function Consultas() {
         Descargar Excel{grade ? ` (${grade})` : ' (todos los cursos)'}
       </button>
       {error && <p role="alert" className="error">{error}</p>}
+      {diasNoLectivos.length > 0 && (
+        <p role="alert" className="aviso">
+          Hay {diasNoLectivos.length} dia(s) no lectivo(s) con asistencia registrada
+          en este periodo: {diasNoLectivos.map((d) => `${d.fecha} (${d.tipo}, ${d.marcas} marcas)`)
+            .join('; ')}.
+        </p>
+      )}
       {filas.length > 0 && (
         <div className="tabla-scroll">
           <p className="meta">

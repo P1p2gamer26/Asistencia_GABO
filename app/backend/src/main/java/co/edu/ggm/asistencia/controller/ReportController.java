@@ -60,6 +60,19 @@ public class ReportController {
         return repo.summary(grade, from, to);
     }
 
+    /**
+     * Dias del periodo que el calendario marca como no lectivos (suspendido, festivo,
+     * etc.) pero que tienen marcas de asistencia -- normalmente porque se suspendio
+     * el dia despues de que ya se paso lista. No se borra ni se excluye nada de los
+     * totales aqui: solo se hace visible para que un total raro se pueda explicar.
+     */
+    @GetMapping("/dias-no-lectivos-con-marcas")
+    public List<ReportRepository.DiaNoLectivoConMarcas> diasNoLectivosConMarcas(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return repo.diasNoLectivosConMarcas(from, to);
+    }
+
     @GetMapping("/excel")
     public ResponseEntity<byte[]> excel(
             @RequestParam(required = false) String grade,
