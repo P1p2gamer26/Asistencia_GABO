@@ -294,6 +294,52 @@ describe('TomarAsistencia', () => {
     });
   });
 
+  it('al marcar evasion aparece el campo de motivo', async () => {
+    await elegirCursoYBloque();
+
+    const grupo = screen.getByRole('group', { name: /ANA LOPEZ/i });
+    await userEvent.click(within(grupo).getByRole('button', { name: /evasion/i }));
+
+    const motivo = await screen.findByLabelText(/motivo/i);
+    await userEvent.type(motivo, 'Se salio con otro companero');
+    expect(motivo).toHaveValue('Se salio con otro companero');
+  });
+
+  it('el motivo de una evasion llega en el envio', async () => {
+    await elegirCursoYBloque();
+
+    const grupo = screen.getByRole('group', { name: /ANA LOPEZ/i });
+    await userEvent.click(within(grupo).getByRole('button', { name: /evasion/i }));
+    await userEvent.type(await screen.findByLabelText(/motivo/i), 'Se salio con otro companero');
+    await userEvent.tab();
+
+    await userEvent.click(screen.getByRole('button', { name: /enviar asistencia/i }));
+
+    await waitFor(async () => {
+      const ana = (await db.outbox.toArray()).find((r) => r.studentId === 10);
+      expect(ana?.status).toBe('E');
+      expect(ana?.comment).toBe('Se salio con otro companero');
+    });
+  });
+
+  it('pasar de evasion a presente borra el motivo', async () => {
+    await elegirCursoYBloque();
+
+    const grupo = screen.getByRole('group', { name: /ANA LOPEZ/i });
+    await userEvent.click(within(grupo).getByRole('button', { name: /evasion/i }));
+    await userEvent.type(await screen.findByLabelText(/motivo/i), 'Se salio con otro companero');
+    await userEvent.tab();
+    await userEvent.click(within(grupo).getByRole('button', { name: /presente/i }));
+
+    await userEvent.click(screen.getByRole('button', { name: /enviar asistencia/i }));
+
+    await waitFor(async () => {
+      const ana = (await db.outbox.toArray()).find((r) => r.studentId === 10);
+      expect(ana?.status).toBe('P');
+      expect(ana?.comment).toBeFalsy();
+    });
+  });
+
   it('al abrir un bloque ya registrado muestra lo que hay guardado', async () => {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => {
       if (String(url).includes('/api/attendance?')) {
