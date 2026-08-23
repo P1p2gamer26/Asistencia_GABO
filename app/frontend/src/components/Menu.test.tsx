@@ -43,7 +43,12 @@ describe('Menu', () => {
   it('un acudiente solo ve lo suyo', () => {
     sesion('ACUDIENTE');
     pintar();
+    expect(screen.getByRole('link', { name: /mis hijos/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /calendario/i })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /asistencia a clase/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^ingreso/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /consultas/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /tablero/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /administracion/i })).not.toBeInTheDocument();
   });
 
