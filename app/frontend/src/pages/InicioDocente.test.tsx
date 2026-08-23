@@ -15,9 +15,19 @@ const DIA = {
   ],
 };
 
+const SIN_PENDIENTES: unknown[] = [];
+
 function respuesta(datos: unknown) {
   return new Response(JSON.stringify(datos),
     { status: 200, headers: { 'Content-Type': 'application/json' } });
+}
+
+/** Enruta por URL: /my-day y /pending-recent responden cosas distintas. */
+function mockFetch(dia: unknown, pendientes: unknown) {
+  return vi.fn(async (url: string) => {
+    if (String(url).includes('/pending-recent')) return respuesta(pendientes);
+    return respuesta(dia);
+  });
 }
 
 const pintar = () => render(<MemoryRouter><InicioDocente /></MemoryRouter>);
@@ -28,7 +38,7 @@ describe('InicioDocente', () => {
       token: 't', refreshToken: 'r', role: 'DOCENTE',
       fullName: 'Pepito Perez', userId: 3, mustChangePassword: false,
     }));
-    vi.stubGlobal('fetch', vi.fn(async () => respuesta(DIA)));
+    vi.stubGlobal('fetch', mockFetch(DIA, SIN_PENDIENTES));
   });
 
   it('dice en que aula es cada clase', async () => {
@@ -57,8 +67,9 @@ describe('InicioDocente', () => {
   });
 
   it('en dia no lectivo lo dice y no inventa bloques', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => respuesta(
-      { lectivo: false, fecha: '2026-08-07', motivo: 'Batalla de Boyaca', bloques: [] })));
+    vi.stubGlobal('fetch', mockFetch(
+      { lectivo: false, fecha: '2026-08-07', motivo: 'Batalla de Boyaca', bloques: [] },
+      SIN_PENDIENTES));
     pintar();
     // No se pintan ceros: no hay clase, y eso es lo que se dice.
     await waitFor(() => expect(screen.getByText(/no hay clase/i)).toBeInTheDocument());
@@ -67,8 +78,8 @@ describe('InicioDocente', () => {
   });
 
   it('un docente sin bloques lo lee, no se queda con una pantalla muda', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => respuesta(
-      { lectivo: true, fecha: '2026-08-03', motivo: null, bloques: [] })));
+    vi.stubGlobal('fetch', mockFetch(
+      { lectivo: true, fecha: '2026-08-03', motivo: null, bloques: [] }, SIN_PENDIENTES));
     pintar();
     await waitFor(() =>
       expect(screen.getByText(/no tiene clases asignadas hoy/i)).toBeInTheDocument());
@@ -77,6 +88,43 @@ describe('InicioDocente', () => {
   it('sin conexion lo dice en vez de fingir un dia sin clases', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('sin red'); }));
     pintar();
-    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByRole('alert').length).toBeGreaterThan(0));
+  });
+
+  it('en dia no lectivo, "Listas pendientes" sigue mostrandose', async () => {
+    vi.stubGlobal('fetch', mockFetch(
+      { lectivo: false, fecha: '2026-08-08', motivo: 'Domingo', bloques: [] }, SIN_PENDIENTES));
+    pintar();
+    await waitFor(() => expect(screen.getByText(/no hay clase/i)).toBeInTheDocument());
+    expect(screen.getByRole('heading', { name: /listas pendientes/i })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText(/no tiene listas pendientes/i)).toBeInTheDocument());
+  });
+
+  it('muestra los bloques de dias anteriores sin reportar, con enlace para tomarlos', async () => {
+    const PENDIENTES = [
+      { blockId: 21, fecha: '2026-08-06', grade: '601', subject: 'Ciencias',
+        room: 'Laboratorio 1', blockNo: 1 },
+      { blockId: 22, fecha: '2026-08-04', grade: '702', subject: 'Sociales',
+        room: 'Aula 204', blockNo: 3 },
+    ];
+    vi.stubGlobal('fetch', mockFetch(DIA, PENDIENTES));
+    pintar();
+    await waitFor(() => expect(screen.getByText('2026-08-06')).toBeInTheDocument());
+    expect(screen.getByText('2026-08-04')).toBeInTheDocument();
+    const enlace = screen.getByRole('link', { name: /tomar la lista de 601/i });
+    expect(enlace.getAttribute('href')).toBe('/asistencia?bloque=21&fecha=2026-08-06');
+  });
+
+  it('si no puede consultar las pendientes lo dice, no muestra cero', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (String(url).includes('/pending-recent')) throw new Error('sin red');
+      return respuesta(DIA);
+    }));
+    pintar();
+    await waitFor(() =>
+      expect(screen.getByText(/no se pudieron consultar las listas pendientes/i))
+        .toBeInTheDocument());
+    expect(screen.queryByText(/no tiene listas pendientes/i)).not.toBeInTheDocument();
   });
 });

@@ -40,6 +40,15 @@ public class CalendarService {
         return lectivos.contains(date);
     }
 
+    /** Los ultimos n dias lectivos anteriores a una fecha, del mas reciente al mas antiguo. */
+    public List<LocalDate> ultimosLectivosAntesDe(LocalDate antesDe, int n) {
+        return lectivos.stream()
+                .filter(d -> d.isBefore(antesDe))
+                .sorted(java.util.Comparator.reverseOrder())
+                .limit(n)
+                .toList();
+    }
+
     public List<SchoolDay> range(LocalDate from, LocalDate to) {
         return repo.findByCalendarDateBetweenOrderByCalendarDate(from, to);
     }
