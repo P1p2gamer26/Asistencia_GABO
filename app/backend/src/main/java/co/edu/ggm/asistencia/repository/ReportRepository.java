@@ -306,7 +306,12 @@ public interface ReportRepository extends Repository<Student, Long> {
             JOIN students s ON s.id = a.student_id
             WHERE a.status = 'F' AND a.class_date BETWEEN :from AND :to
             GROUP BY s.id, fullName, s.grade, a.class_date
-            ORDER BY a.class_date DESC
+            -- Fecha primero; dentro de la misma fecha, el mas grave (mas bloques
+            -- faltados) antes que el leve -- si no, el orden entre empates de
+            -- fecha lo decide el plan de la base al azar, y el limite puede
+            -- llenarse de leves dejando afuera al que falto el dia completo.
+            -- s.id como ultimo criterio, solo para que el orden sea reproducible.
+            ORDER BY a.class_date DESC, faltados DESC, s.id ASC
             LIMIT :limite
             """, nativeQuery = true)
     List<AusenciaAgrupadaRow> ausenciasAgrupadas(@Param("from") LocalDate from,
