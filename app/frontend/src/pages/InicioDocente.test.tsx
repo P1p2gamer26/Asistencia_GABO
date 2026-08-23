@@ -15,7 +15,7 @@ const DIA = {
   ],
 };
 
-const SIN_PENDIENTES: unknown[] = [];
+const SIN_PENDIENTES = { grupos: [], totalGrupos: 0 };
 
 function respuesta(datos: unknown) {
   return new Response(JSON.stringify(datos),
@@ -101,19 +101,51 @@ describe('InicioDocente', () => {
       expect(screen.getByText(/no tiene listas pendientes/i)).toBeInTheDocument());
   });
 
-  it('muestra los bloques de dias anteriores sin reportar, con enlace para tomarlos', async () => {
-    const PENDIENTES = [
-      { blockId: 21, fecha: '2026-08-06', grade: '601', subject: 'Ciencias',
-        room: 'Laboratorio 1', blockNo: 1 },
-      { blockId: 22, fecha: '2026-08-04', grade: '702', subject: 'Sociales',
-        room: 'Aula 204', blockNo: 3 },
-    ];
+  it('muestra los pendientes agrupados por dia y curso, con enlace para tomarlos', async () => {
+    const PENDIENTES = {
+      grupos: [
+        { fecha: '2026-08-06', grade: '601', listas: 6 },
+        { fecha: '2026-08-04', grade: '702', listas: 1 },
+      ],
+      totalGrupos: 2,
+    };
     vi.stubGlobal('fetch', mockFetch(DIA, PENDIENTES));
     pintar();
     await waitFor(() => expect(screen.getByText('2026-08-06')).toBeInTheDocument());
     expect(screen.getByText('2026-08-04')).toBeInTheDocument();
+    // Una sola fila por dia+curso, no una por bloque: 6 listas sin tomar es UN
+    // renglon, no seis.
+    expect(screen.getByText(/6 listas sin tomar/i)).toBeInTheDocument();
     const enlace = screen.getByRole('link', { name: /tomar la lista de 601/i });
-    expect(enlace.getAttribute('href')).toBe('/asistencia?bloque=21&fecha=2026-08-06');
+    expect(enlace.getAttribute('href')).toBe('/asistencia?grade=601&fecha=2026-08-06');
+  });
+
+  it('si hay mas grupos de los que se muestran, lo dice en vez de recortar en silencio', async () => {
+    const PENDIENTES = {
+      grupos: [{ fecha: '2026-08-06', grade: '601', listas: 6 }],
+      totalGrupos: 8,
+    };
+    vi.stubGlobal('fetch', mockFetch(DIA, PENDIENTES));
+    pintar();
+    await waitFor(() => expect(screen.getByText(/y 7 mas/i)).toBeInTheDocument());
+  });
+
+  it('un curso con muchisimos pendientes no le tapa la fila a otro con pocos', async () => {
+    // El reparto real vive en el backend (PendientesRecientesTest); aqui solo se
+    // comprueba que el frontend pinta lo que el backend ya reparto de forma justa,
+    // no que oculte nada de lo que llega.
+    const PENDIENTES = {
+      grupos: [
+        { fecha: '2026-08-06', grade: '607', listas: 6 },
+        { fecha: '2026-08-05', grade: '607', listas: 6 },
+        { fecha: '2026-08-04', grade: '601', listas: 1 },
+      ],
+      totalGrupos: 9,
+    };
+    vi.stubGlobal('fetch', mockFetch(DIA, PENDIENTES));
+    pintar();
+    await waitFor(() =>
+      expect(screen.getByRole('link', { name: /tomar la lista de 601/i })).toBeInTheDocument());
   });
 
   it('si no puede consultar las pendientes lo dice, no muestra cero', async () => {

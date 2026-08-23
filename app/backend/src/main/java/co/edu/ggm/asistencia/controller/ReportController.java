@@ -22,7 +22,9 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/reports")
@@ -113,27 +115,70 @@ public class ReportController {
         return repo.pendingToday(JwtService.currentUserId(), hoy.getDayOfWeek().getValue(), hoy);
     }
 
-    public record PendienteReciente(LocalDate fecha, Long blockId, String grade,
-                                    String subject, String room, int blockNo) {}
+    /** Una fila por dia+curso, no por bloque: un curso al que nunca se le toma
+     * asistencia mete 6 filas casi identicas por dia y entierra los pendientes reales
+     * de otros cursos. `listas` es cuantos bloques de ese curso ese dia estan sin
+     * tomar. */
+    public record PendienteAgrupado(LocalDate fecha, String grade, int listas) {}
+
+    /** `grupos` es lo que se muestra; `totalGrupos` es cuantos hay en total, para
+     * poder decir "y N mas" en vez de recortar en silencio. */
+    public record ListasPendientes(List<PendienteAgrupado> grupos, int totalGrupos) {}
+
+    private static final int LIMITE_GRUPOS_POR_DEFECTO = 20;
 
     /**
      * Las listas que el docente dejo sin tomar en dias lectivos pasados (no hoy).
      *
      * `hoy` es opcional y existe para poder probar esto sin depender del reloj del
-     * servidor, igual que en /schedule/my-day.
+     * servidor, igual que en /schedule/my-day. `limite` topa cuantos grupos dia+curso
+     * se devuelven; si hay mas, se reparten por rondas entre los cursos (uno de cada
+     * uno antes de profundizar en cualquiera) para que un curso con muchisimos
+     * pendientes no desplace del todo a los demas.
      */
     @GetMapping("/pending-recent")
-    public List<PendienteReciente> pendingRecent(
+    public ListasPendientes pendingRecent(
             @RequestParam(required = false, defaultValue = "7") int dias,
+            @RequestParam(required = false, defaultValue = "" + LIMITE_GRUPOS_POR_DEFECTO) int limite,
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hoy) {
         LocalDate ref = hoy != null ? hoy : LocalDate.now(BOGOTA);
         List<LocalDate> lectivosPrevios = calendarioService.ultimosLectivosAntesDe(ref, dias);
-        if (lectivosPrevios.isEmpty()) return List.of();
-        return repo.pendingRecent(JwtService.currentUserId(), lectivosPrevios).stream()
-                .map(r -> new PendienteReciente(r.getFecha(), r.getBlockId(), r.getGrade(),
-                        r.getSubject(), r.getRoom(), r.getBlockNo()))
+        if (lectivosPrevios.isEmpty()) return new ListasPendientes(List.of(), 0);
+
+        var porFechaYGrado = repo.pendingRecent(JwtService.currentUserId(), lectivosPrevios).stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                        r -> java.util.Map.entry(r.getFecha(), r.getGrade()),
+                        java.util.LinkedHashMap::new, java.util.stream.Collectors.counting()));
+
+        Comparator<PendienteAgrupado> masRecientePrimero =
+                Comparator.comparing(PendienteAgrupado::fecha).reversed()
+                        .thenComparing(PendienteAgrupado::grade);
+
+        List<PendienteAgrupado> grupos = porFechaYGrado.entrySet().stream()
+                .map(e -> new PendienteAgrupado(e.getKey().getKey(), e.getKey().getValue(),
+                        e.getValue().intValue()))
+                .sorted(masRecientePrimero)
                 .toList();
+
+        if (grupos.size() <= limite) return new ListasPendientes(grupos, grupos.size());
+
+        Map<String, List<PendienteAgrupado>> porGrado = grupos.stream()
+                .collect(java.util.stream.Collectors.groupingBy(PendienteAgrupado::grade,
+                        java.util.LinkedHashMap::new, java.util.stream.Collectors.toList()));
+        List<PendienteAgrupado> repartidos = new java.util.ArrayList<>();
+        for (int ronda = 0; repartidos.size() < limite; ronda++) {
+            boolean agrego = false;
+            for (List<PendienteAgrupado> deUnCurso : porGrado.values()) {
+                if (ronda >= deUnCurso.size()) continue;
+                repartidos.add(deUnCurso.get(ronda));
+                agrego = true;
+                if (repartidos.size() == limite) break;
+            }
+            if (!agrego) break;
+        }
+        repartidos.sort(masRecientePrimero);
+        return new ListasPendientes(repartidos, grupos.size());
     }
 
     @GetMapping("/dashboard")
