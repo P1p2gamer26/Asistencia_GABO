@@ -1,6 +1,7 @@
 package co.edu.ggm.asistencia.report;
 
 import co.edu.ggm.asistencia.AbstractIntegrationTest;
+import co.edu.ggm.asistencia.repository.ReportRepository;
 import co.edu.ggm.asistencia.service.TodayService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,8 +27,10 @@ class HoyTest extends AbstractIntegrationTest {
 
     @Autowired MockMvc mvc;
     @Autowired TodayService hoy;
+    @Autowired ReportRepository reportRepo;
 
     private Long bloqueId;
+    private Long bloqueId2;
     private Long docenteId;
 
     @BeforeEach
@@ -55,17 +58,47 @@ class HoyTest extends AbstractIntegrationTest {
                 """, docenteId);
         bloqueId = jdbcBase.queryForObject(
                 "SELECT id FROM schedule_blocks WHERE grade='777' AND block_no=6", Long.class);
-        jdbcBase.update("DELETE FROM attendance WHERE schedule_block_id = ?", bloqueId);
+        // Segundo bloque del mismo curso el mismo dia, para probar que un
+        // estudiante ausente en varios bloques cuenta como UN ausente, no uno
+        // por bloque (attendance guarda una fila por estudiante+bloque+dia).
+        jdbcBase.update("""
+                INSERT INTO schedule_blocks (grade, weekday, block_no, start_time, end_time,
+                                             subject_id, teacher_id)
+                VALUES ('777', 1, 7, '13:00', '13:50',
+                        (SELECT id FROM subjects WHERE name='MateriaHoy'), ?)
+                ON CONFLICT (grade, weekday, block_no) DO UPDATE SET teacher_id = EXCLUDED.teacher_id
+                """, docenteId);
+        bloqueId2 = jdbcBase.queryForObject(
+                "SELECT id FROM schedule_blocks WHERE grade='777' AND block_no=7", Long.class);
+        jdbcBase.update("DELETE FROM attendance WHERE schedule_block_id IN (?, ?)", bloqueId, bloqueId2);
+
+        // Curso huerfano sin estudiantes activos: su bloque no debe contarse ni
+        // como esperado ni como pendiente (defecto B). weekday=3 (miercoles) no
+        // lo usa ningun otro test de la suite, para no heredar ruido de bloques
+        // ajenos al contar "todos los del dia de la semana".
+        jdbcBase.update(
+                "INSERT INTO subjects (name) VALUES ('MateriaHuerfana') ON CONFLICT (name) DO NOTHING");
+        jdbcBase.update("""
+                INSERT INTO schedule_blocks (grade, weekday, block_no, start_time, end_time,
+                                             subject_id, teacher_id)
+                VALUES ('779', 3, 8, '14:00', '14:50',
+                        (SELECT id FROM subjects WHERE name='MateriaHuerfana'), ?)
+                ON CONFLICT (grade, weekday, block_no) DO UPDATE SET teacher_id = EXCLUDED.teacher_id
+                """, docenteId);
     }
 
     private void marcar(String documento, String estado) {
+        marcarEnBloque(documento, estado, bloqueId);
+    }
+
+    private void marcarEnBloque(String documento, String estado, Long bloque) {
         jdbcBase.update("""
                 INSERT INTO attendance (id, student_id, schedule_block_id, class_date,
                                         status, recorded_by, recorded_at)
                 VALUES (gen_random_uuid(), (SELECT id FROM students WHERE document_id = ?),
                         ?, ?, ?, ?, now())
                 ON CONFLICT ON CONSTRAINT attendance_unique_slot DO UPDATE SET status = EXCLUDED.status
-                """, documento, bloqueId, LUNES, estado, docenteId);
+                """, documento, bloque, LUNES, estado, docenteId);
     }
 
     @Test
@@ -127,6 +160,27 @@ class HoyTest extends AbstractIntegrationTest {
                 .filter(c -> c.grade().equals("777")).findFirst().orElseThrow();
         assertThat(curso777.sinRegistros()).isTrue();
         assertThat(r.mesPorCurso().get(r.mesPorCurso().size() - 1).sinRegistros()).isTrue();
+    }
+
+    @Test
+    void un_estudiante_ausente_en_varios_bloques_del_dia_cuenta_como_un_solo_ausente() {
+        marcarEnBloque("7770000001", "F", bloqueId);
+        marcarEnBloque("7770000001", "F", bloqueId2);
+        var r = hoy.resumen(LUNES);
+        assertThat(r.ausentes()).isEqualTo(1);
+    }
+
+    @Test
+    void un_curso_sin_estudiantes_activos_no_infla_los_bloques_esperados() {
+        // El bloque huerfano de 779 (weekday=3, sin estudiantes activos) no debe
+        // contarse como esperado; si se cuenta, "faltan" queda positivo para
+        // siempre porque nunca puede aparecer como reportado (countBlocksReported
+        // si excluye los cursos vacios, y con el guardia asimetrico esa resta
+        // nunca cierra en cero).
+        int esperados = reportRepo.countBlocksOfWeekday(3);
+        int reportados = reportRepo.countBlocksReported(3, LocalDate.parse("2026-03-11"));
+        assertThat(esperados).isZero();
+        assertThat(reportados).isEqualTo(esperados);
     }
 
     @Test
