@@ -19,7 +19,9 @@ type ResumenHoy = {
 
 type Novedad = {
   studentId: number; fullName: string; grade: string; classDate: string;
-  subject: string; comment?: string;
+  // Las ausencias se agrupan por estudiante+dia (pueden cubrir varias materias),
+  // asi que no siempre hay una sola materia que mostrar.
+  subject: string | null; comment?: string;
 };
 
 type Novedades = { evasiones: Novedad[]; ausencias: Novedad[]; sinRegistros: boolean };
@@ -45,10 +47,12 @@ function ListaNovedades({ titulo, items, sinRegistros, vacioTexto }: {
       ) : (
         <ul className="novedad-lista">
           {items.map((n) => (
-            <li key={`${n.studentId}-${n.classDate}-${n.subject}`} className="novedad-item">
+            <li key={`${n.studentId}-${n.classDate}`} className="novedad-item">
               <strong>{n.fullName}</strong> <span className="curso">· curso {n.grade}</span>
               <br />
-              <span className="meta">{n.classDate} · {n.subject}{n.comment ? ` · ${n.comment}` : ''}</span>
+              <span className="meta">
+                {n.classDate}{n.subject ? ` · ${n.subject}` : ''}{n.comment ? ` · ${n.comment}` : ''}
+              </span>
             </li>
           ))}
         </ul>

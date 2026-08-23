@@ -21,9 +21,11 @@ const NOVEDADES = {
     { studentId: 1, fullName: 'Juan Perez', grade: '601', classDate: '2026-08-20',
       subject: 'Matematicas', comment: 'se salio del salon' },
   ],
+  // Las ausencias vienen agrupadas por estudiante+dia (no por bloque), sin una
+  // sola materia: el backend informa cobertura ("dia completo" o "N de M").
   ausencias: [
     { studentId: 2, fullName: 'Ana Gomez', grade: '602', classDate: '2026-08-21',
-      subject: 'Espanol' },
+      subject: null, comment: 'Falto el dia completo' },
   ],
   sinRegistros: false,
 };
@@ -89,6 +91,15 @@ describe('InicioAdmin', () => {
     expect(screen.getByText(/curso 601/)).toBeInTheDocument();
     expect(screen.getByText('Ana Gomez')).toBeInTheDocument();
     expect(screen.getByText(/curso 602/)).toBeInTheDocument();
+  });
+
+  it('una ausencia de dia completo aparece una sola vez, con el texto de cobertura', async () => {
+    // Regresion: el backend agrupa por estudiante+dia; si el frontend volviera a
+    // desglosar por materia, Ana Gomez saldria repetida y desplazaria a otros.
+    vi.stubGlobal('fetch', mockFetch());
+    pintar();
+    await waitFor(() => expect(screen.getByText(/falto el dia completo/i)).toBeInTheDocument());
+    expect(screen.getAllByText('Ana Gomez')).toHaveLength(1);
   });
 
   it('sin evasiones ni ausencias en el periodo lo dice, no se queda mudo', async () => {

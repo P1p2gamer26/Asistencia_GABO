@@ -278,6 +278,41 @@ public interface ReportRepository extends Repository<Student, Long> {
                                         @Param("to") LocalDate to,
                                         @Param("limite") int limite);
 
+    interface AusenciaAgrupadaRow {
+        Long getStudentId();
+        String getFullName();
+        String getGrade();
+        LocalDate getClassDate();
+        int getFaltados();
+        int getTotalBloques();
+    }
+
+    // Igual defecto que en los KPI del dia (countsOfDay): "attendance" tiene una
+    // fila por bloque, asi que un estudiante ausente el dia completo dejaba una
+    // fila 'F' por cada clase y ocupaba varios cupos del limite con el mismo
+    // nombre. Se agrupa por estudiante+dia; totalBloques es cuantas clases tenia
+    // ese curso ese dia de la semana, para poder decir "dia completo" o "3 de 6".
+    @Query(value = """
+            SELECT s.id AS studentId,
+                   trim(regexp_replace(concat_ws(' ', s.first_name, s.middle_name,
+                        s.last_name, s.second_surname), '\\s+', ' ', 'g')) AS fullName,
+                   s.grade AS grade,
+                   a.class_date AS classDate,
+                   count(*) AS faltados,
+                   (SELECT count(*) FROM schedule_blocks b
+                     WHERE b.grade = s.grade
+                       AND b.weekday = EXTRACT(ISODOW FROM a.class_date)) AS totalBloques
+            FROM attendance a
+            JOIN students s ON s.id = a.student_id
+            WHERE a.status = 'F' AND a.class_date BETWEEN :from AND :to
+            GROUP BY s.id, fullName, s.grade, a.class_date
+            ORDER BY a.class_date DESC
+            LIMIT :limite
+            """, nativeQuery = true)
+    List<AusenciaAgrupadaRow> ausenciasAgrupadas(@Param("from") LocalDate from,
+                                                 @Param("to") LocalDate to,
+                                                 @Param("limite") int limite);
+
     @Query(value = """
             SELECT count(*) FROM attendance a WHERE a.class_date BETWEEN :from AND :to
             """, nativeQuery = true)
