@@ -2,10 +2,12 @@ import { useState } from 'react';
 import PanelUsuarios from '../components/admin/PanelUsuarios';
 import PanelCalendario from '../components/admin/PanelCalendario';
 import PanelCarga from '../components/admin/PanelCarga';
+import PanelHorario from '../components/admin/PanelHorario';
 
 const PESTANAS = [
   { clave: 'usuarios',   titulo: 'Usuarios' },
   { clave: 'calendario', titulo: 'Calendario' },
+  { clave: 'horario',    titulo: 'Horario' },
   { clave: 'carga',      titulo: 'Carga de datos' },
 ] as const;
 
@@ -28,6 +30,7 @@ export default function Admin() {
       </div>
       {activa === 'usuarios' && <PanelUsuarios />}
       {activa === 'calendario' && <PanelCalendario />}
+      {activa === 'horario' && <PanelHorario />}
       {activa === 'carga' && <PanelCarga />}
     </main>
   );

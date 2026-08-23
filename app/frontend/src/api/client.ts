@@ -52,7 +52,14 @@ async function request<T>(path: string, init: RequestInit, retry = true): Promis
     clearSession();
     throw new Error('Sesion expirada');
   }
-  if (!res.ok) throw new Error(`Error ${res.status}`);
+  if (!res.ok) {
+    // El backend manda el motivo en `detail` (ProblemDetail) cuando lo hay, por
+    // ejemplo un choque de horario: sin esto la interfaz solo podria decir
+    // "Error 409" y quien edita no sabria con que choca.
+    let detail: string | undefined;
+    try { detail = ((await res.json()) as { detail?: string }).detail; } catch { /* sin cuerpo JSON */ }
+    throw new Error(detail ?? `Error ${res.status}`);
+  }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
 }
@@ -85,4 +92,5 @@ export const api = {
     request<T>(path, { method: 'POST', body: JSON.stringify(body) }),
   put: <T>(path: string, body: unknown) =>
     request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
+  delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
 };
