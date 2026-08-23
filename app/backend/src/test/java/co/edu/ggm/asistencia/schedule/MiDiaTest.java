@@ -41,13 +41,18 @@ class MiDiaTest {
 
     private String tokenDeDocenteConHorario(String fecha, String grade, String subject,
                                             String room) {
+        return tokenDeDocenteConHorario(fecha, grade, subject, room, "midia@midiatest.co");
+    }
+
+    private String tokenDeDocenteConHorario(String fecha, String grade, String subject,
+                                            String room, String email) {
         jdbcBase.update("""
                 INSERT INTO users (email, password_hash, full_name, role, active)
-                VALUES ('midia@midiatest.co', 'x', 'Pepita Midia', 'DOCENTE', TRUE)
+                VALUES (?, 'x', 'Pepita Midia', 'DOCENTE', TRUE)
                 ON CONFLICT (email) DO NOTHING
-                """);
+                """, email);
         docenteId = jdbcBase.queryForObject(
-                "SELECT id FROM users WHERE email = 'midia@midiatest.co'", Long.class);
+                "SELECT id FROM users WHERE email = ?", Long.class, email);
 
         jdbcBase.update(
                 "INSERT INTO subjects (name) VALUES (?) ON CONFLICT (name) DO NOTHING", subject);
@@ -74,7 +79,7 @@ class MiDiaTest {
                     INSERT INTO students (document_id, first_name, last_name, grade, active)
                     VALUES (?, 'ESTUDIANTE', 'MIDIA', ?, TRUE)
                     ON CONFLICT (document_id) DO NOTHING
-                    """, "601z0000" + i, grade);
+                    """, grade + "0000" + i, grade);
         }
 
         return "Bearer " + jwt.issueAccess(docenteId, "DOCENTE");
@@ -146,5 +151,25 @@ class MiDiaTest {
     void sin_token_responde_401() throws Exception {
         mvc.perform(get("/api/schedule/my-day?fecha=" + LUNES))
            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void un_estudiante_retirado_no_infla_los_marcados() throws Exception {
+        // Curso y docente propios (601y / retiro@midiatest.co): con el mismo docente de
+        // los demas tests, sus bloques se acumulan en el mismo dia de la semana y
+        // rompen la cuenta de "un solo bloque" de otro test.
+        String docente = tokenDeDocenteConHorario(LUNES, "601y", "Ciencias", "Laboratorio 1",
+                "retiro@midiatest.co");
+        marcarPrimeros(LUNES, "601y", 5); // los 5 estudiantes del curso quedan marcados
+        // Uno de ellos se retira DESPUES de que se le tomo lista ese dia: su asistencia
+        // pasada se conserva, pero ya no cuenta ni en el numerador ni en el denominador.
+        jdbcBase.update("UPDATE students SET active = FALSE WHERE document_id = '601y00001'");
+
+        mvc.perform(get("/api/schedule/my-day?fecha=" + LUNES).header("Authorization", docente))
+           .andExpect(jsonPath("$.bloques[0].estudiantes").value(4))
+           // Sin el arreglo, marcados cuenta las 5 filas de attendance (incluida la del
+           // retirado) y da 5 de 4: mas marcados que estudiantes, el caso que rompe la
+           // confianza en la pantalla.
+           .andExpect(jsonPath("$.bloques[0].marcados").value(4));
     }
 }
