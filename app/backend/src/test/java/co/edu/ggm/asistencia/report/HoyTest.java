@@ -104,6 +104,32 @@ class HoyTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void el_mes_trae_totales_y_desglose_por_curso_incluso_sin_dia_lectivo() {
+        marcar("7770000001", "P");
+        marcar("7770000002", "F");
+        // Domingo posterior a LUNES dentro del mismo mes: no lectivo, pero el
+        // resumen del mes no depende de que hoy se pueda tomar asistencia --
+        // son datos acumulados de dias anteriores del mes (2026-03-15).
+        var r = hoy.resumen(LocalDate.parse("2026-03-15"));
+        assertThat(r.mesPresentes() + r.mesTarde() + r.mesAusentes() + r.mesEvasiones())
+                .isGreaterThan(0);
+        assertThat(r.mesPorCurso()).isNotEmpty();
+    }
+
+    @Test
+    void un_curso_sin_ningun_registro_en_el_mes_no_aparece_como_100_por_ciento() {
+        // El curso 777 recien creado en @BeforeEach no tiene marcas todavia en
+        // este test: debe salir marcado sinRegistros, no con 0.0 confundible
+        // con "cero ausencias", y nunca al frente de la lista como si fuera
+        // el mejor curso del mes.
+        var r = hoy.resumen(LUNES);
+        var curso777 = r.mesPorCurso().stream()
+                .filter(c -> c.grade().equals("777")).findFirst().orElseThrow();
+        assertThat(curso777.sinRegistros()).isTrue();
+        assertThat(r.mesPorCurso().get(r.mesPorCurso().size() - 1).sinRegistros()).isTrue();
+    }
+
+    @Test
     void un_docente_no_puede_ver_el_resumen_del_colegio() throws Exception {
         mvc.perform(get("/api/reports/today")
                         .header("Authorization", "Bearer " + jwt.issueAccess(docenteId, "DOCENTE")))

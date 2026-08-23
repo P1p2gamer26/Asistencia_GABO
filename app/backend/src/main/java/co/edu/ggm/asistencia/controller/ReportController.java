@@ -8,6 +8,7 @@ import co.edu.ggm.asistencia.repository.StudentRepository;
 import co.edu.ggm.asistencia.service.DashboardService;
 import co.edu.ggm.asistencia.service.ExcelReportService;
 import co.edu.ggm.asistencia.service.JwtService;
+import co.edu.ggm.asistencia.service.NovedadesService;
 import co.edu.ggm.asistencia.service.TodayService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -35,13 +36,16 @@ public class ReportController {
     private final CalendarRepository calendar;
     private final StudentRepository students;
     private final TodayService todayService;
+    private final NovedadesService novedadesService;
 
     public ReportController(ReportRepository repo, ExcelReportService excel,
                             DashboardService dashboardService, CalendarRepository calendar,
-                            StudentRepository students, TodayService todayService) {
+                            StudentRepository students, TodayService todayService,
+                            NovedadesService novedadesService) {
         this.repo = repo; this.excel = excel;
         this.dashboardService = dashboardService; this.calendar = calendar;
         this.students = students; this.todayService = todayService;
+        this.novedadesService = novedadesService;
     }
 
     @GetMapping("/summary")
@@ -120,5 +124,14 @@ public class ReportController {
     @PreAuthorize("hasAnyRole('COORDINADOR','ADMIN')")
     public TodayService.ResumenDeHoy today() {
         return todayService.resumen(LocalDate.now(TodayService.BOGOTA));
+    }
+
+    @GetMapping("/novedades")
+    @PreAuthorize("hasAnyRole('COORDINADOR','ADMIN')")
+    public NovedadesService.Reporte novedades(
+            @RequestParam(required = false, defaultValue = "7") int dias,
+            @RequestParam(required = false, defaultValue = "10") int limite) {
+        LocalDate hoy = LocalDate.now(BOGOTA);
+        return novedadesService.build(hoy.minusDays(dias), hoy, limite);
     }
 }
