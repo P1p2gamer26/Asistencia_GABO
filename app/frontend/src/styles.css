@@ -333,3 +333,23 @@ tbody tr:hover { background: #fbfaf4; }
   .menu[data-abierto='true']  { display: flex; border-right: 0;
                                 border-bottom: 1px solid var(--rejilla); }
 }
+
+/* El dia del docente: una fila por bloque, legible de un vistazo en el telefono. */
+.dia-bloques { list-style: none; padding: 0; margin: var(--e4) 0 0; display: grid; gap: 8px; }
+.dia-bloques .bloque { display: grid; gap: 2px 12px; padding: 10px 12px;
+                       border: 1px solid var(--rejilla); border-radius: 8px;
+                       grid-template-columns: auto 1fr auto; align-items: baseline; }
+.dia-bloques .hora { font-variant-numeric: tabular-nums; color: var(--tinta-suave); }
+.dia-bloques .aula { color: var(--ocre); font-style: normal; font-weight: 700; }
+.dia-bloques .marcado { font-size: .8rem; color: var(--tinta-suave); }
+/* El estado se dice con palabras; el borde solo acompana, nunca informa por si solo. */
+.dia-bloques .falta  { border-left: 4px solid var(--ocre); }
+.dia-bloques .medias { border-left: 4px solid var(--ocre); }
+.dia-bloques .listo  { border-left: 4px solid var(--verde); }
+.dia-bloques .tomar-lista { grid-column: 1 / -1; margin-top: 4px; }
+.aviso-no-lectivo { padding: 12px; border-radius: 8px; background: var(--papel);
+                    border: 1px dashed var(--rejilla); }
+@media (max-width: 560px) {
+  .dia-bloques .bloque { grid-template-columns: auto 1fr; }
+  .dia-bloques .marcado { grid-column: 2; }
+}
