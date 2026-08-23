@@ -25,6 +25,78 @@ class BootstrapTest extends AbstractIntegrationTest {
         return "Bearer " + jwt.issueAccess(u.getId(), "DOCENTE");
     }
 
+    /** Crea un segundo docente con un bloque en 602 (la semilla base solo trae
+     * a fpalacios con un bloque en 601), y devuelve el id del nuevo docente. */
+    private Long sembrarSegundoDocenteConOtroCurso() {
+        jdbcBase.update("INSERT INTO users (email, password_hash, full_name, role) " +
+                "VALUES ('otrodocente@ggm.edu.co', 'x', 'Otro Docente', 'DOCENTE') " +
+                "ON CONFLICT (email) DO NOTHING");
+        Long otroId = jdbcBase.queryForObject(
+                "SELECT id FROM users WHERE email = 'otrodocente@ggm.edu.co'", Long.class);
+        jdbcBase.update(
+                "INSERT INTO schedule_blocks (grade, weekday, block_no, start_time, end_time, subject_id, teacher_id) " +
+                "SELECT '602', 1, 2, '07:20', '08:10', s.id, ? FROM subjects s WHERE s.name = 'Espanol' " +
+                "AND NOT EXISTS (SELECT 1 FROM schedule_blocks WHERE teacher_id = ?)",
+                otroId, otroId);
+        return otroId;
+    }
+
+    @Test
+    void el_admin_recibe_bloques_de_mas_de_un_curso() throws Exception {
+        // admin@ggm.edu.co no tiene bloques propios (cero); como ADMIN debe ver
+        // los de todo el colegio (aqui, 601 y 602), no los suyos.
+        sembrarSegundoDocenteConOtroCurso();
+
+        String json = mvc.perform(get("/api/sync/bootstrap").header("Authorization", tokenDe("admin@ggm.edu.co", "ADMIN")))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var blocks = mapper.readTree(json).get("blocks");
+        assertThat(blocks.size()).isGreaterThan(1);
+        java.util.Set<String> grados = new java.util.HashSet<>();
+        blocks.forEach(b -> grados.add(b.get("grade").asText()));
+        assertThat(grados.size()).isGreaterThan(1);
+    }
+
+    @Test
+    void el_coordinador_recibe_bloques_de_mas_de_un_curso() throws Exception {
+        sembrarSegundoDocenteConOtroCurso();
+
+        String json = mvc.perform(get("/api/sync/bootstrap").header("Authorization", tokenDe("coord@ggm.edu.co", "COORDINADOR")))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var blocks = mapper.readTree(json).get("blocks");
+        assertThat(blocks.size()).isGreaterThan(1);
+        java.util.Set<String> grados = new java.util.HashSet<>();
+        blocks.forEach(b -> grados.add(b.get("grade").asText()));
+        assertThat(grados.size()).isGreaterThan(1);
+    }
+
+    @Test
+    void un_docente_no_ve_los_bloques_de_otro_docente() throws Exception {
+        // Dos docentes con cursos distintos: fpalacios dicta 601, el sembrado
+        // dicta 602. Cada uno debe ver solo el suyo: esto es lo que impide que
+        // el arreglo del bug se pase de largo y filtre datos entre docentes.
+        Long otroId = sembrarSegundoDocenteConOtroCurso();
+        String tokenOtro = "Bearer " + jwt.issueAccess(otroId, "DOCENTE");
+
+        String jsonUno = mvc.perform(get("/api/sync/bootstrap").header("Authorization", tokenDocente()))
+                .andReturn().getResponse().getContentAsString();
+        String jsonOtro = mvc.perform(get("/api/sync/bootstrap").header("Authorization", tokenOtro))
+                .andReturn().getResponse().getContentAsString();
+
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var gradosUno = new java.util.HashSet<String>();
+        mapper.readTree(jsonUno).get("blocks").forEach(b -> gradosUno.add(b.get("grade").asText()));
+        var gradosOtro = new java.util.HashSet<String>();
+        mapper.readTree(jsonOtro).get("blocks").forEach(b -> gradosOtro.add(b.get("grade").asText()));
+
+        assertThat(gradosUno).containsExactly("601");
+        assertThat(gradosOtro).containsExactly("602");
+        assertThat(java.util.Collections.disjoint(gradosUno, gradosOtro)).isTrue();
+    }
+
     @Test
     void el_docente_recibe_solo_sus_bloques_y_los_estudiantes_de_esos_grados() throws Exception {
         mvc.perform(get("/api/sync/bootstrap").header("Authorization", tokenDocente()))

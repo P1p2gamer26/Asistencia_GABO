@@ -6,6 +6,7 @@ import java.util.List;
 
 public interface ScheduleRepository extends JpaRepository<ScheduleBlock, Long> {
     List<ScheduleBlock> findByTeacherIdOrderByWeekdayAscBlockNoAsc(Long teacherId);
+    List<ScheduleBlock> findAllByOrderByWeekdayAscBlockNoAsc();
 
     interface WeekRow {
         Long getId();
