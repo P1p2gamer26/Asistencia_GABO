@@ -331,6 +331,25 @@ public interface ReportRepository extends Repository<Student, Long> {
         int getEvasion();
     }
 
+    /** Cuantos dias asistio, falto, llego tarde o evadio, por estudiante. */
+    @Query(value = """
+            SELECT a.student_id AS studentId,
+                   count(*) FILTER (WHERE a.status = 'P') AS asistio,
+                   count(*) FILTER (WHERE a.status = 'F') AS falto,
+                   count(*) FILTER (WHERE a.status = 'T') AS tarde,
+                   count(*) FILTER (WHERE a.status = 'E') AS evadio,
+                   count(DISTINCT a.class_date)            AS diasRegistrados
+              FROM attendance a
+             WHERE a.student_id IN (:ids)
+             GROUP BY a.student_id
+            """, nativeQuery = true)
+    List<ConteoRow> conteosPorEstudiante(@Param("ids") List<Long> ids);
+
+    interface ConteoRow {
+        Long getStudentId(); int getAsistio(); int getFalto();
+        int getTarde(); int getEvadio(); int getDiasRegistrados();
+    }
+
     // A diferencia de byGrade (que solo trae cursos con algun registro, porque
     // hace INNER JOIN contra attendance), esta arranca de los cursos activos y
     // les hace LEFT JOIN: el curso que nadie ha marcado en el periodo sale
