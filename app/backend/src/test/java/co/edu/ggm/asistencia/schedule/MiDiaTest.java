@@ -1,14 +1,9 @@
 package co.edu.ggm.asistencia.schedule;
 
-import co.edu.ggm.asistencia.service.JwtService;
-import co.edu.ggm.asistencia.TestDatabaseConfig;
+import co.edu.ggm.asistencia.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
@@ -23,15 +18,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Usa su propio docente, materia y curso (601z, distinto del 601 real que usa
  * BootstrapTest) para no chocar con la semilla ni con otras clases de test.
  */
-@SpringBootTest
-@ActiveProfiles("test")
 @AutoConfigureMockMvc
-@Import(TestDatabaseConfig.class)
-class MiDiaTest {
+class MiDiaTest extends AbstractIntegrationTest {
 
     @Autowired MockMvc mvc;
-    @Autowired JwtService jwt;
-    @Autowired JdbcTemplate jdbcBase;
 
     /** Un lunes lectivo. La fecha va fija a proposito: nada aqui consulta el reloj. */
     private static final String LUNES = "2026-08-03";
