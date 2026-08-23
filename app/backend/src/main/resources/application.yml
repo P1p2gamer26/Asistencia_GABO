@@ -6,6 +6,8 @@ spring:
   jpa:
     hibernate.ddl-auto: validate
     open-in-view: false
+  mvc:
+    problemdetails.enabled: true
   flyway.enabled: true
   jackson.default-property-inclusion: non_null
   mail:
