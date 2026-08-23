@@ -20,6 +20,7 @@ public interface ReportRepository extends Repository<Student, Long> {
         int getAbsent();
         int getEvasion();
         int getSchoolDays();
+        Double getAttendanceRate();
     }
 
     @Query(value = """
@@ -34,7 +35,12 @@ public interface ReportRepository extends Repository<Student, Long> {
                    count(*) FILTER (WHERE a.status = 'E') AS evasion,
                    (SELECT count(*) FROM school_calendar c
                      WHERE c.day_type = 'LECTIVO'
-                       AND c.calendar_date BETWEEN :from AND :to) AS schoolDays
+                       AND c.calendar_date BETWEEN :from AND :to) AS schoolDays,
+                   -- Porcentaje sobre las MARCAS por bloque (P+T+F+E), no sobre los dias
+                   -- lectivos: son unidades distintas (ver Consultas.tsx). Sin ninguna
+                   -- marca en el periodo el resultado es NULL -- no hay dato, no es 0%.
+                   round(100.0 * count(*) FILTER (WHERE a.status IN ('P','T'))
+                         / NULLIF(count(a.status), 0), 1) AS attendanceRate
             FROM students s
             LEFT JOIN attendance a ON a.student_id = s.id AND a.class_date BETWEEN :from AND :to
             WHERE s.active AND (:grade IS NULL OR s.grade = :grade)

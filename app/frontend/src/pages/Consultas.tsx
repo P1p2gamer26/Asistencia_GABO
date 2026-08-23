@@ -4,6 +4,8 @@ import { api, apiUrl, getSession } from '../api/client';
 type Fila = {
   studentId: number; documentId: string; fullName: string; grade: string;
   present: number; late: number; absent: number; evasion: number; schoolDays: number;
+  // Ausente cuando no hay ninguna marca en el periodo: no se inventa un 0% ni un 100%.
+  attendanceRate?: number;
 };
 
 export default function Consultas() {
@@ -88,11 +90,17 @@ export default function Consultas() {
       {error && <p role="alert" className="error">{error}</p>}
       {filas.length > 0 && (
         <div className="tabla-scroll">
+          <p className="meta">
+            Dias lectivos: dias de clase del calendario en el periodo. P/T/F/E: marcas
+            por clase (bloque) del estudiante, varias por dia -- no se comparan con los
+            dias lectivos.
+          </p>
           <table>
             <thead>
-              <tr><th>Estudiante</th><th>Curso</th><th className="num">Lectivos</th>
-                  <th className="num">P</th><th className="num">T</th>
-                  <th className="num">F</th><th className="num">E</th></tr>
+              <tr><th>Estudiante</th><th>Curso</th><th className="num">Dias lectivos</th>
+                  <th className="num">P (clases)</th><th className="num">T (clases)</th>
+                  <th className="num">F (clases)</th><th className="num">E (clases)</th>
+                  <th className="num">% Asistencia</th></tr>
             </thead>
             <tbody>
               {filas.map((f) => (
@@ -101,6 +109,9 @@ export default function Consultas() {
                   <td className="num">{f.schoolDays}</td>
                   <td className="num">{f.present}</td><td className="num">{f.late}</td>
                   <td className="num">{f.absent}</td><td className="num">{f.evasion}</td>
+                  <td className="num">
+                    {f.attendanceRate == null ? 'Sin datos' : `${f.attendanceRate}%`}
+                  </td>
                 </tr>
               ))}
             </tbody>

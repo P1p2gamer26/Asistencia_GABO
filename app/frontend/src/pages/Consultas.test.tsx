@@ -60,6 +60,42 @@ describe('Consultas', () => {
     expect(String(ultimaLlamada)).toContain('grade=601');
   });
 
+  it('los encabezados dejan claro que P/T/F/E son marcas por clase, no dias', async () => {
+    const f = vi.fn(async () => respuesta(FILAS));
+    vi.stubGlobal('fetch', f);
+    render(<Consultas />);
+
+    await waitFor(() => expect(screen.getByRole('option', { name: '601' })).toBeInTheDocument());
+    await userEvent.selectOptions(screen.getByLabelText(/curso/i), '601');
+    await userEvent.type(screen.getByLabelText(/desde/i), '2026-02-01');
+    await userEvent.type(screen.getByLabelText(/hasta/i), '2026-06-30');
+    await userEvent.click(screen.getByRole('button', { name: /^consultar/i }));
+
+    await waitFor(() => expect(screen.getByText('ANA LOPEZ')).toBeInTheDocument());
+    expect(screen.getByRole('columnheader', { name: 'Dias lectivos' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'P (clases)' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: '% Asistencia' })).toBeInTheDocument();
+  });
+
+  it('un estudiante sin ninguna marca no muestra un porcentaje inventado', async () => {
+    const sinDatos = [
+      { studentId: 9, documentId: '999', fullName: 'SIN DATOS PEREZ', grade: '607',
+        present: 0, late: 0, absent: 0, evasion: 0, schoolDays: 12 },
+    ];
+    vi.stubGlobal('fetch', vi.fn(async () => respuesta(sinDatos)));
+    render(<Consultas />);
+
+    await waitFor(() => expect(screen.getByRole('option', { name: '607' })).toBeInTheDocument());
+    await userEvent.selectOptions(screen.getByLabelText(/curso/i), '607');
+    await userEvent.type(screen.getByLabelText(/desde/i), '2026-08-01');
+    await userEvent.type(screen.getByLabelText(/hasta/i), '2026-08-22');
+    await userEvent.click(screen.getByRole('button', { name: /^consultar/i }));
+
+    await waitFor(() => expect(screen.getByText('SIN DATOS PEREZ')).toBeInTheDocument());
+    expect(screen.getByText('Sin datos')).toBeInTheDocument();
+    expect(screen.queryByText('0%')).not.toBeInTheDocument();
+  });
+
   it('la descarga en Excel si permite todos los cursos', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => respuesta(FILAS)));
     render(<Consultas />);
