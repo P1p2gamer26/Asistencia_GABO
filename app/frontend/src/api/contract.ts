@@ -42,6 +42,15 @@ export type ScheduleBlockAdmin = {
 };
 export type ImportResult = { imported: number; errors: string[] };
 
+/** Fila del panel "Ver asistencia registrada": incluye quien la tomo y quien la corrigio.
+ * `recordedByName`/`editedByName` vienen ausentes (no null-como-si-fuera-dato) cuando no hay autor. */
+export type AttendanceDetalle = {
+  id: string; studentId: number; fullName: string; documentId: string;
+  status: Status; comment?: string;
+  recordedByName?: string; recordedAt: string;
+  editedByName?: string; editedAt?: string;
+};
+
 /** Orden de apilado y colores de estado. Validado; ver Task C2. No reordenar. */
 export const ESTADOS: { valor: Status; etiqueta: string; color: string }[] = [
   { valor: 'P', etiqueta: 'Presente', color: '#14663b' },

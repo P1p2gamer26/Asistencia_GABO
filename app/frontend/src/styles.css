@@ -156,6 +156,24 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .estado.E.activo { background: var(--estado-e); border-color: var(--estado-e); }
 .comentario { grid-column: 1 / -1; }
 
+/* --- Panel "Ver, editar o borrar lo ya registrado" --------------------- */
+/* Detras de un <details>: no se descarga ni se pinta hasta que el docente lo abre,
+   asi que no pesa el flujo normal de tomar lista. */
+.registrados { margin-top: var(--e4); border-top: 1px solid var(--rejilla); padding-top: var(--e3); }
+.registrados summary { cursor: pointer; font-weight: 600; color: var(--verde-oscuro); }
+.registros-lista { list-style: none; padding: 0; margin: var(--e3) 0 0; }
+.registros-lista li {
+  border-bottom: 1px solid var(--rejilla); padding: var(--e2) 0;
+  display: flex; flex-wrap: wrap; gap: 4px var(--e2); align-items: center;
+}
+.registro-edicion { display: grid; gap: var(--e1); width: 100%; }
+.registro-acciones { display: flex; gap: var(--e1); }
+.estado-punto { font-weight: 700; font-size: .8rem; }
+.estado-punto.P { color: var(--estado-p); }
+.estado-punto.T { color: var(--estado-t); }
+.estado-punto.F { color: var(--estado-f); }
+.estado-punto.E { color: var(--estado-e); }
+
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
