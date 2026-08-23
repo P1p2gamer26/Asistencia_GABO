@@ -81,6 +81,29 @@ UPDATE school_calendar
                            AND calendar_date > CURRENT_DATE
                          ORDER BY calendar_date LIMIT 1);
 
+-- 5. Listas olvidadas repartidas, no todas del mismo curso -----------------------
+-- Un docente real olvida una lista suelta aqui y alla, no un curso entero. Sin esto
+-- los unicos pendientes de profe1 eran los del 607 (que nunca se ha reportado) y
+-- copaban la pantalla: 42 filas del mismo curso, que entierran cualquier pendiente
+-- real y no dejan comprobar si la vista sabe repartir entre cursos.
+--
+-- Se borra por DOCENTE, no por curso: los bloques de un curso los dictan varios
+-- docentes distintos, asi que filtrar por `grade` borraba listas de otra gente y
+-- dejaba a profe1 igual que estaba.
+DELETE FROM attendance a
+ USING schedule_blocks b, users u,
+       (SELECT calendar_date, extract(isodow FROM calendar_date)::int AS dow
+          FROM school_calendar
+         WHERE day_type = 'LECTIVO' AND calendar_date <= CURRENT_DATE
+         ORDER BY calendar_date DESC LIMIT 3) d
+ WHERE a.schedule_block_id = b.id
+   AND u.id = b.teacher_id
+   AND u.email = 'profe1@ggm.edu.co'
+   AND a.class_date = d.calendar_date
+   AND b.weekday = d.dow
+   AND b.grade <> '607'
+   AND (b.id % 2) = 0;
+
 ANALYZE students;
 ANALYZE attendance;
 ANALYZE school_calendar;
