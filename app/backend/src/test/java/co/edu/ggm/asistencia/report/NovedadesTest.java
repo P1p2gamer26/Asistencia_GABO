@@ -75,6 +75,11 @@ class NovedadesTest extends AbstractIntegrationTest {
     }
 
     private void marcarEnBloque(String documento, String estado, String comentario, Long bloque) {
+        marcarEnBloqueEnFecha(documento, estado, comentario, bloque, LUNES);
+    }
+
+    private void marcarEnBloqueEnFecha(String documento, String estado, String comentario,
+                                       Long bloque, LocalDate fecha) {
         jdbcBase.update("""
                 INSERT INTO attendance (id, student_id, schedule_block_id, class_date,
                                         status, comment, recorded_by, recorded_at)
@@ -82,7 +87,7 @@ class NovedadesTest extends AbstractIntegrationTest {
                         ?, ?, ?, ?, ?, now())
                 ON CONFLICT ON CONSTRAINT attendance_unique_slot
                   DO UPDATE SET status = EXCLUDED.status, comment = EXCLUDED.comment
-                """, documento, bloque, LUNES, estado, comentario, docenteId);
+                """, documento, bloque, fecha, estado, comentario, docenteId);
     }
 
     @Test
@@ -164,6 +169,66 @@ class NovedadesTest extends AbstractIntegrationTest {
         var r = novedades.build(LUNES.minusDays(1), LUNES, 10);
 
         assertThat(r.ausencias()).hasSize(2);
+    }
+
+    @Test
+    void el_que_falto_todo_el_dia_no_lo_tapa_el_que_falto_a_una_sola_clase() {
+        // Grado propio ('998') y fecha propia (OTRA_FECHA), no los compartidos
+        // '999'/LUNES de los demas tests de esta clase: PendientesTest cuenta
+        // estudiantes activos de grado 999 para decidir si un bloque ya quedo
+        // completo, y esta suite no limpia la base entre clases de test (ver
+        // TestDatabaseConfig) -- sumar un estudiante mas ahi rompe ese conteo
+        // en una clase que ni se toca aqui. Una fecha distinta evita ademas que
+        // estas 5 filas nuevas se cuelen en el build(LUNES-1, LUNES, ...) que
+        // usan los demas tests de este archivo (no hay rollback entre metodos).
+        //
+        // 5 estudiantes el mismo dia: cuatro faltan a una sola clase (el caso
+        // leve, ids mas bajos -- van primero en cualquier orden incidental de la
+        // base), y el ultimo en sembrarse (id mas alto) falta a TODO el dia (2 de
+        // 2 bloques, el caso grave). Con limite=4 solo caben 4 de los 5; el grave
+        // no se puede quedar afuera solo por el orden en que la base devuelva
+        // los empates de fecha -- por eso, ademas de estar presente, debe quedar
+        // de PRIMERO una vez que se ordene tambien por gravedad.
+        jdbcBase.update(
+                "INSERT INTO subjects (name) VALUES ('MateriaGravedad') ON CONFLICT (name) DO NOTHING");
+        jdbcBase.update("""
+                INSERT INTO students (document_id, first_name, last_name, grade, active)
+                VALUES ('9980000001','UNO','GRAVEDAD','998',TRUE),
+                       ('9980000002','DOS','GRAVEDAD','998',TRUE),
+                       ('9980000003','TRES','GRAVEDAD','998',TRUE),
+                       ('9980000004','CUATRO','GRAVEDAD','998',TRUE),
+                       ('9980000009','GRAVE','GRAVEDAD','998',TRUE)
+                ON CONFLICT (document_id) DO NOTHING
+                """);
+        jdbcBase.update("""
+                INSERT INTO schedule_blocks (grade, weekday, block_no, start_time, end_time,
+                                             subject_id, teacher_id)
+                VALUES ('998', 1, 1, '06:30', '07:20',
+                        (SELECT id FROM subjects WHERE name='MateriaGravedad'), ?),
+                       ('998', 1, 2, '07:20', '08:10',
+                        (SELECT id FROM subjects WHERE name='MateriaGravedad'), ?)
+                ON CONFLICT (grade, weekday, block_no) DO UPDATE SET teacher_id = EXCLUDED.teacher_id
+                """, docenteId, docenteId);
+        Long bloqueLeve = jdbcBase.queryForObject(
+                "SELECT id FROM schedule_blocks WHERE grade='998' AND block_no=1", Long.class);
+        Long bloqueGrave = jdbcBase.queryForObject(
+                "SELECT id FROM schedule_blocks WHERE grade='998' AND block_no=2", Long.class);
+        jdbcBase.update("DELETE FROM attendance WHERE schedule_block_id IN (?, ?)", bloqueLeve, bloqueGrave);
+
+        LocalDate otraFecha = LUNES.minusWeeks(1);
+        marcarEnBloqueEnFecha("9980000001", "F", null, bloqueLeve, otraFecha);
+        marcarEnBloqueEnFecha("9980000002", "F", null, bloqueLeve, otraFecha);
+        marcarEnBloqueEnFecha("9980000003", "F", null, bloqueLeve, otraFecha);
+        marcarEnBloqueEnFecha("9980000004", "F", null, bloqueLeve, otraFecha);
+        marcarEnBloqueEnFecha("9980000009", "F", null, bloqueLeve, otraFecha);
+        marcarEnBloqueEnFecha("9980000009", "F", null, bloqueGrave, otraFecha);
+
+        var r = novedades.build(otraFecha.minusDays(1), otraFecha, 4);
+
+        assertThat(r.ausencias()).hasSize(4);
+        assertThat(r.ausencias()).anyMatch(n -> n.fullName().contains("GRAVE GRAVEDAD")
+                && n.comment().equalsIgnoreCase("Falto el dia completo"));
+        assertThat(r.ausencias().get(0).fullName()).contains("GRAVE GRAVEDAD");
     }
 
     @Test
