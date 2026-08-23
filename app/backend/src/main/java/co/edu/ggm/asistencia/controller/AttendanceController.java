@@ -1,9 +1,12 @@
 package co.edu.ggm.asistencia.controller;
 
+import co.edu.ggm.asistencia.model.ScheduleBlock;
 import co.edu.ggm.asistencia.repository.AttendanceRepository;
+import co.edu.ggm.asistencia.repository.ScheduleRepository;
 import co.edu.ggm.asistencia.service.SyncService;
 import co.edu.ggm.asistencia.service.JwtService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -11,12 +14,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -28,9 +35,36 @@ public class AttendanceController {
 
     private final SyncService sync;
     private final AttendanceRepository repo;
+    private final ScheduleRepository blocks;
 
-    public AttendanceController(SyncService sync, AttendanceRepository repo) {
-        this.sync = sync; this.repo = repo;
+    public AttendanceController(SyncService sync, AttendanceRepository repo, ScheduleRepository blocks) {
+        this.sync = sync; this.repo = repo; this.blocks = blocks;
+    }
+
+    private static String currentRole() {
+        return SecurityContextHolder.getContext().getAuthentication().getAuthorities()
+                .iterator().next().getAuthority().replace("ROLE_", "");
+    }
+
+    /**
+     * Un docente solo puede editar/borrar la asistencia de un bloque que dicta el: es su
+     * propia lista, y es lo unico que puede corregir de memoria sin volver a pasar lista.
+     * Coordinacion y administracion no tienen esa restriccion: son quienes atienden
+     * reclamos sobre cursos y fechas que no dictaron.
+     *
+     * ponytail: no se anadio una ventana de dias ("solo lo reciente"), esa regla dependeria
+     * del reloj del servidor y este proyecto exige tests que no dependan de la fecha de hoy.
+     * Si hace falta, agregarla como columna de configuracion en vez de LocalDate.now().
+     */
+    private void exigirPermiso(co.edu.ggm.asistencia.model.Attendance a) {
+        String role = currentRole();
+        if ("ADMIN".equals(role) || "COORDINADOR".equals(role)) return;
+        Long userId = JwtService.currentUserId();
+        ScheduleBlock bloque = blocks.findById(a.getScheduleBlockId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Bloque inexistente"));
+        if (!userId.equals(bloque.getTeacherId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ese bloque no es suyo");
+        }
     }
 
     public record RecordDto(@NotNull UUID id, @NotNull Long studentId, @NotNull Long scheduleBlockId,
@@ -45,6 +79,16 @@ public class AttendanceController {
     public record Rejection(UUID id, String reason) {}
     public record SyncResult(int accepted, List<Rejection> rejected) {}
     public record SavedDto(UUID id, Long studentId, String status, String comment) {}
+
+    /** "sin registro" en vez de un nombre cuando no hay autor conocido: no se inventa un dato. */
+    public record DetalleDto(UUID id, Long studentId, String fullName, String documentId,
+                             String status, String comment,
+                             String recordedByName, Instant recordedAt,
+                             String editedByName, Instant editedAt) {}
+
+    public record EditarDto(@NotBlank String status, String comment) {}
+
+    private static final Set<String> ESTADOS = Set.of("P", "T", "F", "E");
 
     @PostMapping("/sync")
     public SyncResult sync(@Valid @RequestBody SyncRequest req) {
@@ -67,8 +111,39 @@ public class AttendanceController {
     @GetMapping
     public List<SavedDto> ofBlock(@RequestParam Long blockId,
                                   @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return repo.findByScheduleBlockIdAndClassDate(blockId, date).stream()
+        return repo.findByScheduleBlockIdAndClassDateAndDeletedAtIsNull(blockId, date).stream()
                 .map(a -> new SavedDto(a.getId(), a.getStudentId(), a.getStatus(), a.getComment()))
                 .toList();
+    }
+
+    /** Lo ya registrado para un bloque/fecha, con quien lo tomo y quien lo corrigio, para el panel de revision. */
+    @GetMapping("/detalle")
+    public List<DetalleDto> detalle(@RequestParam Long blockId,
+                                    @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return repo.detalle(blockId, date).stream()
+                .map(r -> new DetalleDto(r.getId(), r.getStudentId(), r.getFullName(), r.getDocumentId(),
+                        r.getStatus(), r.getComment(),
+                        r.getRecordedByName(), r.getRecordedAt(),
+                        r.getEditedByName(), r.getEditedAt()))
+                .toList();
+    }
+
+    @PutMapping("/{id}")
+    public void editar(@PathVariable UUID id, @Valid @RequestBody EditarDto body) {
+        if (!ESTADOS.contains(body.status())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Estado invalido: " + body.status());
+        }
+        var a = repo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Registro inexistente"));
+        exigirPermiso(a);
+        sync.editar(id, body.status(), body.comment(), JwtService.currentUserId());
+    }
+
+    @DeleteMapping("/{id}")
+    public void borrar(@PathVariable UUID id) {
+        var a = repo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Registro inexistente"));
+        exigirPermiso(a);
+        sync.borrar(id, JwtService.currentUserId());
     }
 }
