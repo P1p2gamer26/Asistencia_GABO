@@ -1,8 +1,11 @@
-import { render, screen } from '@testing-library/react';
+import 'fake-indexeddb/auto';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import Menu from './Menu';
+import { db } from '../db/local';
+import * as syncEngine from '../sync/engine';
 
 function sesion(role: string) {
   localStorage.setItem('ggm.session', JSON.stringify({
@@ -56,6 +59,29 @@ describe('Menu', () => {
     sesion('DOCENTE');
     pintar();
     expect(screen.getByRole('button', { name: /cerrar sesion/i })).toBeInTheDocument();
+  });
+
+  it('un docente ve el control de actualizar datos', () => {
+    sesion('DOCENTE');
+    pintar();
+    expect(screen.getByRole('button', { name: /actualizar datos/i })).toBeInTheDocument();
+  });
+
+  it('el administrador tambien ve el control de actualizar datos', () => {
+    sesion('ADMIN');
+    pintar();
+    expect(screen.getByRole('button', { name: /actualizar datos/i })).toBeInTheDocument();
+  });
+
+  it('al actualizar sincroniza y luego muestra la fecha de la ultima descarga', async () => {
+    sesion('DOCENTE');
+    await db.meta.clear();
+    vi.spyOn(syncEngine, 'downloadBootstrap').mockResolvedValue();
+    pintar();
+    await userEvent.click(screen.getByRole('button', { name: /actualizar datos/i }));
+    expect(syncEngine.downloadBootstrap).toHaveBeenCalled();
+    await waitFor(() => expect(screen.getByText(/datos descargados/i)).toBeInTheDocument());
+    expect(screen.getByText(/datos descargados/i).textContent).not.toMatch(/nunca/i);
   });
 
   it('en pantalla estrecha el menu se abre y se cierra', async () => {
