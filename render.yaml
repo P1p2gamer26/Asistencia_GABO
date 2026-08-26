@@ -10,6 +10,7 @@ services:
   - type: web
     name: asistencia-ggm
     runtime: docker
+    branch: main          # produccion sale SOLO de main; develop no despliega
     dockerfilePath: ./Dockerfile
     plan: free
     healthCheckPath: /actuator/health
