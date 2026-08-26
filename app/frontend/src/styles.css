@@ -191,6 +191,25 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 
 .camara { width: 100%; max-height: 50vh; background: #000; border-radius: var(--radio); }
 .ultimo { font-size: 1.25rem; font-weight: 700; font-family: var(--ui); color: var(--verde-oscuro); }
+
+/* Ficha (solo lectura) e ingresos del dia con editar/borrar, en la porteria. */
+.ficha { margin-top: var(--e4); padding-top: var(--e3); border-top: 1px solid var(--rejilla); }
+.ficha-datos { display: grid; grid-template-columns: 1fr 1fr; gap: var(--e1) var(--e3);
+               margin: var(--e2) 0; }
+.ficha-datos > div { display: flex; flex-direction: column; }
+.ficha-datos dt { font-size: .7rem; text-transform: uppercase; letter-spacing: .08em;
+                  color: var(--tinta-mute); }
+.ficha-datos dd { margin: 0; font-weight: 600; }
+.ingresos-dia { margin-top: var(--e4); }
+.acciones-fila { display: flex; gap: var(--e1); align-items: center; margin-left: auto; }
+.acciones-fila .hora { font-variant-numeric: tabular-nums; font-weight: 700;
+                       color: var(--verde-oscuro); }
+.acciones-fila input[type='time'] { width: auto; padding: 6px 8px; }
+.acciones-fila button { min-height: 40px; padding: 6px 10px; font-size: .8rem; }
+@media (max-width: 480px) {
+  .ficha-datos { grid-template-columns: 1fr; }
+  .acciones-fila { margin-left: 0; width: 100%; flex-wrap: wrap; }
+}
 .novedades { list-style: none; padding: 0; }
 .novedades li { padding: var(--e2) 0; border-bottom: 1px solid var(--rejilla); }
 .novedades em { color: var(--tinta-suave); }
