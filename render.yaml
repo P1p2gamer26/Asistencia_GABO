@@ -1,6 +1,11 @@
-# Blueprint de Render: un servicio web (imagen del Dockerfile) + PostgreSQL gestionado.
-# Crear en Render con "New > Blueprint" apuntando a este repo. Provisiona todo solo:
-# no hay que copiar cadenas de conexion a mano.
+# Blueprint de Render: solo el servicio web (imagen del Dockerfile).
+# La base de datos vive en Supabase (PostgreSQL gestionado, con backups).
+# Los valores DB_* se ponen en el dashboard de Render (marcados sync:false):
+#   DB_URL      jdbc:postgresql://<host-pooler>:5432/postgres?sslmode=require
+#   DB_USER     postgres.<referencia-del-proyecto>
+#   DB_PASSWORD <la clave del proyecto Supabase>
+# Usar la cadena del Session pooler (puerto 5432), NO la del Transaction pooler (6543):
+# esa ultima rompe los prepared statements de Hibernate de forma intermitente.
 services:
   - type: web
     name: asistencia-ggm
@@ -9,24 +14,13 @@ services:
     plan: free
     healthCheckPath: /actuator/health
     envVars:
-      # Render arma la URL JDBC a partir de estas partes (ver application.yml).
-      - key: DB_HOST
-        fromDatabase: { name: asistencia-db, property: host }
-      - key: DB_PORT
-        fromDatabase: { name: asistencia-db, property: port }
-      - key: DB_NAME
-        fromDatabase: { name: asistencia-db, property: database }
+      - key: DB_URL
+        sync: false
       - key: DB_USER
-        fromDatabase: { name: asistencia-db, property: user }
+        sync: false
       - key: DB_PASSWORD
-        fromDatabase: { name: asistencia-db, property: password }
+        sync: false
       - key: JWT_SECRET
         generateValue: true          # secreto aleatorio, distinto del de desarrollo
       - key: NOTIFY_ENABLED
         value: "false"
-
-databases:
-  - name: asistencia-db
-    plan: free
-    databaseName: asistencia
-    user: asistencia
