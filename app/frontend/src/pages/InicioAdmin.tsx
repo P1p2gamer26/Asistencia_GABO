@@ -112,13 +112,32 @@ export default function InicioAdmin() {
   }, []);
 
   const faltan = hoy ? hoy.bloquesEsperados - hoy.bloquesMarcados : 0;
+  // mesPorCurso ya viene de peor a mejor y los cursos sin registros van al final.
+  const peorCurso = hoy?.mesPorCurso.find((c) => !c.sinRegistros) ?? null;
 
   return (
     <main className="card ancha">
       <div className="cabecera-inicio">
-        <div>
+        <div className="cabecera-texto">
           <p className="meta">Hola, {getSession()?.fullName}</p>
           <h1>{hoy ? fechaLarga(hoy.fecha) : 'Hoy'}</h1>
+
+          {/* El resumen en prosa: lo que uno le contaria a rectoria en dos frases,
+              sin tener que leer la tabla de abajo. */}
+          {hoy && (
+            <p className="cabecera-resumen">
+              {hoy.lectivo
+                ? <>Hoy es dia lectivo. Se esperan <strong>{hoy.bloquesEsperados}</strong> llamados
+                    de lista y van <strong>{hoy.bloquesMarcados}</strong>
+                    {faltan > 0 ? <> — faltan <strong>{faltan}</strong> por reportar.</> : '.'}</>
+                : <>Sin clases en el calendario de este dia: lo de abajo es el acumulado del mes.</>}
+              {' '}En los <strong>{hoy.mesDiasLectivos}</strong> dias lectivos del mes la asistencia
+              va en <strong>{hoy.mesAsistencia.toFixed(1)} %</strong>, con{' '}
+              <strong>{hoy.mesAusentes}</strong> ausencias, <strong>{hoy.mesEvasiones}</strong>{' '}
+              evasiones y <strong>{hoy.mesTarde}</strong> llegadas tarde.
+              {peorCurso && <> El curso que va mas atras es <strong>{peorCurso.grade}</strong>.</>}
+            </p>
+          )}
         </div>
         {hoy && hoy.mesPorDia?.length > 0 && (
           <div className="cabecera-grafica">

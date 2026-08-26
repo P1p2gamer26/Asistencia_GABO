@@ -70,10 +70,10 @@ describe('InicioAdmin', () => {
   it('muestra el mes con sus totales y el desglose por curso', async () => {
     vi.stubGlobal('fetch', mockFetch());
     pintar();
-    await waitFor(() => expect(screen.getByText(/94.6/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText(/94.6/).length).toBeGreaterThan(0));
     expect(screen.getByText(/16 dias lectivos/i)).toBeInTheDocument();
     expect(screen.getByText('900')).toBeInTheDocument(); // presentes del mes
-    expect(screen.getByText('601')).toBeInTheDocument();
+    expect(screen.getAllByText('601').length).toBeGreaterThan(0);
     expect(screen.getByText('602')).toBeInTheDocument();
   });
 
@@ -124,10 +124,10 @@ describe('InicioAdmin', () => {
       presentes: 0, tarde: 0, ausentes: 0, evasiones: 0, ingresos: 0,
     }));
     pintar();
-    await waitFor(() => expect(screen.getByText(/hoy no hay clase/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/hoy no hay clase/i));
     expect(screen.queryByText(/0 de 0/)).not.toBeInTheDocument();
     // La pantalla no se queda vacia un sabado: el mes y las novedades siguen.
-    expect(screen.getByText(/94.6/)).toBeInTheDocument();
+    expect(screen.getAllByText(/94.6/).length).toBeGreaterThan(0);
     await waitFor(() => expect(screen.getByText('Juan Perez')).toBeInTheDocument());
   });
 

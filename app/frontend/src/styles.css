@@ -404,22 +404,40 @@ tbody tr:hover { background: #fbfaf4; }
 @media (max-width: 62rem) { .asistencia-2col { grid-template-columns: minmax(0, 34rem); } }
 .sesiones-lista { list-style: none; padding: 0; margin: var(--e3) 0 0; }
 .sesiones-lista li { border-bottom: 1px solid var(--rejilla); }
-.sesiones-lista button {
-  width: 100%; text-align: left; background: none; border: 0; color: inherit;
-  padding: var(--e2) 4px; display: grid; gap: 2px;
+.sesiones-lista a {
+  display: grid; gap: 2px; padding: var(--e2) 4px; color: inherit; text-decoration: none;
+  border-radius: var(--radio-s); transition: background .12s;
 }
-.sesiones-lista button { cursor: pointer; border-radius: var(--radio-s); transition: background .12s; }
-.sesiones-lista button:hover { background: var(--fondo); }
-.sesiones-lista button:hover strong { color: var(--verde-oscuro); text-decoration: underline; }
-.salon-abierto .volver { min-height: 34px; padding: 4px 10px; margin-bottom: var(--e2); }
+.sesiones-lista a:hover { background: var(--fondo); }
+.sesiones-lista a:hover strong { color: var(--verde-oscuro); text-decoration: underline; }
+.resumen-salon { margin-bottom: var(--e3); }
 
-/* Cabecera del inicio: saludo a la izquierda y la grafica del mes al lado, en el
-   hueco que antes quedaba vacio. En el telefono, una debajo de la otra. */
-.cabecera-inicio { display: flex; align-items: center; gap: var(--e4); flex-wrap: wrap; }
+/* Cabecera del inicio: el saludo a la izquierda y la grafica del mes pegada a la
+   derecha, ocupando el hueco que quedaba vacio. En el telefono, una debajo de otra. */
+.cabecera-inicio {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--e4); flex-wrap: wrap; margin-bottom: var(--e3);
+}
 .cabecera-inicio h1 { margin: 0; }
-.cabecera-grafica { flex: 1 1 20rem; max-width: 26rem; }
-.cabecera-grafica h3 { margin: 0 0 2px; font-size: .85rem; color: var(--tinta-suave); }
+.cabecera-texto { flex: 1 1 22rem; max-width: 32rem; }
+.cabecera-resumen { margin: var(--e2) 0 0; color: var(--tinta-suave); line-height: 1.5; }
+.cabecera-resumen strong { color: var(--tinta); }
+.cabecera-grafica {
+  flex: 1 1 24rem; max-width: 34rem; margin-left: auto;
+  background: var(--fondo); border: 1px solid var(--rejilla);
+  border-radius: var(--radio); padding: var(--e2) var(--e3) 4px;
+}
+.cabecera-grafica h3 {
+  margin: 0; font-size: .8rem; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--tinta-suave);
+}
 .lineas-novedades { margin: 0; }
-.lineas-novedades figcaption { display: flex; gap: 8px; font-size: .72rem; min-height: 1.2em; }
-.lineas-novedades figcaption i { display: inline-block; width: 8px; height: 8px;
-  border-radius: 2px; margin-right: 3px; vertical-align: middle; }
+.lineas-novedades figcaption {
+  display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: .78rem;
+  color: var(--tinta-suave); min-height: 1.4em; padding-bottom: 4px;
+}
+.lineas-novedades figcaption i {
+  display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+  margin-right: 5px; vertical-align: middle;
+}
+.lineas-novedades .detalle-dia { display: flex; flex-wrap: wrap; gap: 4px 12px; }
