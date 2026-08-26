@@ -67,4 +67,22 @@ describe('BarraOffline', () => {
     render(<BarraOffline />);
     expect(await screen.findByText(/se descargaron hace 7 dias/)).toBeTruthy();
   });
+
+  it('tras una descarga exitosa sin marcar nada, deja de decir que no hay datos al recuperar visibilidad', async () => {
+    // pendientes y alcanzable no cambian (la cola sigue vacia): el unico disparador
+    // honesto disponible aqui es el evento de visibilidad, igual que en produccion.
+    mockEstado.pendientes = 0;
+    mockEstado.alcanzable = true;
+    mockDatos.dias = null as unknown as number;
+    mockDatos.estudiantes = 0;
+    render(<BarraOffline />);
+    expect(await screen.findByText(/No hay datos descargados/)).toBeTruthy();
+
+    // downloadBootstrap tuvo exito en Menu.tsx: ya hay estudiantes.
+    mockDatos.dias = 0;
+    mockDatos.estudiantes = 10;
+    document.dispatchEvent(new Event('visibilitychange'));
+
+    await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
+  });
 });
