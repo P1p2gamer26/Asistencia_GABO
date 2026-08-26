@@ -122,7 +122,7 @@ migración nueva llega a producción en el siguiente despliegue**.
 ### Datos de demostración (solo en local)
 
 ```powershell
-& "C:\Program Files\PostgreSQLin\psql.exe" -U postgres -d asistencia -f tools/datos-colegio.sql
+& "C:\Program Files\PostgreSQL\16\bin\psql.exe" -U postgres -d asistencia -f tools/datos-colegio.sql
 ```
 
 Siembra 12 cursos (`0A` a `11A`) con 25 estudiantes cada uno, 12 docentes con su
