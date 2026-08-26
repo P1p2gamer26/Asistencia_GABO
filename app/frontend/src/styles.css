@@ -421,6 +421,17 @@ tbody tr:hover { background: #fbfaf4; }
 }
 .asistencia-2col > .card { margin-left: 0; margin-right: 0; max-width: none; }
 @media (max-width: 62rem) { .asistencia-2col { grid-template-columns: minmax(0, 34rem); } }
+
+/* Panel "Asistencia registrada": abierto de fijo en escritorio (el summary es solo el
+   titulo); plegable y con flecha en movil, para que no quede sepultado bajo la lista. */
+.registradas summary { cursor: pointer; list-style: none; }
+.registradas summary::-webkit-details-marker { display: none; }
+@media (max-width: 62rem) {
+  .registradas summary { position: relative; padding-right: 1.6rem; }
+  .registradas summary::after { content: '▾'; position: absolute; right: 2px; top: .1rem;
+                                color: var(--tinta-suave); font-size: 1rem; }
+  .registradas details[open] summary::after { content: '▴'; }
+}
 .sesiones-lista { list-style: none; padding: 0; margin: var(--e3) 0 0; }
 .sesiones-lista li { border-bottom: 1px solid var(--rejilla); }
 .sesiones-lista a {
