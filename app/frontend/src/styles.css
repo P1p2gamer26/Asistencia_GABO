@@ -500,3 +500,9 @@ tbody tr:hover { background: #fbfaf4; }
 }
 .barra-offline.sin-red { background: var(--ocre); color: #1b1b1b; }
 .barra-offline button { min-height: 32px; padding: 4px 12px; }
+
+/* La franja es "fixed": no reserva sitio por si sola y tapa el pie de la pantalla
+   (botones de enviar al final de listas largas). :has() deja que .contenido reserve
+   ese espacio solo mientras la franja este realmente montada, sin que ningun
+   componente tenga que poner ni quitar una clase a mano. */
+.contenido:has(.barra-offline) { padding-bottom: 52px; }
