@@ -5,7 +5,7 @@ import { isSchoolDay } from '../db/local';
 import { api } from '../api/client';
 import type { Block, StudentDto, Status, AttendanceSesion } from '../api/contract';
 import { ESTADOS } from '../api/contract';
-import { flushOutbox, markAttendance, pendingCount, startAutoSync } from '../sync/engine';
+import { downloadBootstrap, flushOutbox, markAttendance, pendingCount, startAutoSync } from '../sync/engine';
 import BannerEstado from '../components/BannerEstado';
 import SelectorFecha from '../components/SelectorFecha';
 import { ordenCurso } from '../lib/ordenCurso';
@@ -59,7 +59,17 @@ export default function TomarAsistencia() {
   const esMovil = useEsMovil();
 
   useEffect(() => {
-    void db.blocks.toArray().then(setBlocks);
+    // La copia local la llena downloadBootstrap en segundo plano; con 1200 estudiantes
+    // tarda, y antes esta pantalla leia los bloques vacios y no reintentaba (el Curso
+    // quedaba sin opciones). Si esta vacia, se descarga y se vuelve a leer.
+    void (async () => {
+      let locales = await db.blocks.toArray();
+      if (locales.length === 0) {
+        await downloadBootstrap().catch(() => {});
+        locales = await db.blocks.toArray();
+      }
+      setBlocks(locales);
+    })();
     void pendingCount().then(setPendientes);
     const detener = startAutoSync((p, a) => { setPendientes(p); setAlcanzable(a); });
     const cambio = () => setOnline(navigator.onLine);
