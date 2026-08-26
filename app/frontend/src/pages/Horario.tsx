@@ -7,8 +7,6 @@ type Bloque = {
   startTime: string; endTime: string; room?: string; teacherName?: string;
 };
 
-type Salones = { rooms: string[]; withoutRoom: number };
-
 const DIAS = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'];
 
 /** Dia de la semana de hoy en formato 1..5; 0 si es fin de semana. */
@@ -20,69 +18,38 @@ function diaDeHoy(): number {
 export default function Horario() {
   const [bloques, setBloques] = useState<Bloque[]>([]);
   const [curso, setCurso] = useState('');
-  const [salon, setSalon] = useState('');
-  const [salones, setSalones] = useState<Salones | null>(null);
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(true);
 
   const puedeVerCursos = ['COORDINADOR', 'ADMIN'].includes(getSession()?.role ?? '');
   const hoy = diaDeHoy();
 
-  // Util para coordinacion: saber si un aula esta libre a una hora o quien la usa.
-  // Mismo publico que el horario de un curso ajeno: expone cursos y docentes que no
-  // son los de quien pregunta.
-  useEffect(() => {
-    if (!puedeVerCursos) return;
-    api.get<Salones>('/api/schedule/rooms').then(setSalones).catch(() => {});
-  }, [puedeVerCursos]);
-
+  // Se navega por curso y no por salon: el horario del colegio se piensa por curso,
+  // y con un aula fija por curso la lista de salones era la misma lista dos veces.
   useEffect(() => {
     setCargando(true);
     setError('');
-    const params = salon ? `?room=${encodeURIComponent(salon)}`
-                 : curso ? `?grade=${encodeURIComponent(curso)}` : '';
+    const params = curso ? `?grade=${encodeURIComponent(curso)}` : '';
     api.get<Bloque[]>(`/api/schedule/week${params}`)
        .then(setBloques)
        .catch(() => setError('No se pudo cargar el horario. Requiere conexion.'))
        .finally(() => setCargando(false));
-  }, [curso, salon]);
+  }, [curso]);
 
   const numeros = [...new Set(bloques.map((b) => b.blockNo))].sort((a, b) => a - b);
 
   return (
     <main className="card ancha">
       <h1>
-        {salon ? `Horario del salon ${salon}`
-         : curso ? `Horario del curso ${curso}` : 'Mi horario'}
+        {curso ? `Horario del curso ${curso}` : 'Mi horario'}
       </h1>
 
       {puedeVerCursos && (
         <div className="leyenda" style={{ marginBottom: 12 }}>
           <label htmlFor="curso-horario">Ver el horario de un curso</label>
-          <input id="curso-horario" value={curso} placeholder="601 (vacio = el mio)"
-                 onChange={(e) => { setSalon(''); setCurso(e.target.value.trim()); }} />
+          <input id="curso-horario" value={curso} placeholder="6A (vacio = el mio)"
+                 onChange={(e) => setCurso(e.target.value.trim())} />
         </div>
-      )}
-
-      {puedeVerCursos && salones && (
-        <section className="salones" style={{ marginBottom: 12 }}>
-          <h2>Salones</h2>
-          <ul className="lista-salones">
-            {salones.rooms.map((r) => (
-              <li key={r}>
-                <button type="button" aria-pressed={salon === r}
-                        onClick={() => { setCurso(''); setSalon(salon === r ? '' : r); }}>
-                  {r}
-                </button>
-              </li>
-            ))}
-          </ul>
-          {salones.withoutRoom > 0 && (
-            <p className="meta">
-              {salones.withoutRoom} bloques sin aula asignada.
-            </p>
-          )}
-        </section>
       )}
 
       {error && <p role="alert" className="error">{error}</p>}
@@ -90,9 +57,7 @@ export default function Horario() {
 
       {!cargando && !error && bloques.length === 0 && (
         <p className="meta">
-          {salon
-            ? `El salon ${salon} no tiene bloques asignados en el horario.`
-            : curso
+          {curso
             ? `El curso ${curso} no tiene bloques asignados en el horario.`
             : 'No tiene bloques asignados en el horario. Avise a coordinacion.'}
         </p>
@@ -129,8 +94,8 @@ export default function Horario() {
                       <strong>{b.grade}</strong>
                       <span>{b.subject}</span>
                       {b.room && <small className="aula">{b.room}</small>}
-                      {b.teacherName && (curso || salon) && <small>{b.teacherName}</small>}
-                      {!curso && !salon && (
+                      {b.teacherName && curso && <small>{b.teacherName}</small>}
+                      {!curso && (
                         // El nombre accesible lleva el curso para distinguir el enlace
                         // entre varias celdas; el texto visible no repite el "601" que
                         // ya muestra el <strong> de arriba, o getByText(/601/) seria ambiguo.
