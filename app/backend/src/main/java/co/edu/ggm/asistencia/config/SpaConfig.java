@@ -15,5 +15,10 @@ public class SpaConfig implements WebMvcConfigurer {
     @Override
     public void addViewControllers(ViewControllerRegistry registry) {
         registry.addViewController("/{ruta:[^\\.]*}").setViewName("forward:/index.html");
+        // Un solo segmento no basta: /asistencia/:blockId/:fecha tiene tres, y al
+        // recargar esa URL el servidor devolvia el 404 del manejador de estaticos.
+        registry.addViewController("/{a:[^\\.]*}/{b:[^\\.]*}").setViewName("forward:/index.html");
+        registry.addViewController("/{a:[^\\.]*}/{b:[^\\.]*}/{c:[^\\.]*}")
+                .setViewName("forward:/index.html");
     }
 }
