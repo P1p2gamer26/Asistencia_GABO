@@ -3,10 +3,11 @@
 --
 --   psql -U postgres -d asistencia -f tools/datos-colegio.sql
 --
--- Reemplaza a tools/datos-locales.sql + tools/datos-realistas.sql, que sembraban
--- solo los cursos 601..607. BORRA esos datos de demostracion (estudiantes con
--- grade '6xx', sus docentes 'profe%' y todo lo que cuelgue de ellos). Los usuarios
--- reales del colegio (admin, coordinacion, docentes con correo propio) no se tocan.
+-- Es la unica siembra de demostracion del proyecto: reemplaza a datos-locales.sql,
+-- datos-realistas.sql, datos-casos-limite.sql y datos-estructura-real.sql, que iban
+-- contra los cursos 601..607. BORRA esos datos viejos si siguen en la base (cursos de
+-- tres digitos y sus docentes 'profe%'). Los usuarios reales del colegio (admin,
+-- coordinacion, docentes con correo propio) no se tocan.
 --
 -- Es idempotente: se puede repetir sin duplicar nada.
 
@@ -189,6 +190,36 @@ FROM students s
 JOIN users u ON u.email = 'acudiente.' || s.document_id || '@correo.com'
 ON CONFLICT (student_id, guardian_id) DO NOTHING;
 
+-- 8. Casos que la siembra normal no produce ---------------------------------------
+-- Un dato que nunca ocurre es una rama de codigo que nunca se prueba. Sin esto, en la
+-- base local habia CERO bloques sin reportar, CERO estudiantes retirados y CERO
+-- cursos sin registros, asi que varias pantallas no se podian ver funcionando.
+-- Vienen de tools/datos-casos-limite.sql, que iba contra los cursos 601..607.
+
+-- 11A no tiene NINGUN registro: es lo que distingue "curso que nadie marco" de
+-- "curso con 100 % de asistencia", dos cosas que en pantalla no pueden verse igual.
+DELETE FROM attendance a USING students s
+      WHERE s.id = a.student_id AND s.grade = '11A';
+
+-- Los bloques del ultimo dia lectivo de 10A quedan sin reportar: asi el inicio y las
+-- consultas tienen pendientes de verdad que mostrar.
+DELETE FROM attendance a
+ USING students s, schedule_blocks b
+      WHERE s.id = a.student_id AND b.id = a.schedule_block_id
+        AND s.grade = '10A'
+        AND a.class_date = (SELECT max(class_date) FROM attendance);
+
+-- Un estudiante retirado: sigue en la base con su historial, pero no aparece en las
+-- listas de clase. Sin uno, la diferencia entre active y borrado no se ve.
+UPDATE students SET active = FALSE
+ WHERE document_id = (SELECT min(document_id) FROM students WHERE grade = '9A');
+
+-- Una jornada institucional (sin clase) en medio del mes, para que el calendario y
+-- el aviso de "hoy no hay clase" tengan un caso real que mostrar.
+UPDATE school_calendar SET day_type = 'INSTITUCIONAL', description = 'Jornada pedagogica'
+ WHERE calendar_date = (SELECT max(class_date) - 7 FROM attendance)
+   AND day_type = 'LECTIVO';
+
 DROP TABLE semilla_par, semilla_cursos, semilla_nombres;
 ANALYZE;
 
@@ -201,4 +232,11 @@ UNION ALL SELECT 'presentes',   count(*) FROM attendance WHERE status = 'P'
 UNION ALL SELECT 'tarde',       count(*) FROM attendance WHERE status = 'T'
 UNION ALL SELECT 'ausencias',   count(*) FROM attendance WHERE status = 'F'
 UNION ALL SELECT 'evasiones',   count(*) FROM attendance WHERE status = 'E'
-UNION ALL SELECT 'acudientes',  count(*) FROM users WHERE role = 'ACUDIENTE';
+UNION ALL SELECT 'acudientes',  count(*) FROM users WHERE role = 'ACUDIENTE'
+UNION ALL SELECT 'retirados',   count(*) FROM students WHERE NOT active
+UNION ALL SELECT 'sin registros (cursos)',
+                 count(*) FROM (SELECT s.grade FROM students s
+                                 WHERE s.grade ~ '^[0-9]{1,2}A$'
+                                 GROUP BY s.grade
+                                HAVING count(*) FILTER (WHERE EXISTS
+                                       (SELECT 1 FROM attendance a WHERE a.student_id = s.id)) = 0) x;

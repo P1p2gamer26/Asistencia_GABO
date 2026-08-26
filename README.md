@@ -103,6 +103,44 @@ Con el backend arriba puedes correr la prueba de humo (requiere Git Bash / WSL):
 
 Usuarios semilla para probar (creados por las migraciones): docente `fpalacios@ggm.edu.co`, coordinación `coord@ggm.edu.co`, ambos con clave `cambiar123`.
 
+## Base local y base de producción
+
+Son dos bases distintas y **nunca** se tocan entre sí:
+
+| | Local (desarrollo) | Producción |
+|---|---|---|
+| Dónde | PostgreSQL en tu máquina | Supabase (gestionada, con backups) |
+| Nombre de la base | `asistencia` | `postgres` |
+| Quién despliega | nadie: la levantas tú | Render, al hacer push a `main` |
+| Datos de demostración | sí, con el script de abajo | **no**: solo lo que cargue el colegio |
+
+El script de siembra **aborta solo** si detecta que no está corriendo contra la base
+`asistencia`, así que pegar por error la cadena de Supabase no puede vaciar el colegio.
+Las migraciones de Flyway sí corren en ambas al arrancar el backend: **cualquier
+migración nueva llega a producción en el siguiente despliegue**.
+
+### Datos de demostración (solo en local)
+
+```powershell
+& "C:\Program Files\PostgreSQLin\psql.exe" -U postgres -d asistencia -f tools/datos-colegio.sql
+```
+
+Siembra 12 cursos (`0A` a `11A`) con 25 estudiantes cada uno, 12 docentes con su
+materia, el horario de 7:00 a 1:30 (6 bloques de 60 minutos, descanso de 10:00 a 10:30),
+los acudientes y la asistencia del mes. Incluye a propósito los casos raros que si no
+nunca se pueden ver: un curso sin ningún registro, bloques sin reportar, un estudiante
+retirado y una jornada institucional. Es idempotente: repetirlo da exactamente lo mismo.
+
+| Usuario | Clave | Rol |
+|---|---|---|
+| `admin@ggm.edu.co` | `cambiar123` | administración |
+| `coord@ggm.edu.co` | `cambiar123` | coordinación |
+| `docente01@ggm.edu.co` … `docente12@ggm.edu.co` | `cambiar123` | docentes |
+| `acudiente.<documento>@correo.com` | `cambiar123` | acudientes |
+
+Para medir rendimiento con 620.000 registros está `tools/datos-de-carga.sql`, que va
+contra la base aparte `asistencia_carga` (ver `app/README.md`).
+
 ## Pendientes y Mejoras: Sistema de Registro de Asistencia
 
 **Estado Actual:** La aplicación ya filtra estudiantes por curso, permite marcar la asistencia (P, T, F, E) y guarda los registros en Excel con la hora local ajustada y el correo del profesor.
