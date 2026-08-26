@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { db } from '../db/local';
 import { isSchoolDay } from '../db/local';
 import { api } from '../api/client';
-import type { Block, StudentDto, Status, AttendanceDetalle, AttendanceSesion } from '../api/contract';
+import type { Block, StudentDto, Status, AttendanceSesion } from '../api/contract';
 import { ESTADOS } from '../api/contract';
 import { flushOutbox, markAttendance, pendingCount, startAutoSync } from '../sync/engine';
 import BannerEstado from '../components/BannerEstado';
@@ -41,15 +41,6 @@ export default function TomarAsistencia() {
 
   // Panel lateral: las ultimas tomas de lista y, de la elegida, el detalle editable.
   const [sesiones, setSesiones] = useState<AttendanceSesion[]>([]);
-  // La sesion abierta reemplaza la lista por el salon completo: los 25 nombres con su
-  // estado, editables uno a uno. Volver deja la lista otra vez.
-  const [sesionAbierta, setSesionAbierta] = useState<AttendanceSesion | null>(null);
-  const [registros, setRegistros] = useState<AttendanceDetalle[]>([]);
-  const [cargandoRegistros, setCargandoRegistros] = useState(false);
-  const [errorRegistros, setErrorRegistros] = useState('');
-  const [editando, setEditando] = useState<string | null>(null);
-  const [edStatus, setEdStatus] = useState<Status>('P');
-  const [edComment, setEdComment] = useState('');
 
   useEffect(() => {
     void db.blocks.toArray().then(setBlocks);
@@ -73,8 +64,6 @@ export default function TomarAsistencia() {
       .catch(() => setSesiones([]));   // sin conexion el panel queda vacio, no rompe la planilla
   }, [pendientes]);
 
-  // El panel derecho sigue al bloque/fecha elegidos a la izquierda.
-  useEffect(() => { void cargarRegistros(); }, [blockId, fecha]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // Se llega aqui desde el horario con ?bloque=N. Se preselecciona el curso y el bloque
   // para que el docente no tenga que buscarlos otra vez.
@@ -205,47 +194,6 @@ export default function TomarAsistencia() {
     }
   }
 
-  async function cargarRegistros() {
-    if (!blockId) { setRegistros([]); return; }
-    setCargandoRegistros(true);
-    setErrorRegistros('');
-    try {
-      const filas = await api.get<AttendanceDetalle[]>(
-        `/api/attendance/detalle?blockId=${blockId}&date=${fecha}`);
-      setRegistros(filas);
-    } catch (e) {
-      setErrorRegistros(e instanceof Error ? e.message : 'No se pudo cargar lo registrado');
-    } finally {
-      setCargandoRegistros(false);
-    }
-  }
-
-  function editarDesde(r: AttendanceDetalle) {
-    setEditando(r.id);
-    setEdStatus(r.status);
-    setEdComment(r.comment ?? '');
-  }
-
-  async function guardarEdicion(id: string) {
-    try {
-      await api.put(`/api/attendance/${id}`, { status: edStatus, comment: edComment || undefined });
-      setEditando(null);
-      await cargarRegistros();
-    } catch (e) {
-      setErrorRegistros(e instanceof Error ? e.message : 'No se pudo editar');
-    }
-  }
-
-  async function borrarRegistro(r: AttendanceDetalle) {
-    if (!window.confirm(`¿Borrar la asistencia de ${r.fullName}? Queda registro de quien la borro.`)) return;
-    try {
-      await api.delete(`/api/attendance/${r.id}`);
-      await cargarRegistros();
-    } catch (e) {
-      setErrorRegistros(e instanceof Error ? e.message : 'No se pudo borrar');
-    }
-  }
-
   return (
    <div className="asistencia-2col">
     <main className="card">
@@ -331,116 +279,24 @@ export default function TomarAsistencia() {
       <span className="eyebrow">Ultimos llamados de lista</span>
       <h2>Asistencia registrada</h2>
 
-      {sesionAbierta === null && sesiones.length === 0 && (
-        <p className="meta">Todavia no hay tomas de lista registradas.</p>
-      )}
+      {sesiones.length === 0 && <p className="meta">Todavia no hay tomas de lista registradas.</p>}
 
-      {sesionAbierta === null && (
-        <ul className="sesiones-lista">
-          {sesiones.map((se) => (
-            <li key={`${se.blockId}-${se.classDate}`}>
-              <button type="button"
-                      onClick={() => {
-                        setSesionAbierta(se);
-                        setGrade(se.grade); setBlockId(se.blockId); setFecha(se.classDate);
-                      }}>
-                <strong>{se.grade} · Bloque {se.blockNo}{se.subject ? ` · ${se.subject}` : ''}</strong>
-                <small className="meta">
-                  {new Date(`${se.classDate}T00:00`).toLocaleDateString('es-CO')} · {se.total} estudiantes
-                  {se.recordedByName ? ` · ${se.recordedByName}` : ''}
-                </small>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <ul className="sesiones-lista">
+        {sesiones.map((se) => (
+          <li key={`${se.blockId}-${se.classDate}`}>
+            <Link to={`/asistencia/${se.blockId}/${se.classDate}`
+                     + `?curso=${se.grade}&bloque=${se.blockNo}`
+                     + `&materia=${encodeURIComponent(se.subject ?? '')}`}>
+              <strong>{se.grade} · Bloque {se.blockNo}{se.subject ? ` · ${se.subject}` : ''}</strong>
+              <small className="meta">
+                {new Date(`${se.classDate}T00:00`).toLocaleDateString('es-CO')} · {se.total} estudiantes
+                {se.recordedByName ? ` · ${se.recordedByName}` : ''}
+              </small>
+            </Link>
+          </li>
+        ))}
+      </ul>
 
-      {sesionAbierta !== null && (
-        <div className="salon-abierto">
-          <button type="button" className="secundario volver"
-                  onClick={() => setSesionAbierta(null)}>
-            ← Volver a la lista
-          </button>
-          <p className="meta">
-            <strong>{sesionAbierta.grade} · Bloque {sesionAbierta.blockNo}
-            {sesionAbierta.subject ? ` · ${sesionAbierta.subject}` : ''}</strong><br />
-            {new Date(`${sesionAbierta.classDate}T00:00`).toLocaleDateString('es-CO')}
-            {sesionAbierta.recordedByName ? ` · tomo la lista ${sesionAbierta.recordedByName}` : ''}
-          </p>
-        <div className="registrados">
-
-
-          {!online && (
-            <p className="meta">
-              Sin conexion se puede consultar lo ya sincronizado, pero editar o borrar
-              requiere conexion: no se guardaria en una cola local.
-            </p>
-          )}
-          {cargandoRegistros && <p className="meta">Cargando...</p>}
-          {errorRegistros && <p role="alert" className="error">{errorRegistros}</p>}
-
-          {!cargandoRegistros && registros.length === 0 && !errorRegistros && (
-            <p className="meta">Todavia no hay nada registrado en el servidor para este bloque y fecha.</p>
-          )}
-
-          <ul className="registros-lista">
-            {registros.map((r) => (
-              <li key={r.id}>
-                {editando === r.id ? (
-                  <div className="registro-edicion">
-                    <strong>{r.fullName}</strong>
-                    <select value={edStatus} aria-label={`Nuevo estado de ${r.fullName}`}
-                            onChange={(e) => setEdStatus(e.target.value as Status)}>
-                      {ESTADOS.map((e) => <option key={e.valor} value={e.valor}>{e.etiqueta}</option>)}
-                    </select>
-                    <input type="text" maxLength={280} placeholder="Motivo (opcional)"
-                           aria-label={`Motivo editado de ${r.fullName}`}
-                           value={edComment} onChange={(e) => setEdComment(e.target.value)} />
-                    <div className="registro-acciones">
-                      <button type="button" onClick={() => void guardarEdicion(r.id)} disabled={!online}>
-                        Guardar
-                      </button>
-                      <button type="button" className="secundario" onClick={() => setEditando(null)}>
-                        Cancelar
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="nombre">
-                      <strong>{r.fullName}</strong>
-                      <small>ID {r.documentId}</small>
-                    </div>
-                    <span className={`estado-punto ${r.status}`}>
-                      {ESTADOS.find((e) => e.valor === r.status)?.etiqueta}
-                    </span>
-                    {r.comment && <small className="meta">{r.comment}</small>}
-                    <small className="meta">
-                      Registro: {r.recordedByName ?? 'sin registro'} · {new Date(r.recordedAt).toLocaleString('es-CO')}
-                    </small>
-                    {r.editedAt && (
-                      <small className="meta">
-                        Editado: {r.editedByName ?? 'sin registro'} · {new Date(r.editedAt).toLocaleString('es-CO')}
-                      </small>
-                    )}
-                    <div className="registro-acciones">
-                      <button type="button" className="secundario" disabled={!online}
-                              onClick={() => editarDesde(r)}>
-                        Editar
-                      </button>
-                      <button type="button" className="secundario" disabled={!online}
-                              onClick={() => void borrarRegistro(r)}>
-                        Borrar
-                      </button>
-                    </div>
-                  </>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-        </div>
-      )}
     </aside>
    </div>
   );

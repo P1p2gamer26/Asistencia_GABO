@@ -4,6 +4,7 @@ import { getSession } from './api/client';
 // Track B rellena estos:
 import Login from './pages/Login';
 import TomarAsistencia from './pages/TomarAsistencia';
+import RegistroClase from './pages/RegistroClase';
 import Ingreso from './pages/Ingreso';
 // Track C rellena estos:
 import Consultas from './pages/Consultas';
@@ -65,6 +66,8 @@ export default function App() {
           nadie: estas dos rutas son de personal del colegio, no de familias. */}
       <Route path="/asistencia"
              element={<SoloRoles roles={PERSONAL}><TomarAsistencia /></SoloRoles>} />
+      <Route path="/asistencia/:blockId/:fecha"
+             element={<SoloRoles roles={PERSONAL}><RegistroClase /></SoloRoles>} />
       <Route path="/ingreso"
              element={<SoloRoles roles={PERSONAL}><Ingreso /></SoloRoles>} />
       <Route path="/consultas"
