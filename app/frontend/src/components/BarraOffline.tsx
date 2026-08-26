@@ -11,7 +11,16 @@ export default function BarraOffline() {
   const [datos, setDatos] = useState<{ dias: number | null; estudiantes: number } | null>(null);
 
   useEffect(() => {
-    void estadoDeDatos().then((e) => setDatos({ dias: e.dias, estudiantes: e.estudiantes }));
+    const consultar = () => {
+      void estadoDeDatos().then((e) => setDatos({ dias: e.dias, estudiantes: e.estudiantes }));
+    };
+    consultar();
+    // pendientes==0 y alcanzable==true no cambian cuando la cola ya esta vacia (flush
+    // corta antes de tocar la red), asi que una descarga exitosa sin marcar nada no
+    // dispara este efecto por si sola. Se vuelve a consultar al desbloquear el
+    // telefono, que es cuando Menu ya tuvo ocasion de llamar downloadBootstrap.
+    document.addEventListener('visibilitychange', consultar);
+    return () => document.removeEventListener('visibilitychange', consultar);
   }, [pendientes]);
 
   // Sin copia local no se puede tomar lista: es mas grave que tener cola pendiente.
