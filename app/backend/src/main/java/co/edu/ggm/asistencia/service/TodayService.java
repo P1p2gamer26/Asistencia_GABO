@@ -26,13 +26,18 @@ public class TodayService {
     public record CursoMes(String grade, int present, int late, int absent, int evasion,
                            double attendanceRate, boolean sinRegistros) {}
 
+    /** Un dia del mes en la grafica del inicio. Los ausentes se cuentan por estudiante,
+     * no por bloque: quien falta el dia entero falta a seis clases y seria un pico falso. */
+    public record DiaMes(LocalDate classDate, int late, int absent, int evasion) {}
+
     public record ResumenDeHoy(boolean lectivo, LocalDate fecha,
                                int bloquesEsperados, int bloquesMarcados,
                                int presentes, int tarde, int ausentes, int evasiones,
                                int ingresos,
                                double mesAsistencia, int mesDiasLectivos,
                                int mesPresentes, int mesTarde, int mesAusentes, int mesEvasiones,
-                               List<CursoMes> mesPorCurso) {}
+                               List<CursoMes> mesPorCurso,
+                               List<DiaMes> mesPorDia) {}
 
     public ResumenDeHoy resumen(LocalDate dia) {
         boolean lectivo = calendar.isSchoolDay(dia);
@@ -74,9 +79,13 @@ public class TodayService {
                         .thenComparing(CursoMes::attendanceRate))
                 .toList();
 
+        List<DiaMes> mesPorDia = repo.novedadesPorDia(inicioMes, dia).stream()
+                .map(d -> new DiaMes(d.getClassDate(), d.getLate(), d.getAbsent(), d.getEvasion()))
+                .toList();
+
         return new ResumenDeHoy(lectivo, dia, esperados, marcados,
                 c.getPresentes(), c.getTarde(), c.getAusentes(), c.getEvasiones(),
                 repo.countEntries(dia), asistenciaMes, diasLectivosMes,
-                presentesMes, tardeMes, ausentesMes, evasionesMes, mesPorCurso);
+                presentesMes, tardeMes, ausentesMes, evasionesMes, mesPorCurso, mesPorDia);
     }
 }

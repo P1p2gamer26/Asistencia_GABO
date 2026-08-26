@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { db } from '../db/local';
 import { isSchoolDay } from '../db/local';
 import { api } from '../api/client';
-import type { Block, StudentDto, Status, AttendanceDetalle } from '../api/contract';
+import type { Block, StudentDto, Status, AttendanceDetalle, AttendanceSesion } from '../api/contract';
 import { ESTADOS } from '../api/contract';
 import { flushOutbox, markAttendance, pendingCount, startAutoSync } from '../sync/engine';
 import BannerEstado from '../components/BannerEstado';
@@ -39,9 +39,11 @@ export default function TomarAsistencia() {
   const [error, setError] = useState('');
   const [avisoCarga, setAvisoCarga] = useState('');
 
-  // Panel "Ver asistencia registrada": va detras de un <details> para no pesar el flujo
-  // normal de tomar lista, que es la pantalla mas usada del sistema. Solo se pide al
-  // servidor cuando el docente lo abre.
+  // Panel lateral: las ultimas tomas de lista y, de la elegida, el detalle editable.
+  const [sesiones, setSesiones] = useState<AttendanceSesion[]>([]);
+  // La sesion abierta reemplaza la lista por el salon completo: los 25 nombres con su
+  // estado, editables uno a uno. Volver deja la lista otra vez.
+  const [sesionAbierta, setSesionAbierta] = useState<AttendanceSesion | null>(null);
   const [registros, setRegistros] = useState<AttendanceDetalle[]>([]);
   const [cargandoRegistros, setCargandoRegistros] = useState(false);
   const [errorRegistros, setErrorRegistros] = useState('');
@@ -64,6 +66,15 @@ export default function TomarAsistencia() {
   }, []);
 
   useEffect(() => { void isSchoolDay(fecha).then(setLectivo); }, [fecha]);
+
+  useEffect(() => {
+    void api.get<AttendanceSesion[]>('/api/attendance/recientes')
+      .then(setSesiones)
+      .catch(() => setSesiones([]));   // sin conexion el panel queda vacio, no rompe la planilla
+  }, [pendientes]);
+
+  // El panel derecho sigue al bloque/fecha elegidos a la izquierda.
+  useEffect(() => { void cargarRegistros(); }, [blockId, fecha]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // Se llega aqui desde el horario con ?bloque=N. Se preselecciona el curso y el bloque
   // para que el docente no tenga que buscarlos otra vez.
@@ -195,7 +206,7 @@ export default function TomarAsistencia() {
   }
 
   async function cargarRegistros() {
-    if (!blockId) return;
+    if (!blockId) { setRegistros([]); return; }
     setCargandoRegistros(true);
     setErrorRegistros('');
     try {
@@ -236,6 +247,7 @@ export default function TomarAsistencia() {
   }
 
   return (
+   <div className="asistencia-2col">
     <main className="card">
       <BannerEstado online={online} alcanzable={alcanzable} pendientes={pendientes} onSincronizar={enviar} />
 
@@ -313,11 +325,50 @@ export default function TomarAsistencia() {
         Enviar asistencia ({students.length})
       </button>
 
-      {blockId !== null && (
-        <details className="registrados" onToggle={(e) => {
-          if ((e.target as HTMLDetailsElement).open) void cargarRegistros();
-        }}>
-          <summary>Ver, editar o borrar lo ya registrado</summary>
+    </main>
+
+    <aside className="card">
+      <span className="eyebrow">Ultimos llamados de lista</span>
+      <h2>Asistencia registrada</h2>
+
+      {sesionAbierta === null && sesiones.length === 0 && (
+        <p className="meta">Todavia no hay tomas de lista registradas.</p>
+      )}
+
+      {sesionAbierta === null && (
+        <ul className="sesiones-lista">
+          {sesiones.map((se) => (
+            <li key={`${se.blockId}-${se.classDate}`}>
+              <button type="button"
+                      onClick={() => {
+                        setSesionAbierta(se);
+                        setGrade(se.grade); setBlockId(se.blockId); setFecha(se.classDate);
+                      }}>
+                <strong>{se.grade} · Bloque {se.blockNo}{se.subject ? ` · ${se.subject}` : ''}</strong>
+                <small className="meta">
+                  {new Date(`${se.classDate}T00:00`).toLocaleDateString('es-CO')} · {se.total} estudiantes
+                  {se.recordedByName ? ` · ${se.recordedByName}` : ''}
+                </small>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {sesionAbierta !== null && (
+        <div className="salon-abierto">
+          <button type="button" className="secundario volver"
+                  onClick={() => setSesionAbierta(null)}>
+            ← Volver a la lista
+          </button>
+          <p className="meta">
+            <strong>{sesionAbierta.grade} · Bloque {sesionAbierta.blockNo}
+            {sesionAbierta.subject ? ` · ${sesionAbierta.subject}` : ''}</strong><br />
+            {new Date(`${sesionAbierta.classDate}T00:00`).toLocaleDateString('es-CO')}
+            {sesionAbierta.recordedByName ? ` · tomo la lista ${sesionAbierta.recordedByName}` : ''}
+          </p>
+        <div className="registrados">
+
 
           {!online && (
             <p className="meta">
@@ -387,8 +438,10 @@ export default function TomarAsistencia() {
               </li>
             ))}
           </ul>
-        </details>
+        </div>
+        </div>
       )}
-    </main>
+    </aside>
+   </div>
   );
 }

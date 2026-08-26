@@ -45,6 +45,33 @@ public interface AttendanceRepository extends JpaRepository<Attendance, UUID> {
             """, nativeQuery = true)
     List<DetalleRow> detalle(@Param("blockId") Long blockId, @Param("classDate") LocalDate classDate);
 
+    interface SesionRow {
+        Long getBlockId(); String getGrade(); Short getBlockNo(); String getSubject();
+        LocalDate getClassDate(); Long getTotal(); String getRecordedByName(); Instant getLastRecordedAt();
+    }
+
+    /**
+     * Las ultimas tomas de asistencia (una fila por bloque+fecha) para el panel lateral.
+     * teacherId NULL = sin filtro: coordinacion y administracion ven las de todos.
+     */
+    @Query(value = """
+            SELECT a.schedule_block_id AS blockId, sb.grade AS grade, sb.block_no AS blockNo,
+                   su.name AS subject, a.class_date AS classDate,
+                   count(*) AS total,
+                   min(ru.full_name) AS recordedByName,
+                   max(a.recorded_at) AS lastRecordedAt
+              FROM attendance a
+              JOIN schedule_blocks sb ON sb.id = a.schedule_block_id
+              LEFT JOIN subjects su ON su.id = sb.subject_id
+              LEFT JOIN users ru ON ru.id = a.recorded_by
+             WHERE a.deleted_at IS NULL
+               AND (:teacherId IS NULL OR sb.teacher_id = :teacherId)
+             GROUP BY a.schedule_block_id, sb.grade, sb.block_no, su.name, a.class_date
+             ORDER BY a.class_date DESC, max(a.recorded_at) DESC
+             LIMIT :limite
+            """, nativeQuery = true)
+    List<SesionRow> ultimasSesiones(@Param("teacherId") Long teacherId, @Param("limite") int limite);
+
     /** Actualiza la marca existente de ese estudiante/bloque/fecha. Devuelve 1 si actualizo algo. */
     @Modifying
     @Query(value = """

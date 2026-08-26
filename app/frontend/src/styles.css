@@ -393,3 +393,33 @@ tbody tr:hover { background: #fbfaf4; }
   .dia-bloques .bloque { grid-template-columns: auto 1fr; }
   .dia-bloques .marcado { grid-column: 2; }
 }
+
+/* La planilla a la izquierda y las ultimas tomas a la derecha: el docente ve lo que
+   acaba de registrar sin salir de la pantalla en la que toma lista. */
+.asistencia-2col {
+  display: grid; grid-template-columns: minmax(0, 34rem) minmax(0, 26rem);
+  gap: var(--e3); justify-content: start; margin: 0 var(--e3);
+}
+.asistencia-2col > .card { margin-left: 0; margin-right: 0; max-width: none; }
+@media (max-width: 62rem) { .asistencia-2col { grid-template-columns: minmax(0, 34rem); } }
+.sesiones-lista { list-style: none; padding: 0; margin: var(--e3) 0 0; }
+.sesiones-lista li { border-bottom: 1px solid var(--rejilla); }
+.sesiones-lista button {
+  width: 100%; text-align: left; background: none; border: 0; color: inherit;
+  padding: var(--e2) 4px; display: grid; gap: 2px;
+}
+.sesiones-lista button { cursor: pointer; border-radius: var(--radio-s); transition: background .12s; }
+.sesiones-lista button:hover { background: var(--fondo); }
+.sesiones-lista button:hover strong { color: var(--verde-oscuro); text-decoration: underline; }
+.salon-abierto .volver { min-height: 34px; padding: 4px 10px; margin-bottom: var(--e2); }
+
+/* Cabecera del inicio: saludo a la izquierda y la grafica del mes al lado, en el
+   hueco que antes quedaba vacio. En el telefono, una debajo de la otra. */
+.cabecera-inicio { display: flex; align-items: center; gap: var(--e4); flex-wrap: wrap; }
+.cabecera-inicio h1 { margin: 0; }
+.cabecera-grafica { flex: 1 1 20rem; max-width: 26rem; }
+.cabecera-grafica h3 { margin: 0 0 2px; font-size: .85rem; color: var(--tinta-suave); }
+.lineas-novedades { margin: 0; }
+.lineas-novedades figcaption { display: flex; gap: 8px; font-size: .72rem; min-height: 1.2em; }
+.lineas-novedades figcaption i { display: inline-block; width: 8px; height: 8px;
+  border-radius: 2px; margin-right: 3px; vertical-align: middle; }
