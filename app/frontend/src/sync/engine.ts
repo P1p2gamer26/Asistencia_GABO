@@ -140,17 +140,54 @@ export async function flushAll(): Promise<{ pending: number; alcanzable: boolean
   };
 }
 
-/** Intenta vaciar el outbox cuando el navegador recupera la conexion. */
+/**
+ * Sincronizacion automatica de las dos colas.
+ *
+ * Los disparadores son los tres momentos en que de verdad puede haber cambiado algo:
+ * al montar, cuando el navegador dice que volvio la red, y cuando la pantalla se
+ * vuelve a ver (que en un celular es el desbloqueo, con los temporizadores congelados
+ * hasta ese instante).
+ *
+ * La espera entre reintentos crece de 30 s a 5 min: sin señal, insistir cada minuto
+ * durante una jornada entera se come la bateria sin conseguir nada. Vuelve al minimo
+ * en cuanto un intento llega al servidor.
+ */
 export function startAutoSync(onChange?: (pending: number, alcanzable: boolean) => void) {
-  const intentar = async () => {
-    const r = await flushAll().catch(() => null);
-    if (r) onChange?.(r.pending, r.alcanzable);
+  const MIN = 30_000;
+  const MAX = 300_000;
+  let espera = MIN;
+  let timer = 0;
+  let vivo = true;
+
+  const programar = () => {
+    window.clearTimeout(timer);
+    if (!vivo) return;
+    timer = window.setTimeout(intentar, espera);
   };
-  window.addEventListener('online', intentar);
-  const timer = window.setInterval(intentar, 60_000);
+
+  const intentar = async () => {
+    if (!vivo) return;
+    // flushOutbox y flushEntries ya salen antes de tocar la red si su cola esta
+    // vacia: una cola vacia no justifica encender la radio del telefono.
+    const r = await flushAll().catch(() => null);
+    if (r) {
+      espera = r.alcanzable ? MIN : Math.min(espera * 2, MAX);
+      onChange?.(r.pending, r.alcanzable);
+    }
+    programar();
+  };
+
+  const alVolver = () => { espera = MIN; void intentar(); };
+  const alVerse = () => { if (document.visibilityState === 'visible') alVolver(); };
+
+  window.addEventListener('online', alVolver);
+  document.addEventListener('visibilitychange', alVerse);
   void intentar();
+
   return () => {
-    window.removeEventListener('online', intentar);
-    window.clearInterval(timer);
+    vivo = false;
+    window.clearTimeout(timer);
+    window.removeEventListener('online', alVolver);
+    document.removeEventListener('visibilitychange', alVerse);
   };
 }
