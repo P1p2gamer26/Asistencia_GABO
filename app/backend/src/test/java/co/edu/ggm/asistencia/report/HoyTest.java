@@ -196,4 +196,32 @@ class HoyTest extends AbstractIntegrationTest {
                         .header("Authorization", tokenDe("coord@ggm.edu.co", "COORDINADOR")))
            .andExpect(status().isOk());
     }
+
+    @Test
+    void la_grafica_del_mes_cuenta_las_ausencias_por_estudiante_y_no_por_marca() {
+        // El mismo estudiante ausente en sus dos bloques del dia es UNA ausencia en la
+        // grafica del inicio, no dos: contando marcas, un dia normal parecia una
+        // catastrofe (una falta de dia completo son seis marcas).
+        marcarEnBloque("7770000001", "F", bloqueId);
+        marcarEnBloque("7770000001", "F", bloqueId2);
+        marcarEnBloque("7770000002", "T", bloqueId);
+
+        var dia = hoy.resumen(LUNES).mesPorDia().stream()
+                .filter(d -> d.classDate().equals(LUNES))
+                .findFirst().orElseThrow();
+
+        assertThat(dia.absent()).isEqualTo(1);
+        assertThat(dia.late()).isEqualTo(1);
+    }
+
+    @Test
+    void la_grafica_del_mes_solo_llega_hasta_el_dia_consultado() {
+        marcar("7770000001", "P");
+        var serie = hoy.resumen(LUNES).mesPorDia();
+        assertThat(serie).isNotEmpty();
+        assertThat(serie).allSatisfy(d -> {
+            assertThat(d.classDate()).isAfterOrEqualTo(LUNES.withDayOfMonth(1));
+            assertThat(d.classDate()).isBeforeOrEqualTo(LUNES);
+        });
+    }
 }
