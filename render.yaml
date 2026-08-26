@@ -1,0 +1,32 @@
+# Blueprint de Render: un servicio web (imagen del Dockerfile) + PostgreSQL gestionado.
+# Crear en Render con "New > Blueprint" apuntando a este repo. Provisiona todo solo:
+# no hay que copiar cadenas de conexion a mano.
+services:
+  - type: web
+    name: asistencia-ggm
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /actuator/health
+    envVars:
+      # Render arma la URL JDBC a partir de estas partes (ver application.yml).
+      - key: DB_HOST
+        fromDatabase: { name: asistencia-db, property: host }
+      - key: DB_PORT
+        fromDatabase: { name: asistencia-db, property: port }
+      - key: DB_NAME
+        fromDatabase: { name: asistencia-db, property: database }
+      - key: DB_USER
+        fromDatabase: { name: asistencia-db, property: user }
+      - key: DB_PASSWORD
+        fromDatabase: { name: asistencia-db, property: password }
+      - key: JWT_SECRET
+        generateValue: true          # secreto aleatorio, distinto del de desarrollo
+      - key: NOTIFY_ENABLED
+        value: "false"
+
+databases:
+  - name: asistencia-db
+    plan: free
+    databaseName: asistencia
+    user: asistencia
