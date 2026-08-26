@@ -361,17 +361,36 @@ tbody tr:hover { background: #fbfaf4; }
 .menu a:hover { background: var(--fondo); }
 .menu a.activo { background: var(--verde); color: #fff; font-weight: 700; }
 .menu > button { margin-top: auto; }
-.menu-boton { display: none; }
+/* La barra superior, el fondo del cajon y la X solo existen en movil. */
+.barra-movil, .menu-fondo, .menu-cerrar { display: none; }
 
 @media (max-width: 900px) {
   .armazon { grid-template-columns: 1fr; }
-  .menu-boton { display: block; position: sticky; top: 0; z-index: 20;
-                width: 100%; border-radius: 0; }
-  /* El docente trabaja en 390 px con cuarenta estudiantes en lista: la barra no puede
-     ocupar espacio permanente, asi que se convierte en cajon. */
-  .menu[data-abierto='false'] { display: none; }
-  .menu[data-abierto='true']  { display: flex; border-right: 0;
-                                border-bottom: 1px solid var(--rejilla); }
+
+  /* Header movil: las tres rayitas y la marca; nada mas, para no robar alto. */
+  .barra-movil { display: flex; align-items: center; gap: 12px;
+                 position: sticky; top: 0; z-index: 20;
+                 padding: 10px 14px; background: var(--superficie);
+                 border-bottom: 1px solid var(--rejilla); }
+  .hamburguesa { font-size: 1.5rem; line-height: 1; background: none; border: 0;
+                 color: var(--tinta); padding: 4px 8px; cursor: pointer; }
+  .barra-marca { display: flex; align-items: center; gap: 8px; font-size: .95rem; }
+
+  /* El menu deja de ocupar espacio permanente: es un cajon que entra desde la
+     izquierda. El docente trabaja en 390 px con cuarenta estudiantes en lista. */
+  .menu { position: fixed; top: 0; left: 0; height: 100dvh; width: min(17rem, 82vw);
+          z-index: 40; overflow-y: auto;
+          transform: translateX(-100%); transition: transform .2s ease; }
+  .menu[data-abierto='true'] { transform: translateX(0);
+          box-shadow: 0 0 40px rgba(0, 0, 0, .35); }
+  .menu-fondo { display: block; position: fixed; inset: 0; z-index: 35;
+                background: rgba(0, 0, 0, .45); }
+  .menu-cerrar { display: block; margin-left: auto; background: none; border: 0;
+                 font-size: 1.6rem; line-height: 1; color: var(--tinta-suave);
+                 cursor: pointer; padding: 0 4px; }
+}
+@media (max-width: 900px) and (prefers-reduced-motion: reduce) {
+  .menu { transition: none; }
 }
 
 /* El dia del docente: una fila por bloque, legible de un vistazo en el telefono. */

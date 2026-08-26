@@ -34,20 +34,33 @@ export default function Menu() {
 
   return (
     <>
-      <button type="button" className="menu-boton secundario"
-              aria-label={abierto ? 'Cerrar menu' : 'Abrir menu'}
-              onClick={() => setAbierto(!abierto)}>
-        {abierto ? 'Cerrar menu' : 'Abrir menu'}
-      </button>
+      {/* Barra superior solo en movil: lo esencial y las tres rayitas. El menu completo
+          se despliega desde la izquierda como cajon. */}
+      <header className="barra-movil">
+        <button type="button" className="hamburguesa" aria-label="Abrir menu"
+                aria-expanded={abierto} aria-controls="menu-lateral"
+                onClick={() => setAbierto(true)}>
+          <span aria-hidden="true">☰</span>
+        </button>
+        <span className="barra-marca">
+          <Escudo size={28} />
+          <strong>Asistencia GGM</strong>
+        </span>
+      </header>
 
-      <nav className="menu" role="navigation" data-abierto={String(abierto)}
-           aria-label="Secciones">
+      {/* Fondo oscuro: tocar fuera cierra el cajon. */}
+      {abierto && <div className="menu-fondo" onClick={() => setAbierto(false)} />}
+
+      <nav id="menu-lateral" className="menu" role="navigation"
+           data-abierto={String(abierto)} aria-label="Secciones">
         <div className="menu-marca">
           <Escudo size={40} />
           <div>
             <strong>Asistencia GGM</strong>
             <small>{sesion.fullName}</small>
           </div>
+          <button type="button" className="menu-cerrar" aria-label="Cerrar menu"
+                  onClick={() => setAbierto(false)}>×</button>
         </div>
 
         <ul>
