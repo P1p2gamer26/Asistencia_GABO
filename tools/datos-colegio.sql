@@ -56,20 +56,38 @@ FROM m JOIN p ON p.pos = m.pos;
 CREATE TEMP TABLE semilla_cursos AS
 SELECT n AS idx, n || 'A' AS grade FROM generate_series(0, 11) AS n;
 
+-- Los nombres se toman por el indice del estudiante dentro del curso (1..25) sobre
+-- arreglos de 25: asi no se repite un nombre completo dentro del mismo curso, que
+-- hacia parecer que las consultas devolvian filas duplicadas.
+CREATE TEMP TABLE semilla_nombres AS
+SELECT n AS i,
+       (ARRAY['Camila','Santiago','Valentina','Mateo','Isabella','Sebastian','Salome',
+              'Emiliano','Antonia','Tomas','Mariana','Nicolas','Luciana','Samuel',
+              'Gabriela','Martin','Juliana','Alejandro','Sara','Simon','Manuela',
+              'Andres','Catalina','Esteban','Paulina'])[n] AS nombre,
+       (ARRAY['Andrea','Jose','Lucia','David','Sofia','Alejandro','Marcela','Nicolas',
+              'Daniela','Felipe','Isabel','Mauricio','Elena','Javier','Carolina',
+              'Ignacio','Fernanda','Ramiro','Beatriz','Julian','Adriana','Emilio',
+              'Patricia','Tomas','Ximena'])[n] AS segundo,
+       (ARRAY['Gonzalez','Ramirez','Herrera','Castro','Molina','Reyes','Acosta',
+              'Peralta','Suarez','Mendoza','Cardenas','Villamil','Beltran','Osorio',
+              'Rincon','Camargo','Pineda','Sanabria','Trujillo','Cifuentes','Bermudez',
+              'Chaparro','Galvis','Nino','Forero'])[n] AS apellido,
+       (ARRAY['Lopez','Torres','Rivas','Guzman','Pardo','Cordoba','Silva','Naranjo',
+              'Bonilla','Escobar','Prieto','Vera','Ayala','Roa','Cuellar','Barrera',
+              'Solano','Aguirre','Ballesteros','Contreras','Merchan','Espinosa',
+              'Mahecha','Riascos','Valbuena'])[n] AS segundo_apellido
+FROM generate_series(1, 25) AS n;
+
 INSERT INTO students (document_id, first_name, middle_name, last_name, second_surname,
                       grade, active)
-SELECT lpad((1200000000 + c.idx * 100 + i)::text, 10, '0'),
-       (ARRAY['Camila','Santiago','Valentina','Mateo','Isabella','Sebastian',
-              'Salome','Emiliano','Antonia','Tomas'])[1 + (i % 10)],
-       (ARRAY['Andrea','Jose','Lucia','David','Sofia','Alejandro',
-              'Marcela','Nicolas','Daniela','Felipe'])[1 + ((i * 3) % 10)],
-       (ARRAY['Gonzalez','Ramirez','Herrera','Castro','Molina','Reyes',
-              'Acosta','Peralta','Suarez','Mendoza'])[1 + ((i * 7 + c.idx) % 10)],
-       (ARRAY['Lopez','Torres','Rivas','Guzman','Pardo','Cordoba',
-              'Silva','Naranjo','Bonilla','Escobar'])[1 + ((i * 11 + c.idx) % 10)],
-       c.grade, TRUE
-FROM semilla_cursos c, generate_series(1, 25) AS i
-ON CONFLICT (document_id) DO NOTHING;
+SELECT lpad((1200000000 + c.idx * 100 + n.i)::text, 10, '0'),
+       n.nombre, n.segundo, n.apellido, n.segundo_apellido, c.grade, TRUE
+FROM semilla_cursos c
+JOIN semilla_nombres n ON TRUE
+ON CONFLICT (document_id) DO UPDATE
+  SET first_name = EXCLUDED.first_name, middle_name = EXCLUDED.middle_name,
+      last_name = EXCLUDED.last_name, second_surname = EXCLUDED.second_surname;
 
 -- 4. Horario: 12 cursos x 5 dias x 6 bloques de 60 minutos -----------------------
 -- La jornada es de 7:00 a 1:30, con media hora de descanso entre el bloque 3 y el 4.
@@ -151,7 +169,7 @@ FROM students s
 JOIN users u ON u.email = 'acudiente.' || s.document_id || '@correo.com'
 ON CONFLICT (student_id, guardian_id) DO NOTHING;
 
-DROP TABLE semilla_par, semilla_cursos;
+DROP TABLE semilla_par, semilla_cursos, semilla_nombres;
 ANALYZE;
 
 SELECT 'cursos' AS tabla, count(DISTINCT grade) FROM students WHERE grade ~ '^[0-9]{1,2}A$'
