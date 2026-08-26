@@ -1,6 +1,7 @@
 spring:
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/asistencia}
+    # DB_URL directa gana; si no, se arma desde partes (Render pasa host/puerto/nombre por separado).
+    url: ${DB_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:asistencia}}
     username: ${DB_USER:asistencia}
     password: ${DB_PASSWORD:asistencia}
   jpa:
@@ -30,6 +31,8 @@ app:
     from: ${MAIL_FROM:no-reply@ggm.edu.co}
     coordination: ${MAIL_COORDINACION:coord@ggm.edu.co}
 server:
+  # Render (y otros PaaS) inyectan el puerto en la variable PORT.
+  port: ${PORT:8080}
   compression:
     enabled: true
     mime-types: application/json
