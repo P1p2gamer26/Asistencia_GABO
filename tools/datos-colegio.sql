@@ -12,23 +12,44 @@
 
 \timing on
 
--- 0. Fuera los datos de demostracion viejos --------------------------------------
-DELETE FROM attendance a USING students s
-      WHERE s.id = a.student_id AND s.grade LIKE '6%';
-DELETE FROM entry_log e USING students s
-      WHERE s.id = e.student_id AND s.grade LIKE '6%';
-DELETE FROM schedule_blocks WHERE grade LIKE '6%';
-DELETE FROM students WHERE grade LIKE '6%';        -- guardianships cae por CASCADE
-DELETE FROM users WHERE email LIKE 'profe%' OR email LIKE 'acudiente.%';
+-- 0. Solo la base LOCAL ----------------------------------------------------------
+-- Este script BORRA datos. La base de produccion vive en Supabase y alli se llama
+-- "postgres"; la local se llama "asistencia". Si alguien pega por error la cadena de
+-- Supabase, esto para en seco antes de tocar nada, en vez de vaciarle el colegio.
+DO $$
+BEGIN
+  IF current_database() <> 'asistencia' THEN
+    RAISE EXCEPTION
+      'Semilla de DEMOSTRACION detenida: la base actual es "%", no "asistencia". '
+      'Este script borra datos y solo debe correr en la base local.', current_database();
+  END IF;
+END $$;
 
--- 1. Materias --------------------------------------------------------------------
+-- 1. Fuera los datos de demostracion viejos --------------------------------------
+-- Solo los cursos de tres digitos (601..607) de la siembra vieja. El patron era
+-- LIKE '6%', que tambien cogia el curso '6A' de ESTA siembra: cada ejecucion borraba
+-- y recreaba a sus 25 estudiantes con id nuevo, y la asistencia salia distinta.
+DELETE FROM attendance a USING students s
+      WHERE s.id = a.student_id AND s.grade ~ '^[0-9]{3}$';
+DELETE FROM entry_log e USING students s
+      WHERE s.id = e.student_id AND s.grade ~ '^[0-9]{3}$';
+DELETE FROM schedule_blocks WHERE grade ~ '^[0-9]{3}$';
+DELETE FROM students WHERE grade ~ '^[0-9]{3}$';   -- guardianships cae por CASCADE
+DELETE FROM users WHERE email LIKE 'profe%';
+-- Los acudientes se recrean por documento del estudiante: los sobrantes son de
+-- estudiantes que ya no existen.
+DELETE FROM users u WHERE u.email LIKE 'acudiente.%'
+  AND NOT EXISTS (SELECT 1 FROM students s
+                   WHERE 'acudiente.' || s.document_id || '@correo.com' = u.email);
+
+-- 2. Materias --------------------------------------------------------------------
 INSERT INTO subjects (name) VALUES
   ('Matematicas'), ('Espanol'), ('Ingles'), ('Ciencias Naturales'), ('Ciencias Sociales'),
   ('Informatica'), ('Educacion Fisica'), ('Artistica'), ('Etica'), ('Religion'),
   ('Fisica'), ('Quimica')
 ON CONFLICT (name) DO NOTHING;
 
--- 2. Doce docentes, uno por materia ----------------------------------------------
+-- 3. Doce docentes, uno por materia ----------------------------------------------
 -- Doce y no menos: doce cursos comparten cada franja horaria, asi que con menos
 -- docentes alguno quedaria dictando dos cursos a la misma hora.
 INSERT INTO users (email, password_hash, full_name, role, active, must_change_password)
@@ -52,7 +73,7 @@ WITH m AS (SELECT id, row_number() OVER (ORDER BY id) AS pos FROM subjects),
 SELECT m.pos - 1 AS idx, m.id AS subject_id, p.id AS teacher_id
 FROM m JOIN p ON p.pos = m.pos;
 
--- 3. Cursos 0A..11A, 25 estudiantes cada uno -------------------------------------
+-- 4. Cursos 0A..11A, 25 estudiantes cada uno -------------------------------------
 CREATE TEMP TABLE semilla_cursos AS
 SELECT n AS idx, n || 'A' AS grade FROM generate_series(0, 11) AS n;
 
@@ -89,7 +110,7 @@ ON CONFLICT (document_id) DO UPDATE
   SET first_name = EXCLUDED.first_name, middle_name = EXCLUDED.middle_name,
       last_name = EXCLUDED.last_name, second_surname = EXCLUDED.second_surname;
 
--- 4. Horario: 12 cursos x 5 dias x 6 bloques de 60 minutos -----------------------
+-- 5. Horario: 12 cursos x 5 dias x 6 bloques de 60 minutos -----------------------
 -- La jornada es de 7:00 a 1:30, con media hora de descanso entre el bloque 3 y el 4.
 -- La materia rota con el curso ademas del dia y del bloque: en una misma franja los
 -- doce cursos tienen doce materias distintas, luego doce docentes distintos.
@@ -111,14 +132,33 @@ ON CONFLICT (grade, weekday, block_no) DO UPDATE
       room = EXCLUDED.room,
       start_time = EXCLUDED.start_time, end_time = EXCLUDED.end_time;
 
--- 5. Asistencia del mes en curso --------------------------------------------------
+-- 6. Asistencia del mes en curso --------------------------------------------------
 -- Un colegio normal: casi todos presentes, alguna llegada tarde, pocas ausencias y
 -- muy pocas evasiones. recorded_by es el docente del bloque, que es quien de verdad
 -- pasa la lista: de ahi sale el "quien tomo la asistencia" que se ve en pantalla.
+--
+-- El estado sale de hashtext y no de random(): asi es el mismo en cada ejecucion.
+-- Con random() en un UPDATE posterior, cada pasada del script anadia otro 1 % de
+-- faltas encima de las anteriores y el colegio se degradaba solo.
+--
+-- La falta se decide por estudiante-DIA, asi que quien no vino falta a sus seis
+-- clases, no a una suelta. La evasion y la tardanza son por bloque.
 INSERT INTO attendance (id, student_id, schedule_block_id, class_date, status,
-                        recorded_by, recorded_at)
+                        comment, recorded_by, recorded_at)
 SELECT gen_random_uuid(), s.id, b.id, c.calendar_date,
-       CASE WHEN random() < 0.03 THEN 'T' ELSE 'P' END,
+       CASE WHEN h.dia % 100 = 0 THEN 'F'
+            WHEN h.fila % 1000 < 4 THEN 'E'
+            WHEN h.fila % 100 < 3 THEN 'T'
+            ELSE 'P' END,
+       CASE WHEN h.dia % 100 = 0
+              THEN (ARRAY['Cita medica','Incapacidad','Calamidad familiar',
+                          'Viaje familiar','Excusa firmada por el acudiente'])[1 + h.dia % 5]
+            WHEN h.fila % 1000 < 4
+              THEN (ARRAY['Salio del salon y no regreso',
+                          'Se quedo en la cancha despues del descanso',
+                          'Se fue con companeros de otro curso',
+                          'No entro a la clase, estaba en el pasillo'])[1 + h.fila % 4]
+            ELSE NULL END,
        b.teacher_id,
        c.calendar_date + b.start_time + INTERVAL '10 minutes'
 FROM students s
@@ -127,34 +167,14 @@ JOIN school_calendar c ON c.day_type = 'LECTIVO'
                       AND EXTRACT(ISODOW FROM c.calendar_date) = b.weekday
                       AND c.calendar_date >= date_trunc('month', CURRENT_DATE)::date
                       AND c.calendar_date <= CURRENT_DATE
+CROSS JOIN LATERAL (
+    SELECT abs(hashtext(s.id::text || ':' || c.calendar_date::text)) AS dia,
+           abs(hashtext(s.id::text || ':' || b.id::text || ':' || c.calendar_date::text)) AS fila
+) h
 WHERE s.grade ~ '^[0-9]{1,2}A$'
 ON CONFLICT ON CONSTRAINT attendance_unique_slot DO NOTHING;
 
--- Las ausencias van por dia completo, no por bloque suelto: el que no vino falta a
--- todas sus clases. Un 1 % de los pares estudiante-dia, con el motivo del acudiente.
-UPDATE attendance a
-   SET status = 'F', comment = m.motivo
-  FROM (
-        SELECT student_id, class_date,
-               (ARRAY['Cita medica','Incapacidad','Calamidad familiar',
-                      'Viaje familiar','Excusa firmada por el acudiente'])[1 + (random() * 4)::int] AS motivo
-          FROM (SELECT DISTINCT student_id, class_date FROM attendance) p
-         WHERE random() < 0.01
-       ) m
- WHERE a.student_id = m.student_id AND a.class_date = m.class_date;
-
--- Y las evasiones son de un bloque suelto: el estudiante entro al colegio y se salio
--- de esa clase. Muy pocas, siempre con el motivo que anoto el docente.
-UPDATE attendance
-   SET status = 'E',
-       comment = (ARRAY['Salio del salon y no regreso',
-                        'Se quedo en la cancha despues del descanso',
-                        'Se fue con companeros de otro curso',
-                        'No entro a la clase, estaba en el pasillo'])[1 + (random() * 3)::int]
- WHERE id IN (SELECT id FROM attendance WHERE status = 'P'
-               ORDER BY random() LIMIT 40);
-
--- 6. Un acudiente por estudiante --------------------------------------------------
+-- 7. Un acudiente por estudiante --------------------------------------------------
 INSERT INTO users (email, password_hash, full_name, role, active, must_change_password)
 SELECT 'acudiente.' || s.document_id || '@correo.com',
        '$2a$10$Dj7iHjr8j08eQUlmQcVd5uM9.8ffEMX0WtxdQPz3IAsepUn6jQnTu',
