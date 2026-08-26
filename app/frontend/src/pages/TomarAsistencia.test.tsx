@@ -389,3 +389,41 @@ describe('TomarAsistencia', () => {
       expect(screen.getByText(/sin conexion no se puede comprobar/i)).toBeInTheDocument());
   });
 });
+
+describe('TomarAsistencia: panel de ultimos llamados', () => {
+  const SESIONES = [
+    { blockId: 7, grade: '6A', blockNo: 3, subject: 'Espanol', classDate: '2026-08-21',
+      total: 25, recordedByName: 'Marta Restrepo', lastRecordedAt: '2026-08-21T12:10:00Z' },
+    { blockId: 9, grade: '11A', blockNo: 6, subject: 'Sociales', classDate: '2026-08-20',
+      total: 24, recordedByName: 'Carmen Velasquez', lastRecordedAt: '2026-08-20T18:30:00Z' },
+  ];
+
+  beforeEach(async () => {
+    await db.blocks.clear();
+    await db.students.clear();
+    vi.stubGlobal('fetch', vi.fn(async (url: string) =>
+      new Response(JSON.stringify(url.includes('/api/attendance/recientes') ? SESIONES : []),
+        { status: 200, headers: { 'Content-Type': 'application/json' } })));
+  });
+
+  it('lista las ultimas tomas con curso, bloque, materia y quien la registro', async () => {
+    render(<MemoryRouter><TomarAsistencia /></MemoryRouter>);
+    expect(await screen.findByText(/6A · Bloque 3 · Espanol/)).toBeInTheDocument();
+    expect(screen.getByText(/Carmen Velasquez/)).toBeInTheDocument();
+  });
+
+  it('cada toma enlaza a su propia URL con el bloque y la fecha', async () => {
+    render(<MemoryRouter><TomarAsistencia /></MemoryRouter>);
+    // Sin blockId y fecha correctos se abriria el curso o el dia equivocado.
+    const enlace = (await screen.findByText(/6A · Bloque 3 · Espanol/)).closest('a');
+    expect(enlace?.getAttribute('href')).toContain('/asistencia/7/2026-08-21');
+    expect(enlace?.getAttribute('href')).toContain('curso=6A');
+  });
+
+  it('sin conexion el panel queda vacio pero la planilla sigue usable', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('network'); }));
+    render(<MemoryRouter><TomarAsistencia /></MemoryRouter>);
+    expect(await screen.findByText(/todavia no hay tomas de lista/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/curso/i)).toBeInTheDocument();
+  });
+});
