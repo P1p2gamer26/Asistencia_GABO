@@ -26,6 +26,13 @@ class SpaRoutingTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void una_ruta_con_varios_segmentos_reenvia_al_index() throws Exception {
+        // El detalle de un salon vive en /asistencia/:blockId/:fecha: recargar ahi
+        // debe devolver el index, no un 404.
+        mvc.perform(get("/asistencia/421/2026-08-21")).andExpect(forwardedUrl("/index.html"));
+    }
+
+    @Test
     void las_rutas_de_api_no_se_reenvian() throws Exception {
         // Sin token debe seguir dando 401, no el index de la SPA.
         mvc.perform(get("/api/schedule/mine")).andExpect(status().isUnauthorized());
