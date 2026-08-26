@@ -1,8 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { db } from '../db/local';
-import { api, OfflineError } from '../api/client';
-import { abrirCamara, scanOnce } from '../scan/scanner';
+import { api } from '../api/client';
+import { flushEntries } from '../sync/engine';
+import { abrirCamara, scanOnce, tieneLinterna, alternarLinterna } from '../scan/scanner';
 import { parseCarnet } from '../scan/carnet';
+
+// Consejos que rotan mientras no se lee nada: cubren las dos causas tipicas de que un
+// QR pequeno no entre, la distancia y la luz.
+const PISTAS = [
+  'Encuadra el carnet dentro del recuadro',
+  'Acercalo un poco mas',
+  'Alejalo hasta que el codigo entre completo',
+  'Con mas luz: prueba la linterna',
+  'Mantenlo quieto un segundo',
+];
 
 type Ficha = {
   studentId: number; documentId: string; fullName: string; grade: string;
@@ -20,9 +31,13 @@ const horaInput = (iso: string) => {
 
 export default function Ingreso() {
   const video = useRef<HTMLVideoElement>(null);
+  const stream = useRef<MediaStream | null>(null);
   const [ultimo, setUltimo] = useState('');
   const [error, setError] = useState('');
   const [pendientes, setPendientes] = useState(0);
+  const [pista, setPista] = useState(0);
+  const [linternaOk, setLinternaOk] = useState(false);
+  const [linterna, setLinterna] = useState(false);
   const [ficha, setFicha] = useState<Ficha | null>(null);
   const [entradas, setEntradas] = useState<EntradaDia[]>([]);
   const [editId, setEditId] = useState<string | null>(null);
@@ -57,16 +72,31 @@ export default function Ingreso() {
 
   useEffect(() => { void cargarDia(); }, []);
 
+  // Los consejos rotan solos para no dejar al usuario adivinando por que no lee.
+  useEffect(() => {
+    const t = setInterval(() => setPista((p) => (p + 1) % PISTAS.length), 2800);
+    return () => clearInterval(t);
+  }, []);
+
+  async function alternarLuz() {
+    if (!stream.current) return;
+    try {
+      await alternarLinterna(stream.current, !linterna);
+      setLinterna(!linterna);
+    } catch { setLinternaOk(false); }
+  }
+
   useEffect(() => {
     let control: AbortController | null = null;
-    let stream: MediaStream | null = null;
     let corriendo = false;
 
     function detener() {
       control?.abort();
       control = null;
-      stream?.getTracks().forEach((t) => t.stop());
-      stream = null;
+      stream.current?.getTracks().forEach((t) => t.stop());
+      stream.current = null;
+      setLinternaOk(false);
+      setLinterna(false);
       corriendo = false;
     }
 
@@ -76,7 +106,8 @@ export default function Ingreso() {
       control = new AbortController();
       const sig = control.signal;
       try {
-        stream = await abrirCamara(video.current);
+        stream.current = await abrirCamara(video.current);
+        setLinternaOk(tieneLinterna(stream.current));
         while (!sig.aborted) {
           try {
             const codigo = await scanOnce(video.current, sig);
@@ -167,38 +198,38 @@ export default function Ingreso() {
     rechazos: Record<string, string>;
     alcanzable: boolean;
   }> {
-    const cola = await db.entryOutbox.toArray();
-    setPendientes(cola.length);
-    if (cola.length === 0) return { nombres: {}, rechazos: {}, alcanzable: true };
+    const r = await flushEntries();
+    setPendientes(r.pending);
 
-    try {
-      const res = await api.post<{
-        accepted: number;
-        rejected: { id: string; reason: string }[];
-        names: Record<string, string>;
-      }>('/api/entry/sync', { entries: cola.map(({ name, error, ...e }) => e) });
+    // flushEntries deja los rechazos escritos en entryOutbox.error; se leen de ahi
+    // porque la respuesta del motor no trae el detalle por id, solo el conteo.
+    const conError = await db.entryOutbox.toArray();
+    const rechazos = Object.fromEntries(
+      conError.filter((e) => e.error).map((e) => [e.id, e.error!]));
 
-      const rechazos: Record<string, string> = {};
-      for (const r of res.rejected) rechazos[r.id] = r.reason;
-
-      for (const e of cola) {
-        if (rechazos[e.id]) await db.entryOutbox.update(e.id, { error: rechazos[e.id] });
-        else await db.entryOutbox.delete(e.id);
-      }
-      setPendientes(await db.entryOutbox.count());
-      return { nombres: res.names ?? {}, rechazos, alcanzable: true };
-    } catch (e) {
-      if (!(e instanceof OfflineError)) throw e;
-      return { nombres: {}, rechazos: {}, alcanzable: false };
-    }
+    return { nombres: r.nombres, rechazos, alcanzable: r.alcanzable };
   }
 
   return (
     <main className="card">
       <h1>Ingreso al colegio</h1>
       <p>Acerque el carnet del estudiante a la camara.</p>
-      <video ref={video} className="camara" muted playsInline />
-      {ultimo && <p className="ultimo" role="status">{ultimo}</p>}
+
+      <div className="escaner">
+        <video ref={video} className="camara" muted playsInline />
+        {/* Recuadro guia: el usuario mete el QR ahi dentro. */}
+        <div className="recuadro" aria-hidden="true" />
+      </div>
+
+      <p className="pista" aria-live="polite">{PISTAS[pista]}</p>
+      {linternaOk && (
+        <button type="button" className="secundario"
+                aria-pressed={linterna} onClick={() => void alternarLuz()}>
+          {linterna ? 'Apagar linterna' : 'Encender linterna'}
+        </button>
+      )}
+
+      {ultimo && <p className="ultimo" role="status">✓ {ultimo}</p>}
       {error && <p role="alert" className="error">{error}</p>}
       <p className="meta">{pendientes} ingreso(s) sin enviar</p>
 

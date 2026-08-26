@@ -12,6 +12,8 @@ vi.mock('../scan/scanner', () => ({
     if (v === undefined) await new Promise(() => {});   // no vuelve a escanear
     return v;
   }),
+  tieneLinterna: vi.fn(() => false),
+  alternarLinterna: vi.fn(async () => {}),
 }));
 
 import Ingreso from './Ingreso';

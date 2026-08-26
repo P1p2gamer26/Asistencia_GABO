@@ -1,13 +1,14 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../db/local';
-import { markAttendance, flushOutbox, pendingCount, downloadBootstrap } from './engine';
+import { markAttendance, flushOutbox, flushAll, pendingCount, downloadBootstrap } from './engine';
 
 const base = { studentId: 1, scheduleBlockId: 7, classDate: '2026-07-13' } as const;
 
 describe('motor de sincronizacion', () => {
   beforeEach(async () => {
     await db.outbox.clear();
+    await db.entryOutbox.clear();
     await db.schoolDays.clear();
     await db.schoolDays.bulkPut([
       { calendarDate: '2026-07-13', dayType: 'LECTIVO' },
@@ -91,5 +92,43 @@ describe('motor de sincronizacion', () => {
     await markAttendance({ ...base, status: 'T', comment: '' });
     const [r] = await db.outbox.toArray();
     expect(r.comment).toBeFalsy();
+  });
+
+  it('vaciar todo sube tambien la cola de porteria, no solo la de asistencia', async () => {
+    await db.entryOutbox.clear();
+    await db.entryOutbox.put({
+      id: 'e1', documentId: '111', scannedAt: '2026-07-13T06:40:00Z',
+    });
+    await markAttendance({ ...base, status: 'P' });
+
+    const enviados: string[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      enviados.push(new URL(url, 'http://x').pathname);
+      return new Response(JSON.stringify({ accepted: 1, rejected: [] }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }));
+
+    const r = await flushAll();
+
+    expect(enviados).toContain('/api/attendance/sync');
+    expect(enviados.some((p) => p.startsWith('/api/entry'))).toBe(true);
+    expect(r.pending).toBe(0);
+    expect(await db.entryOutbox.count()).toBe(0);
+  });
+
+  it('sin red, ninguna de las dos colas se pierde', async () => {
+    await db.entryOutbox.clear();
+    await db.entryOutbox.put({
+      id: 'e2', documentId: '222', scannedAt: '2026-07-13T06:41:00Z',
+    });
+    await markAttendance({ ...base, status: 'F' });
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('network'); }));
+
+    const r = await flushAll();
+
+    expect(r.alcanzable).toBe(false);
+    expect(r.pending).toBe(2);   // una marca + un ingreso
+    expect(await db.entryOutbox.count()).toBe(1);
+    expect(await pendingCount()).toBe(1);
   });
 });

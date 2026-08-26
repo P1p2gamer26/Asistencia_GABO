@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { flushOutbox, pendingCount, startAutoSync } from './engine';
+import { flushAll, pendingCount, startAutoSync } from './engine';
 
 /**
  * Sincronizacion viva en toda la aplicacion.
@@ -19,7 +19,7 @@ export function useSincronizacion() {
   }, []);
 
   const sincronizarAhora = useCallback(async () => {
-    const r = await flushOutbox().catch(() => null);
+    const r = await flushAll().catch(() => null);
     if (!r) return;
     setPendientes(r.pending);
     setAlcanzable(r.alcanzable);
