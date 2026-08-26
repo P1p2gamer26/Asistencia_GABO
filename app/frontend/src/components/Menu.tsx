@@ -24,9 +24,14 @@ export default function Menu() {
   const [abierto, setAbierto] = useState(false);
   const sesion = getSession();
 
-  // La copia local se llena sola al entrar: el boton manual "Actualizar datos" solo
-  // servia para que el docente adivinara cuando le faltaban datos.
-  useEffect(() => { void downloadBootstrap().catch(() => {}); }, []);
+  // Si falla, no se avisa aqui: la franja de estado ya dice si la copia local sirve o
+  // no, que es lo que el docente necesita saber. Tragarse el error sin mas dejaba la
+  // aplicacion vacia y muda.
+  useEffect(() => {
+    void downloadBootstrap().catch(() => {
+      // Sin conexion es lo normal al abrir en el salon; lo anormal lo dice BarraOffline.
+    });
+  }, []);
 
   if (!sesion) return null;
 

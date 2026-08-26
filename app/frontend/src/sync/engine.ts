@@ -85,6 +85,21 @@ export async function downloadBootstrap(): Promise<void> {
 }
 
 /**
+ * Que tan util es la copia local ahora mismo. Sin esto, un docente sin señal ve las
+ * listas vacias y no puede distinguir "no descargue nunca" de "el curso esta vacio".
+ */
+export async function estadoDeDatos(): Promise<{
+  descargado: string | null; dias: number | null; estudiantes: number;
+}> {
+  const meta = await db.meta.get('lastBootstrap');
+  const estudiantes = await db.students.count();
+  if (!meta?.value) return { descargado: null, dias: null, estudiantes };
+
+  const dias = Math.floor((Date.now() - new Date(meta.value).getTime()) / 86_400_000);
+  return { descargado: meta.value, dias, estudiantes };
+}
+
+/**
  * Sube los carnes escaneados en porteria. Vive aqui y no en la pantalla de Ingreso
  * porque una cola que solo se vacia con su pantalla abierta no es una cola offline:
  * es un formulario con memoria.

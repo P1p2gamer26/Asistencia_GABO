@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../db/local';
-import { markAttendance, flushOutbox, flushAll, pendingCount, startAutoSync, downloadBootstrap } from './engine';
+import { markAttendance, flushOutbox, flushAll, pendingCount, startAutoSync, downloadBootstrap, estadoDeDatos } from './engine';
 
 const base = { studentId: 1, scheduleBlockId: 7, classDate: '2026-07-13' } as const;
 
@@ -163,5 +163,30 @@ describe('motor de sincronizacion', () => {
 
     // Una cola vacia no justifica encender la radio del telefono.
     expect(intentos).toBe(0);
+  });
+
+  it('dice cuando se descargaron los datos y cuantos estudiantes hay', async () => {
+    await db.meta.clear();
+    await db.students.clear();
+    await db.students.bulkPut([
+      { id: 1, documentId: '111', fullName: 'ANA LOPEZ', grade: '6A' },
+      { id: 2, documentId: '222', fullName: 'BETO RUIZ', grade: '6A' },
+    ]);
+    const haceDosDias = new Date(Date.now() - 2 * 86_400_000).toISOString();
+    await db.meta.put({ key: 'lastBootstrap', value: haceDosDias });
+
+    const e = await estadoDeDatos();
+    expect(e.estudiantes).toBe(2);
+    expect(e.dias).toBe(2);
+  });
+
+  it('sin ninguna descarga previa lo dice en vez de fingir que hay datos', async () => {
+    await db.meta.clear();
+    await db.students.clear();
+
+    const e = await estadoDeDatos();
+    expect(e.descargado).toBeNull();
+    expect(e.dias).toBeNull();
+    expect(e.estudiantes).toBe(0);
   });
 });
