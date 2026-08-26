@@ -11,25 +11,58 @@ export default function Ingreso() {
   const [pendientes, setPendientes] = useState(0);
 
   useEffect(() => {
-    const control = new AbortController();
+    let control: AbortController | null = null;
     let stream: MediaStream | null = null;
+    let corriendo = false;
 
-    (async () => {
+    function detener() {
+      control?.abort();
+      control = null;
+      stream?.getTracks().forEach((t) => t.stop());
+      stream = null;
+      corriendo = false;
+    }
+
+    async function iniciar() {
+      if (corriendo || document.hidden || !video.current) return;
+      corriendo = true;
+      control = new AbortController();
+      const sig = control.signal;
       try {
-        stream = await abrirCamara(video.current!);
-        while (!control.signal.aborted) {
-          const codigo = await scanOnce(video.current!, control.signal);
-          await registrar(codigo);
-          await new Promise((r) => setTimeout(r, 1500));   // evita releer el mismo carnet
+        stream = await abrirCamara(video.current);
+        while (!sig.aborted) {
+          try {
+            const codigo = await scanOnce(video.current, sig);
+            await registrar(codigo);
+            await new Promise((r) => setTimeout(r, 1500));   // evita releer el mismo carnet
+          } catch (e) {
+            if (sig.aborted) break;
+            // El video se detuvo un momento (otra app, giro de pantalla): se reintenta.
+            // Si la camara quedo caida de verdad, se sale al aviso de abajo.
+            if (!video.current || video.current.readyState < 2) throw e;
+            await new Promise((r) => setTimeout(r, 400));
+          }
         }
       } catch (e) {
-        if (!control.signal.aborted) setError('No se pudo abrir la camara. Revise los permisos.');
+        if (!sig.aborted) setError('No se pudo abrir la camara. Revise los permisos.');
+      } finally {
+        corriendo = false;
       }
-    })();
+    }
+
+    // Al bloquear/apagar la pantalla el navegador pausa el video y el bucle se queda
+    // esperando un fotograma que no llega. Se suelta la camara al ocultarse y se reabre
+    // al volver: el usuario espera seguir escaneando, no una pantalla congelada.
+    function alCambiarVisibilidad() {
+      if (document.hidden) detener();
+      else void iniciar();
+    }
+    document.addEventListener('visibilitychange', alCambiarVisibilidad);
+    void iniciar();
 
     return () => {
-      control.abort();
-      stream?.getTracks().forEach((t) => t.stop());
+      document.removeEventListener('visibilitychange', alCambiarVisibilidad);
+      detener();
     };
   }, []);
 
