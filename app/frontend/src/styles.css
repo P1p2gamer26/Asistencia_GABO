@@ -347,10 +347,21 @@ tbody tr:hover { background: #fbfaf4; }
    informacion secundaria y el aria-label lo sigue llevando para el lector de
    pantalla. */
 @media (max-width: 560px) {
-  :root { --calendario-celda: 52px; }
+  :root { --calendario-celda: 58px; }
+  .calendario { gap: 3px; }
+  .calendario-cabecera { font-size: .62rem; text-transform: uppercase; letter-spacing: .04em;
+                         padding: 2px 0; }
+  /* Celda centrada y compacta: numero arriba, tipo como pildora abajo. */
+  .calendario-dia { padding: 3px 2px; align-items: center; text-align: center; gap: 1px;
+                    border-radius: 8px; justify-content: space-between; }
+  .calendario-dia .numero { font-size: .92rem; }
   .calendario-dia .tipo { display: none; }
-  .calendario-dia .tipo-corto { display: block; }
+  .calendario-dia .tipo-corto { display: block; width: fit-content; margin-inline: auto;
+                                font-size: .58rem; font-weight: 700;
+                                padding: 1px 6px; border-radius: 999px;
+                                background: rgba(20, 32, 26, .06); }
   .calendario-dia .motivo { display: none; }
+  .calendario-dia select { font-size: .62rem; width: 100%; padding: 2px 0; }
 }
 
 /* Horario semanal: una columna por dia, una fila por bloque. */
