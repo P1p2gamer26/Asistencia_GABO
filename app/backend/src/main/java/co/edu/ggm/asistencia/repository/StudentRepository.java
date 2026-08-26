@@ -16,6 +16,12 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     List<Student> findByActiveTrueAndGradeOrderByLastNameAscFirstNameAsc(String grade);
     Optional<Student> findByDocumentIdAndActiveTrue(String documentId);
 
+    // Administracion tambien ve los inactivos: si no, un estudiante desactivado por
+    // error no se puede encontrar para volver a activarlo.
+    List<Student> findAllByOrderByGradeAscLastNameAscFirstNameAsc();
+    List<Student> findByGradeOrderByLastNameAscFirstNameAsc(String grade);
+    boolean existsByDocumentId(String documentId);
+
     interface ChildRow {
         Long getStudentId();
         String getFullName();

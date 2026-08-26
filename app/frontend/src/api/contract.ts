@@ -64,3 +64,10 @@ export type AttendanceSesion = {
   blockId: number; grade: string; blockNo: number; subject?: string;
   classDate: string; total: number; recordedByName?: string; lastRecordedAt: string;
 };
+
+/** Un estudiante visto desde administracion: incluye los inactivos y los campos sueltos del nombre. */
+export type StudentAdmin = {
+  id: number; documentId: string; fullName: string;
+  firstName: string; middleName?: string; lastName: string; secondSurname?: string;
+  grade: string; active: boolean;
+};
