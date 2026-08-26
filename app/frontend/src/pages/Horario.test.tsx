@@ -73,10 +73,6 @@ describe('Horario', () => {
   });
 });
 
-const SEMANA_SALON = [
-  { id: 21, grade: '603', weekday: 1, blockNo: 2, subject: 'Informatica',
-    startTime: '07:25', endTime: '08:15', room: 'Aula 203', teacherName: 'Ana Rojas' },
-];
 
 function pintarComo(role: string) {
   localStorage.setItem('ggm.session', JSON.stringify({
@@ -89,36 +85,22 @@ function pintarComo(role: string) {
     </MemoryRouter>);
 }
 
-describe('Horario: salones', () => {
+describe('Horario: navegacion por curso', () => {
   beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
-      if (url.includes('/api/schedule/rooms')) {
-        return respuesta({ rooms: ['Aula 203', 'Laboratorio 1'], withoutRoom: 3 });
-      }
-      if (url.includes('room=')) return respuesta(SEMANA_SALON);
-      return respuesta(SEMANA);
-    }));
+    vi.stubGlobal('fetch', vi.fn(async () => respuesta(SEMANA)));
   });
 
-  it('coordinacion ve la lista de salones y cuantos bloques no tienen aula', async () => {
+  // El horario se piensa por curso: la navegacion por salon se quito porque cada
+  // curso tiene su aula fija y era la misma lista dos veces.
+  it('nadie ve una lista de salones', async () => {
     pintarComo('COORDINADOR');
-    expect(await screen.findByRole('button', { name: 'Aula 203' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Laboratorio 1' })).toBeInTheDocument();
-    expect(screen.getByText(/3 bloques sin aula asignada/i)).toBeInTheDocument();
-  });
-
-  it('un docente no ve la lista de salones', async () => {
-    pintarComo('DOCENTE');
     await waitFor(() => expect(screen.getByText(/Ciencias/)).toBeInTheDocument());
-    expect(screen.queryByRole('button', { name: 'Aula 203' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Aula/i })).not.toBeInTheDocument();
   });
 
-  it('al elegir un salon se ve que clases se dictan alli, de que curso y con que docente', async () => {
+  it('coordinacion puede pedir el horario de otro curso', async () => {
     pintarComo('COORDINADOR');
-    await userEvent.click(await screen.findByRole('button', { name: 'Aula 203' }));
-    expect(await screen.findByText(/Horario del salon Aula 203/i)).toBeInTheDocument();
-    expect(screen.getByText('603')).toBeInTheDocument();
-    expect(screen.getByText('Informatica')).toBeInTheDocument();
-    expect(screen.getByText('Ana Rojas')).toBeInTheDocument();
+    await userEvent.type(await screen.findByLabelText(/horario de un curso/i), '6A');
+    expect(await screen.findByText(/Horario del curso 6A/i)).toBeInTheDocument();
   });
 });
