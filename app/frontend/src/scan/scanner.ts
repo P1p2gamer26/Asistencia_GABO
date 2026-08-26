@@ -16,8 +16,15 @@ const FORMATOS = ['qr_code', 'code_128', 'code_39', 'ean_13'];
 let zxing: import('@zxing/browser').BrowserMultiFormatReader | null = null;
 async function lectorZxing() {
   if (!zxing) {
-    const { BrowserMultiFormatReader } = await import('@zxing/browser');
-    zxing = new BrowserMultiFormatReader();
+    const [{ BrowserMultiFormatReader }, { DecodeHintType }] = await Promise.all([
+      import('@zxing/browser'),
+      import('@zxing/library'),
+    ]);
+    // TRY_HARDER: mas pasadas por fotograma. Cuesta CPU pero decodifica QR pequenos,
+    // borrosos o con poco contraste, que es justo el caso del carnet.
+    const hints = new Map();
+    hints.set(DecodeHintType.TRY_HARDER, true);
+    zxing = new BrowserMultiFormatReader(hints);
   }
   return zxing;
 }
@@ -62,34 +69,50 @@ async function scanNativo(detector: Detector, video: HTMLVideoElement,
       const [hit] = await detector.detect(video);
       if (hit?.rawValue) return hit.rawValue;
     }
-    await new Promise((r) => setTimeout(r, 150));
+    await new Promise((r) => setTimeout(r, 120));
   }
   throw new Error('Escaneo cancelado');
 }
 
 export async function abrirCamara(video: HTMLVideoElement): Promise<MediaStream> {
-  // Resolucion alta: un QR de carnet a un palmo de distancia ocupa pocos pixeles, y
-  // con 640x480 (el defecto) casi nunca decodifica. Pedimos 1080p y camara trasera;
-  // si el equipo no puede, el navegador entrega lo que tenga.
+  // Resolucion alta: un QR de carnet ocupa muy pocos pixeles, y con 640x480 (el
+  // defecto) casi nunca decodifica. Pedimos hasta 4K trasera; el navegador entrega
+  // lo mejor que pueda.
   const stream = await navigator.mediaDevices.getUserMedia({
     video: {
       facingMode: { ideal: 'environment' },
-      width: { ideal: 1920 },
-      height: { ideal: 1080 },
+      width: { ideal: 2560 },
+      height: { ideal: 1440 },
     },
   }).catch(() => navigator.mediaDevices.getUserMedia({ video: true }));
 
-  // Enfoque continuo cuando el dispositivo lo permite: sin el, el carnet queda borroso
-  // justo a la distancia a la que se lee. Es opcional; si no existe, no pasa nada.
   const track = stream.getVideoTracks()[0];
   try {
-    const caps = track.getCapabilities?.() as { focusMode?: string[] } | undefined;
-    if (caps?.focusMode?.includes('continuous')) {
-      await track.applyConstraints({ advanced: [{ focusMode: 'continuous' } as never] });
-    }
-  } catch { /* enfoque manual, se sigue pudiendo escanear */ }
+    const caps = track.getCapabilities?.() as
+      { focusMode?: string[]; zoom?: { min: number; max: number; step: number } } | undefined;
+    const avanzado: MediaTrackConstraintSet[] = [];
+    // Enfoque continuo: sin el, el carnet queda borroso justo a la distancia de lectura.
+    if (caps?.focusMode?.includes('continuous')) avanzado.push({ focusMode: 'continuous' } as never);
+    // Zoom moderado: es lo que mas ayuda con un QR pequeno, porque agranda el codigo
+    // antes de decodificar. 2x cuando el equipo lo soporta.
+    if (caps?.zoom && caps.zoom.max >= 2) avanzado.push({ zoom: 2 } as never);
+    if (avanzado.length) await track.applyConstraints({ advanced: avanzado });
+  } catch { /* sin enfoque/zoom: se sigue pudiendo escanear */ }
 
   video.srcObject = stream;
   await video.play();
   return stream;
+}
+
+/** La camara trae linterna (torch). Ayuda mucho con un carnet plastificado o a contraluz. */
+export function tieneLinterna(stream: MediaStream): boolean {
+  const track = stream.getVideoTracks()[0];
+  const caps = track?.getCapabilities?.() as { torch?: boolean } | undefined;
+  return Boolean(caps?.torch);
+}
+
+export async function alternarLinterna(stream: MediaStream, encender: boolean): Promise<void> {
+  const track = stream.getVideoTracks()[0];
+  if (!track) return;
+  await track.applyConstraints({ advanced: [{ torch: encender } as never] });
 }

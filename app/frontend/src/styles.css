@@ -189,7 +189,15 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .banner.pendiente { background: #e7f0e6; border-left-color: var(--verde); }
 .banner button { min-height: 40px; padding: 6px 12px; }
 
-.camara { width: 100%; max-height: 50vh; background: #000; border-radius: var(--radio); }
+.escaner { position: relative; }
+.camara { width: 100%; max-height: 60vh; background: #000; border-radius: var(--radio);
+          display: block; object-fit: cover; }
+/* Recuadro guia sobre el video: donde el usuario debe meter el codigo. */
+.recuadro { position: absolute; inset: 16% 20%; pointer-events: none;
+            border: 3px solid rgba(255, 255, 255, .85); border-radius: var(--radio-s);
+            box-shadow: 0 0 0 2px rgba(0, 0, 0, .35); }
+.pista { text-align: center; color: var(--tinta-suave); font-weight: 600;
+         margin: var(--e2) 0; min-height: 1.4em; }
 .ultimo { font-size: 1.25rem; font-weight: 700; font-family: var(--ui); color: var(--verde-oscuro); }
 
 /* Ficha (solo lectura) e ingresos del dia con editar/borrar, en la porteria. */

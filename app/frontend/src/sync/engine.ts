@@ -84,10 +84,66 @@ export async function downloadBootstrap(): Promise<void> {
   });
 }
 
+/**
+ * Sube los carnes escaneados en porteria. Vive aqui y no en la pantalla de Ingreso
+ * porque una cola que solo se vacia con su pantalla abierta no es una cola offline:
+ * es un formulario con memoria.
+ */
+export async function flushEntries(): Promise<{
+  sent: number; pending: number; alcanzable: boolean; nombres: Record<string, string>;
+}> {
+  const cola = await db.entryOutbox.toArray();
+  if (cola.length === 0) return { sent: 0, pending: 0, alcanzable: true, nombres: {} };
+
+  // El contrato es `entries` (no `records` como en asistencia) y la respuesta trae
+  // `names`: la porteria escanea un carne y necesita ver de quien es al confirmarlo.
+  let result: {
+    accepted: number;
+    rejected: { id: string; reason: string }[];
+    names: Record<string, string>;
+  };
+  try {
+    result = await api.post('/api/entry/sync', {
+      entries: cola.map(({ error, name, ...e }) => e),
+    });
+  } catch (e) {
+    if (e instanceof OfflineError) {
+      return { sent: 0, pending: cola.length, alcanzable: false, nombres: {} };
+    }
+    throw e;
+  }
+
+  const rechazados = new Map(result.rejected.map((r) => [r.id, r.reason]));
+  await db.transaction('rw', db.entryOutbox, async () => {
+    for (const e of cola) {
+      const motivo = rechazados.get(e.id);
+      if (motivo) await db.entryOutbox.update(e.id, { error: motivo });
+      else await db.entryOutbox.delete(e.id);
+    }
+  });
+
+  return {
+    sent: result.accepted,
+    pending: await db.entryOutbox.count(),
+    alcanzable: true,
+    nombres: result.names ?? {},
+  };
+}
+
+/** Las dos colas de una pasada. Es lo que llama el sincronizador automatico. */
+export async function flushAll(): Promise<{ pending: number; alcanzable: boolean }> {
+  const marcas = await flushOutbox();
+  const ingresos = await flushEntries();
+  return {
+    pending: marcas.pending + ingresos.pending,
+    alcanzable: marcas.alcanzable && ingresos.alcanzable,
+  };
+}
+
 /** Intenta vaciar el outbox cuando el navegador recupera la conexion. */
 export function startAutoSync(onChange?: (pending: number, alcanzable: boolean) => void) {
   const intentar = async () => {
-    const r = await flushOutbox().catch(() => null);
+    const r = await flushAll().catch(() => null);
     if (r) onChange?.(r.pending, r.alcanzable);
   };
   window.addEventListener('online', intentar);
