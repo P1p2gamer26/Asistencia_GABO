@@ -5,7 +5,7 @@ import { isSchoolDay } from '../db/local';
 import { api } from '../api/client';
 import type { Block, StudentDto, Status, AttendanceSesion } from '../api/contract';
 import { ESTADOS } from '../api/contract';
-import { downloadBootstrap, flushOutbox, markAttendance, pendingCount, startAutoSync } from '../sync/engine';
+import { downloadBootstrap, flushOutbox, markAttendance, pendingCount } from '../sync/engine';
 import BannerEstado from '../components/BannerEstado';
 import SelectorFecha from '../components/SelectorFecha';
 import { ordenCurso } from '../lib/ordenCurso';
@@ -71,12 +71,10 @@ export default function TomarAsistencia() {
       setBlocks(locales);
     })();
     void pendingCount().then(setPendientes);
-    const detener = startAutoSync((p, a) => { setPendientes(p); setAlcanzable(a); });
     const cambio = () => setOnline(navigator.onLine);
     window.addEventListener('online', cambio);
     window.addEventListener('offline', cambio);
     return () => {
-      detener();
       window.removeEventListener('online', cambio);
       window.removeEventListener('offline', cambio);
     };

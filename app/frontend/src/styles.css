@@ -471,3 +471,13 @@ tbody tr:hover { background: #fbfaf4; }
   margin-right: 5px; vertical-align: middle;
 }
 .lineas-novedades .detalle-dia { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+
+/* Franja de estado offline: fija abajo para que se vea en el telefono sin subir. */
+.barra-offline {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--e2);
+  padding: 8px var(--e3);
+  background: var(--verde-oscuro); color: #fff; font-size: .9rem;
+}
+.barra-offline.sin-red { background: var(--ocre); color: #1b1b1b; }
+.barra-offline button { min-height: 32px; padding: 4px 12px; }
