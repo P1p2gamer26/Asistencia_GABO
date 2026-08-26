@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../db/local';
-import { markAttendance, flushOutbox, flushAll, pendingCount, downloadBootstrap } from './engine';
+import { markAttendance, flushOutbox, flushAll, pendingCount, startAutoSync, downloadBootstrap } from './engine';
 
 const base = { studentId: 1, scheduleBlockId: 7, classDate: '2026-07-13' } as const;
 
@@ -130,5 +130,38 @@ describe('motor de sincronizacion', () => {
     expect(r.pending).toBe(2);   // una marca + un ingreso
     expect(await db.entryOutbox.count()).toBe(1);
     expect(await pendingCount()).toBe(1);
+  });
+
+  it('reintenta en cuanto la pantalla vuelve a estar visible', async () => {
+    await markAttendance({ ...base, status: 'P' });
+    let intentos = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      intentos++;
+      throw new TypeError('network');
+    }));
+
+    const detener = startAutoSync();
+    await vi.waitFor(() => expect(intentos).toBeGreaterThanOrEqual(1));
+    const tras_montar = intentos;
+
+    // Desbloquear el telefono: es cuando de verdad puede haber vuelto la señal.
+    document.dispatchEvent(new Event('visibilitychange'));
+    await vi.waitFor(() => expect(intentos).toBeGreaterThan(tras_montar));
+
+    detener();
+  });
+
+  it('sin nada pendiente no toca la red', async () => {
+    await db.outbox.clear();
+    await db.entryOutbox.clear();
+    let intentos = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => { intentos++; throw new TypeError('network'); }));
+
+    const detener = startAutoSync();
+    await new Promise((r) => setTimeout(r, 50));
+    detener();
+
+    // Una cola vacia no justifica encender la radio del telefono.
+    expect(intentos).toBe(0);
   });
 });
