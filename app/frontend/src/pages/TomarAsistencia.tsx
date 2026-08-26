@@ -12,6 +12,21 @@ import { ordenCurso } from '../lib/ordenCurso';
 
 const hoyISO = () => new Date().toLocaleDateString('en-CA');   // YYYY-MM-DD en hora local
 
+/** true en el ancho donde la planilla y el panel se apilan (mismo corte que el CSS). */
+function useEsMovil(): boolean {
+  const consultar = () =>
+    typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 62rem)').matches;
+  const [movil, setMovil] = useState(consultar);
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const mq = window.matchMedia('(max-width: 62rem)');
+    const on = () => setMovil(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  return movil;
+}
+
 const DIAS = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
 
 /** Dia de la semana (1 lunes ... 7 domingo) de una fecha YYYY-MM-DD, en hora local. */
@@ -41,6 +56,7 @@ export default function TomarAsistencia() {
 
   // Panel lateral: las ultimas tomas de lista y, de la elegida, el detalle editable.
   const [sesiones, setSesiones] = useState<AttendanceSesion[]>([]);
+  const esMovil = useEsMovil();
 
   useEffect(() => {
     void db.blocks.toArray().then(setBlocks);
@@ -275,9 +291,14 @@ export default function TomarAsistencia() {
 
     </main>
 
-    <aside className="card">
-      <span className="eyebrow">Ultimos llamados de lista</span>
-      <h2>Asistencia registrada</h2>
+    <aside className="card registradas">
+     {/* En movil se apila bajo la planilla de 50 alumnos: plegado se encuentra y se
+         toca facil. En escritorio queda abierto como panel lateral de siempre. */}
+     <details open={!esMovil}>
+      <summary>
+        <span className="eyebrow">Ultimos llamados de lista</span>
+        <h2>Asistencia registrada</h2>
+      </summary>
 
       {sesiones.length === 0 && <p className="meta">Todavia no hay tomas de lista registradas.</p>}
 
@@ -296,7 +317,7 @@ export default function TomarAsistencia() {
           </li>
         ))}
       </ul>
-
+     </details>
     </aside>
    </div>
   );
