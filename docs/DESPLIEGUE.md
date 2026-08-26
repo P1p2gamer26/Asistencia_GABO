@@ -149,7 +149,7 @@ editor SQL de Supabase:
 select version, description, success from flyway_schema_history order by installed_rank;
 ```
 
-Las cinco migraciones (V1, V2, V3, V20, V30) tienen que aparecer con `success = true`.
+Todas las migraciones (V1, V2, V3, V20, V30, V40, V50, V60, V61, V62) tienen que aparecer con `success = true`.
 
 ### 2. Backend en Fly.io
 

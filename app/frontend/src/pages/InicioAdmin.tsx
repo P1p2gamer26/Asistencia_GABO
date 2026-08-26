@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, getSession } from '../api/client';
 import Kpi from '../components/charts/Kpi';
+import LineasNovedades from '../components/charts/LineasNovedades';
+import type { DiaMes } from '../components/charts/LineasNovedades';
 
 type CursoMes = {
   grade: string; present: number; late: number; absent: number; evasion: number;
@@ -15,6 +17,7 @@ type ResumenHoy = {
   ingresos: number; mesAsistencia: number; mesDiasLectivos: number;
   mesPresentes: number; mesTarde: number; mesAusentes: number; mesEvasiones: number;
   mesPorCurso: CursoMes[];
+  mesPorDia: DiaMes[];
 };
 
 type Novedad = {
@@ -112,8 +115,18 @@ export default function InicioAdmin() {
 
   return (
     <main className="card ancha">
-      <p className="meta">Hola, {getSession()?.fullName}</p>
-      <h1>{hoy ? fechaLarga(hoy.fecha) : 'Hoy'}</h1>
+      <div className="cabecera-inicio">
+        <div>
+          <p className="meta">Hola, {getSession()?.fullName}</p>
+          <h1>{hoy ? fechaLarga(hoy.fecha) : 'Hoy'}</h1>
+        </div>
+        {hoy && hoy.mesPorDia?.length > 0 && (
+          <div className="cabecera-grafica">
+            <h3>Novedades por dia del mes</h3>
+            <LineasNovedades serie={hoy.mesPorDia} />
+          </div>
+        )}
+      </div>
 
       {error && <p role="alert" className="error">{error}</p>}
       {cargando && <p className="meta">Cargando...</p>}

@@ -128,6 +128,25 @@ public class AttendanceController {
                 .toList();
     }
 
+    public record SesionDto(Long blockId, String grade, Short blockNo, String subject,
+                           LocalDate classDate, Long total, String recordedByName, Instant lastRecordedAt) {}
+
+    /**
+     * Las ultimas tomas de asistencia, para el panel lateral de /asistencia. Un docente ve
+     * solo las de los bloques que dicta; coordinacion y administracion ven las de todos,
+     * que es a quienes les llegan los reclamos de cursos que no dictan.
+     */
+    @GetMapping("/recientes")
+    public List<SesionDto> recientes(@RequestParam(defaultValue = "15") int limite) {
+        String role = currentRole();
+        Long teacherId = ("ADMIN".equals(role) || "COORDINADOR".equals(role))
+                ? null : JwtService.currentUserId();
+        return repo.ultimasSesiones(teacherId, Math.min(Math.max(limite, 1), 50)).stream()
+                .map(r -> new SesionDto(r.getBlockId(), r.getGrade(), r.getBlockNo(), r.getSubject(),
+                        r.getClassDate(), r.getTotal(), r.getRecordedByName(), r.getLastRecordedAt()))
+                .toList();
+    }
+
     @PutMapping("/{id}")
     public void editar(@PathVariable UUID id, @Valid @RequestBody EditarDto body) {
         if (!ESTADOS.contains(body.status())) {

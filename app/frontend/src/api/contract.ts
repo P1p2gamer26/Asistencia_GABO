@@ -58,3 +58,9 @@ export const ESTADOS: { valor: Status; etiqueta: string; color: string }[] = [
   { valor: 'F', etiqueta: 'Falta',    color: '#c8503c' },
   { valor: 'E', etiqueta: 'Evasion',  color: '#7a5ea8' },
 ];
+
+/** Una toma de asistencia ya hecha (bloque + fecha), para el panel lateral de /asistencia. */
+export type AttendanceSesion = {
+  blockId: number; grade: string; blockNo: number; subject?: string;
+  classDate: string; total: number; recordedByName?: string; lastRecordedAt: string;
+};

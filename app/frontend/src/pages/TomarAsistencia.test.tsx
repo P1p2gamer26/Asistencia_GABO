@@ -131,7 +131,8 @@ describe('TomarAsistencia', () => {
 
   it('al cambiar de dia cambian los bloques ofrecidos', async () => {
     render(<MemoryRouter><TomarAsistencia /></MemoryRouter>);
-    await waitFor(() => expect(screen.getByLabelText(/curso/i)).toBeInTheDocument());
+    await waitFor(() => expect(
+      screen.getByLabelText(/curso/i).querySelectorAll('option').length).toBeGreaterThan(1));
     await userEvent.selectOptions(screen.getByLabelText(/curso/i), '601');
 
     await userEvent.clear(screen.getByLabelText(/fecha/i));

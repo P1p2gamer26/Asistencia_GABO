@@ -192,6 +192,26 @@ public interface ReportRepository extends Repository<Student, Long> {
                            @Param("from") LocalDate from,
                            @Param("to") LocalDate to);
 
+    interface DiaRow {
+        LocalDate getClassDate();
+        int getLate();
+        int getAbsent();
+        int getEvasion();
+    }
+
+    /** Novedades por dia (no el porcentaje): lo que se dibuja en la grafica del inicio. */
+    @Query(value = """
+            SELECT a.class_date AS classDate,
+                   count(*) FILTER (WHERE a.status = 'T') AS late,
+                   count(DISTINCT a.student_id) FILTER (WHERE a.status = 'F') AS absent,
+                   count(*) FILTER (WHERE a.status = 'E') AS evasion
+            FROM attendance a
+            WHERE a.class_date BETWEEN :from AND :to
+            GROUP BY a.class_date
+            ORDER BY a.class_date
+            """, nativeQuery = true)
+    List<DiaRow> novedadesPorDia(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
     interface TrendRow {
         LocalDate getClassDate();
         double getAttendanceRate();
