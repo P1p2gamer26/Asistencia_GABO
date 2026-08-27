@@ -35,6 +35,22 @@ class LocalDb extends Dexie {
       entryOutbox: 'id, scannedAt, error',
       meta: 'key',
     });
+
+    // Version 2: indice por bloque en la cola. Al abrir un bloque, TomarAsistencia
+    // recorria la cola entera para encontrar lo suyo; con la jornada de un colegio
+    // entero en el telefono eso empieza a notarse.
+    //
+    // Anadir un indice NO borra datos: Dexie reindexa lo que ya hay. Lo que si borra
+    // es quitar una tabla del objeto stores o cambiarle la clave primaria; por eso el
+    // bloque de la version 1 se queda tal cual esta, para siempre.
+    this.version(2).stores({
+      blocks: 'id, grade, weekday',
+      students: 'id, grade, documentId',
+      schoolDays: 'calendarDate, dayType',
+      outbox: 'key, classDate, error, scheduleBlockId',
+      entryOutbox: 'id, scannedAt, error',
+      meta: 'key',
+    });
   }
 }
 
