@@ -71,6 +71,11 @@ export default function TomarAsistencia() {
       }
       setBlocks(locales);
       setCargado(true);
+      // Y en segundo plano se refresca por si el horario cambio en el servidor (un
+      // curso reasignado al docente): asi no hay que cerrar sesion para verlo.
+      void downloadBootstrap()
+        .then(async () => setBlocks(await db.blocks.toArray()))
+        .catch(() => {});
     })();
     void pendingCount().then(setPendientes);
     const cambio = () => setOnline(navigator.onLine);
