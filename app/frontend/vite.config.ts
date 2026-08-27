@@ -1,12 +1,20 @@
+import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// La version sale de package.json y no de una constante suelta: dos sitios donde
+// escribir el mismo numero terminan siempre en dos numeros distintos.
+const { version } = JSON.parse(readFileSync('./package.json', 'utf8')) as { version: string };
+
 export default defineConfig({
+  define: { 'import.meta.env.VITE_VERSION': JSON.stringify(version) },
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // prompt y no autoUpdate: recargar sola puede pasar mientras alguien toma
+      // lista. El componente Version ofrece el boton cuando hay algo nuevo.
+      registerType: 'prompt',
       includeAssets: ['favicon.ico', 'icon-192.png', 'icon-512.png',
         'apple-touch-icon.png', 'icon-maskable-512.png'],
       manifest: {

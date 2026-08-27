@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { clearSession, getSession } from '../api/client';
 import { downloadBootstrap } from '../sync/engine';
 import Escudo from './Escudo';
+import Version from './Version';
 import type { Role } from '../api/contract';
 
 type Destino = { a: string; texto: string; roles: Role[] };
@@ -80,6 +81,7 @@ export default function Menu() {
           ))}
         </ul>
 
+        <Version />
         <button type="button" className="secundario"
                 onClick={() => { clearSession(); location.href = '/login'; }}>
           Cerrar sesion
