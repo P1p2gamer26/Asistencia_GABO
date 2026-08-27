@@ -140,7 +140,10 @@ describe('Consultas', () => {
   it('la descarga en Excel si permite todos los cursos', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => respuesta(FILAS)));
     render(<Consultas />);
+    // Los campos ya traen el mes en curso por defecto: se limpian antes de escribir.
+    await userEvent.clear(screen.getByLabelText(/desde/i));
     await userEvent.type(screen.getByLabelText(/desde/i), '2026-02-01');
+    await userEvent.clear(screen.getByLabelText(/hasta/i));
     await userEvent.type(screen.getByLabelText(/hasta/i), '2026-06-30');
     // Sin curso elegido, el Excel sigue disponible: 64 KB y es la herramienta
     // correcta para analizar el colegio entero.

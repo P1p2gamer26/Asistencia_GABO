@@ -11,10 +11,15 @@ type Fila = {
 
 type DiaNoLectivoConMarcas = { fecha: string; tipo: string; marcas: number };
 
+const isoLocal = (d: Date) => d.toLocaleDateString('en-CA');   // YYYY-MM-DD en hora local
+
 export default function Consultas() {
+  const hoy = new Date();
   const [grade, setGrade] = useState('');
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
+  // Del 1 del mes a hoy por defecto: antes arrancaban vacias y "Consultar" quedaba
+  // deshabilitado, asi que elegir un curso no mostraba nada y parecia roto.
+  const [from, setFrom] = useState(isoLocal(new Date(hoy.getFullYear(), hoy.getMonth(), 1)));
+  const [to, setTo] = useState(isoLocal(hoy));
   const [tipo, setTipo] = useState('resumen');
   const [filas, setFilas] = useState<Fila[]>([]);
   const [error, setError] = useState('');
@@ -29,6 +34,12 @@ export default function Consultas() {
        .then((filas) => setCursos([...new Set(filas.map((f) => f.grade))].sort(ordenCurso)))
        .catch(() => {});   // sin conexion se queda vacio y el aviso lo explica
   }, []);
+
+  // Al elegir curso (con las fechas ya puestas) se consulta solo: el usuario no tiene
+  // que acordarse de pulsar "Consultar" para que aparezca la tabla.
+  useEffect(() => {
+    if (grade && from && to) void buscar();
+  }, [grade, from, to]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const query = () =>
     `grade=${encodeURIComponent(grade)}&from=${from}&to=${to}`;
