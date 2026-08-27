@@ -91,10 +91,15 @@ export default function PanelUsuarios() {
         <button type="button" className="secundario" onClick={() => void cargar()}>Buscar</button>
       </div>
 
-      <div className="tabla-scroll">
+      {/* Caja con scroll propio: con 1200 acudientes la lista empujaba todo (y "Cerrar
+          sesion") hasta el fondo de la pagina. */}
+      <div className="tabla-scroll" style={{ maxHeight: '55vh', overflowY: 'auto' }}>
         <table>
           <thead>
-            <tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr>
+            <tr>{['Nombre', 'Correo', 'Rol', 'Estado', 'Acciones'].map((h) => (
+              <th key={h} style={{ position: 'sticky', top: 0, background: 'var(--superficie)',
+                                   boxShadow: 'inset 0 -1px 0 var(--rejilla)' }}>{h}</th>
+            ))}</tr>
           </thead>
           <tbody>
             {usuarios.map((u) => (

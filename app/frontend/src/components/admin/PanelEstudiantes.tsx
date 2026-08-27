@@ -201,7 +201,7 @@ export default function PanelEstudiantes() {
 
       <p className="meta">{estudiantes.length} estudiantes</p>
 
-      <ul className="registros-lista">
+      <ul className="registros-lista" style={{ maxHeight: '55vh', overflowY: 'auto' }}>
         {estudiantes.map((s) => (
           <li key={s.id}>
             {editando?.id === s.id ? (
