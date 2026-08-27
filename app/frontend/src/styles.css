@@ -545,3 +545,33 @@ tbody tr:hover { background: #fbfaf4; }
    pulse "Instalar" creyendo que es "Entrar". */
 .instalar { margin-top: var(--e4); padding-top: var(--e3); border-top: 1px solid var(--rejilla);
   display: grid; gap: 4px; }
+
+/* Escudo de fondo, muy tenue.
+   Va en un ::before fijo y no en background-image del body porque el body ya lleva el
+   rayado de planilla, y porque asi la marca de agua NO se desplaza al hacer scroll:
+   repetirla en cada pantalla de scroll se lee como un patron, y una sola marca fija
+   se lee como el papel membretado que imita.
+   pointer-events:none es obligatorio: sin eso, la capa se come los toques del telefono
+   sobre los botones que quedan debajo. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: url('/escudo.png') center 45% / min(52vw, 380px) no-repeat;
+  opacity: .06;
+  pointer-events: none;
+}
+
+/* El contenido va por encima de la marca de agua. */
+#root { position: relative; z-index: 1; }
+
+/* En pantallas pequeñas el escudo compite con el texto: se reduce y se aclara. */
+@media (max-width: 640px) {
+  body::before { background-size: 70vw; opacity: .045; }
+}
+
+/* Quien haya pedido menos estimulo visual no necesita una imagen decorativa detras. */
+@media (prefers-reduced-motion: reduce) {
+  body::before { opacity: .03; }
+}
