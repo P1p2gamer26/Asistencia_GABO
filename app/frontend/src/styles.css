@@ -540,3 +540,8 @@ tbody tr:hover { background: #fbfaf4; }
    el hueco es permanente; se deja con :has() igualmente para que si algun dia vuelve a
    ocultarse en algun caso, el espacio se recupere solo. */
 .contenido:has(.barra-offline) { padding-bottom: 52px; }
+
+/* Bloque de instalacion en el login: separado del boton de entrar para que nadie
+   pulse "Instalar" creyendo que es "Entrar". */
+.instalar { margin-top: var(--e4); padding-top: var(--e3); border-top: 1px solid var(--rejilla);
+  display: grid; gap: 4px; }

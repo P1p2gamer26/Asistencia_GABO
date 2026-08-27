@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import Escudo from '../components/Escudo';
+import BotonInstalar from '../components/BotonInstalar';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -42,6 +43,7 @@ export default function Login() {
              value={password} onChange={(e) => setPassword(e.target.value)} />
       {error && <p role="alert" className="error">{error}</p>}
       <button type="submit" disabled={busy}>{busy ? 'Entrando...' : 'Entrar'}</button>
+      <BotonInstalar />
     </form>
   );
 }
