@@ -3,8 +3,12 @@ import { estadoDeDatos } from '../sync/engine';
 import { useSincronizacion } from '../sync/useSincronizacion';
 
 /**
- * Franja fija de estado. Solo aparece cuando hay algo que decir: en el caso normal
- * (todo enviado, servidor alcanzable y copia local reciente) no ocupa un pixel.
+ * Franja fija de estado, SIEMPRE visible.
+ *
+ * Antes solo aparecia cuando algo iba mal, y eso deja al docente adivinando: al no ver
+ * nada no sabe si esta subiendo, si ya subio o si el telefono se quedo sin señal en
+ * mitad de la jornada. Un indicador que solo habla de los problemas no sirve para
+ * confiar; lo que hace falta es saber en que modo se esta trabajando, siempre.
  */
 export default function BarraOffline() {
   const { pendientes, alcanzable, sincronizarAhora } = useSincronizacion();
@@ -27,22 +31,40 @@ export default function BarraOffline() {
   const sinDatos = datos !== null && datos.estudiantes === 0;
   const datosViejos = datos !== null && datos.dias !== null && datos.dias >= 7;
 
-  if (pendientes === 0 && alcanzable && !sinDatos && !datosViejos) return null;
+  const marcas = (n: number) => `${n} marca${n === 1 ? '' : 's'}`;
 
-  const mensaje = sinDatos
-    ? 'No hay datos descargados en este telefono: conectese una vez para poder tomar lista sin señal.'
-    : datosViejos
-      ? `Los datos del colegio se descargaron hace ${datos!.dias} dias. Conectese para actualizarlos.`
-      : alcanzable
-        ? `Enviando ${pendientes} marca${pendientes === 1 ? '' : 's'}...`
-        : `Sin conexion. ${pendientes} marca${pendientes === 1 ? '' : 's'} guardada${pendientes === 1 ? '' : 's'} en el telefono.`;
+  // El orden es el de la gravedad: lo que impide trabajar va antes que lo que solo
+  // retrasa el envio.
+  const { modo, mensaje } = !alcanzable
+    ? {
+        modo: 'sin-red',
+        mensaje: pendientes > 0
+          ? `Sin internet · ${marcas(pendientes)} guardada${pendientes === 1 ? '' : 's'} aqui, suben solas al reconectar`
+          : 'Sin internet · puede seguir tomando lista, se guarda en este dispositivo',
+      }
+    : sinDatos
+      ? {
+          modo: 'sin-red',
+          mensaje: 'En linea · faltan los datos del colegio, espere a que terminen de bajar',
+        }
+      : pendientes > 0
+        ? { modo: 'subiendo', mensaje: `En linea · subiendo ${marcas(pendientes)}...` }
+        : datosViejos
+          ? {
+              modo: 'aviso',
+              mensaje: `En linea · los datos del colegio son de hace ${datos!.dias} dias`,
+            }
+          : { modo: 'en-linea', mensaje: 'En linea · todo subido' };
 
   return (
-    <div className={`barra-offline ${alcanzable && !sinDatos ? '' : 'sin-red'}`} role="status">
+    <div className={`barra-offline ${modo}`} role="status">
+      <span className="punto" aria-hidden="true" />
       <span>{mensaje}</span>
-      <button type="button" className="secundario" onClick={() => void sincronizarAhora()}>
-        Reintentar
-      </button>
+      {(pendientes > 0 || !alcanzable || sinDatos || datosViejos) && (
+        <button type="button" className="secundario" onClick={() => void sincronizarAhora()}>
+          Reintentar
+        </button>
+      )}
     </div>
   );
 }

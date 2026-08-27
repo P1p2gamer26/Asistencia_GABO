@@ -513,15 +513,30 @@ tbody tr:hover { background: #fbfaf4; }
 /* Franja de estado offline: fija abajo para que se vea en el telefono sin subir. */
 .barra-offline {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
-  display: flex; align-items: center; justify-content: space-between; gap: var(--e2);
+  display: flex; align-items: center; gap: var(--e2);
   padding: 8px var(--e3);
   background: var(--verde-oscuro); color: #fff; font-size: .9rem;
 }
+.barra-offline span:nth-of-type(2) { flex: 1; }
+.barra-offline button { min-height: 32px; padding: 4px 12px; margin-left: auto; }
+
+/* El punto lleva el estado tambien en la forma, no solo en el color: un docente con
+   daltonismo distingue el hueco del relleno aunque verde y ocre se le parezcan. */
+.barra-offline .punto {
+  width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto;
+  background: currentColor;
+}
+/* En linea y todo subido: verde y discreto, es el caso normal de la jornada. */
+.barra-offline.en-linea { background: var(--verde-oscuro); color: #fff; }
+/* Subiendo: mismo verde, punto hueco, para que se vea que hay algo en vuelo. */
+.barra-offline.subiendo .punto { background: transparent; box-shadow: inset 0 0 0 2px currentColor; }
+/* Sin internet: ocre, el unico estado en que el docente tiene que enterarse de verdad. */
 .barra-offline.sin-red { background: var(--ocre); color: #1b1b1b; }
-.barra-offline button { min-height: 32px; padding: 4px 12px; }
+/* Aviso menor (datos viejos): en linea, pero merece la pena decirlo. */
+.barra-offline.aviso { background: #4a5d52; color: #fff; }
 
 /* La franja es "fixed": no reserva sitio por si sola y tapa el pie de la pantalla
-   (botones de enviar al final de listas largas). :has() deja que .contenido reserve
-   ese espacio solo mientras la franja este realmente montada, sin que ningun
-   componente tenga que poner ni quitar una clase a mano. */
+   (botones de enviar al final de listas largas). Ahora esta siempre montada, asi que
+   el hueco es permanente; se deja con :has() igualmente para que si algun dia vuelve a
+   ocultarse en algun caso, el espacio se recupere solo. */
 .contenido:has(.barra-offline) { padding-bottom: 52px; }
