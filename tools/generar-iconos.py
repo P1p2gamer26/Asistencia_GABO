@@ -23,7 +23,9 @@ FONDO = (245, 243, 234)      # #f5f3ea, el background_color del manifest
 # le permite un poco mas porque el service worker lo precarga una sola vez, mientras
 # que la regla de 30 KB existe para lo que viaja en cada carga.
 LIMITES = {"icon-192.png": 30 * 1024, "icon-512.png": 40 * 1024,
-           "favicon.ico": 30 * 1024, "escudo.png": 120 * 1024}
+           "favicon.ico": 30 * 1024, "escudo.png": 120 * 1024,
+           "icon-maskable-512.png": 40 * 1024, "apple-touch-icon.png": 30 * 1024,
+           "portada-1080.png": 120 * 1024}
 
 
 def escudo() -> Image.Image:
@@ -127,7 +129,26 @@ if __name__ == "__main__":
     guardar(icono(base, 288, 0.98, transparente=True), DESTINO / "escudo.png",
             LIMITES["escudo.png"])
 
-    for nombre in ("icon-192.png", "icon-512.png", "favicon.ico", "escudo.png"):
+    # Maskable en su propio fichero: Android recorta hasta el 20 % de cada borde, asi
+    # que el escudo va al 68 % del lienzo. Compartir fichero con el icono normal
+    # obligaba a elegir: o sobrevive al recorte, o llena el marco cuando no lo hay.
+    guardar(icono(base, 512, 0.68), DESTINO / "icon-maskable-512.png",
+            LIMITES["icon-512.png"])
+
+    # iOS pide 180 px y NO respeta la transparencia: la rellena de negro. Va con el
+    # fondo crema del manifest, no transparente.
+    guardar(icono(base, 180, 0.86), DESTINO / "apple-touch-icon.png",
+            LIMITES["icon-192.png"])
+
+    # Portada del arranque y del login: apaisada, con el escudo centrado de verdad
+    # (mismo margen arriba/abajo que a los lados dentro del cuadrado central).
+    portada = Image.new("RGB", (1080, 1080), FONDO)
+    marca = icono(base, 1080, 0.62, transparente=True)
+    portada.paste(marca, (0, 0), marca)
+    guardar(portada, DESTINO / "portada-1080.png", 120 * 1024)
+
+    for nombre in ("icon-192.png", "icon-512.png", "favicon.ico", "escudo.png",
+                   "icon-maskable-512.png", "apple-touch-icon.png", "portada-1080.png"):
         tam = (DESTINO / nombre).stat().st_size
         marca = "OK " if tam <= LIMITES[nombre] else "GRANDE"
         print(f"  {marca} {nombre}: {tam / 1024:.1f} KB")

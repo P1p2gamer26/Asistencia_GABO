@@ -7,7 +7,8 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'icon-192.png', 'icon-512.png'],
+      includeAssets: ['favicon.ico', 'icon-192.png', 'icon-512.png',
+        'apple-touch-icon.png', 'icon-maskable-512.png'],
       manifest: {
         name: 'Asistencia Colegio Gabriel Garcia Marquez',
         short_name: 'Asistencia GGM',
@@ -17,12 +18,16 @@ export default defineConfig({
         scope: '/',
         display: 'standalone',
         orientation: 'portrait',
+        id: '/',
+        categories: ['education', 'productivity'],
         background_color: '#f5f3ea',
         theme_color: '#14663b',
         icons: [
-          { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          // Fichero propio: el recorte de Android exige el escudo dentro del 80 %
+          // central, y ese mismo margen deja el icono normal descentrado del marco.
+          { src: '/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
       workbox: {
