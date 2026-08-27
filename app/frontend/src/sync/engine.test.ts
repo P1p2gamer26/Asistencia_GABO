@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../db/local';
-import { markAttendance, flushOutbox, flushAll, pendingCount, startAutoSync, downloadBootstrap, estadoDeDatos } from './engine';
+import { markAttendance, flushOutbox, flushAll, pendingCount, startAutoSync, downloadBootstrap, estadoDeDatos, cancelarSincronizacionPronto } from './engine';
 
 const base = { studentId: 1, scheduleBlockId: 7, classDate: '2026-07-13' } as const;
 
@@ -15,6 +15,9 @@ describe('motor de sincronizacion', () => {
       { calendarDate: '2026-07-20', dayType: 'FESTIVO' },
     ]);
     vi.unstubAllGlobals();
+    // markAttendance programa una subida a los 2 s; sin cancelarla, la de una prueba
+    // se dispara en medio de la siguiente y le cambia la cola por debajo.
+    cancelarSincronizacionPronto();
   });
 
   it('marcar asistencia sin red no falla y deja el registro pendiente', async () => {
@@ -151,18 +154,44 @@ describe('motor de sincronizacion', () => {
     detener();
   });
 
-  it('sin nada pendiente no toca la red', async () => {
+  it('sin nada pendiente no sube nada, solo comprueba si el servidor contesta', async () => {
     await db.outbox.clear();
     await db.entryOutbox.clear();
-    let intentos = 0;
-    vi.stubGlobal('fetch', vi.fn(async () => { intentos++; throw new TypeError('network'); }));
+    const rutas: string[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      rutas.push(new URL(url, 'http://x').pathname);
+      throw new TypeError('network');
+    }));
 
     const detener = startAutoSync();
-    await new Promise((r) => setTimeout(r, 50));
+    await vi.waitFor(() => expect(rutas.length).toBeGreaterThan(0));
     detener();
 
-    // Una cola vacia no justifica encender la radio del telefono.
-    expect(intentos).toBe(0);
+    // Con la cola vacia no se envia asistencia: seria una peticion sin contenido.
+    expect(rutas).not.toContain('/api/attendance/sync');
+    expect(rutas.some((r) => r.startsWith('/api/entry'))).toBe(false);
+    // Pero SI se pregunta si hay servidor, porque "no hubo error al no enviar nada" no
+    // es lo mismo que "hay internet": sin esto la franja diria "En linea" en un salon
+    // sin señal. Es una sola peticion publica y minuscula, no un sondeo en bucle.
+    expect(rutas).toContain('/actuator/health');
+  });
+
+  it('marcar asistencia programa la subida sin esperar al ciclo automatico', async () => {
+    // Sin temporizadores falsos: markAttendance pasa por IndexedDB (Dexie), y con los
+    // timers de vitest congelados esas promesas no resuelven nunca.
+    const enviadas: string[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      enviadas.push(new URL(url, 'http://x').pathname);
+      return new Response(JSON.stringify({ accepted: 1, rejected: [] }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }));
+
+    await markAttendance({ ...base, status: 'P' });
+    // Todavia no: se agrupan las marcas para no hacer una peticion por estudiante.
+    expect(enviadas).not.toContain('/api/attendance/sync');
+
+    await vi.waitFor(() => expect(enviadas).toContain('/api/attendance/sync'),
+      { timeout: 5000, interval: 100 });
   });
 
   it('dice cuando se descargaron los datos y cuantos estudiantes hay', async () => {

@@ -1,4 +1,4 @@
-import { api, OfflineError } from '../api/client';
+import { api, apiUrl, OfflineError } from '../api/client';
 import type { Bootstrap, Status } from '../api/contract';
 import { db, isSchoolDay } from '../db/local';
 
@@ -37,6 +37,10 @@ export async function markAttendance(mark: Mark): Promise<void> {
     recordedAt: new Date().toISOString(),
     error: undefined,
   });
+
+  // Con internet, lo marcado sube solo en un par de segundos; sin internet esto no
+  // hace nada visible y la marca se queda a salvo en la cola.
+  sincronizarPronto();
 }
 
 export const pendingCount = () => db.outbox.count();
@@ -156,6 +160,64 @@ export async function flushAll(): Promise<{ pending: number; alcanzable: boolean
 }
 
 /**
+ * Quien quiere enterarse del estado de la sincronizacion. Es un conjunto y no un solo
+ * callback porque la franja de estado, la planilla y cualquier pantalla futura miran
+ * lo mismo: cuantas marcas quedan sin subir y si el servidor contesta.
+ */
+type Escucha = (pending: number, alcanzable: boolean) => void;
+const escuchas = new Set<Escucha>();
+const avisar = (pending: number, alcanzable: boolean) => {
+  for (const f of escuchas) f(pending, alcanzable);
+};
+
+/**
+ * Comprueba de verdad si el servidor contesta.
+ *
+ * Hace falta porque con la cola vacia no se envia nada, y "no hubo error" no es lo
+ * mismo que "hay internet": la aplicacion diria "En linea" en un salon sin señal.
+ * /actuator/health es publico (no pide sesion) y responde unos pocos bytes.
+ *
+ * navigator.onLine no sirve para esto: da true con el WiFi del colegio conectado pero
+ * sin salida a internet, que es justo el caso que hay que detectar.
+ */
+export async function comprobarConexion(): Promise<boolean> {
+  const corte = new AbortController();
+  const reloj = window.setTimeout(() => corte.abort(), 5000);
+  try {
+    const res = await fetch(apiUrl('/actuator/health'), {
+      cache: 'no-store',
+      signal: corte.signal,
+    });
+    return res.ok;
+  } catch {
+    return false;
+  } finally {
+    window.clearTimeout(reloj);
+  }
+}
+
+/**
+ * Sube lo pendiente en cuanto se pueda, sin esperar al siguiente ciclo automatico.
+ *
+ * Va con una espera corta a proposito: al tomar lista se marcan cuarenta estudiantes
+ * seguidos, y subir en cada pulsacion serian cuarenta peticiones. Con este respiro se
+ * agrupan en una sola, y aun asi la marca llega al servidor en un par de segundos.
+ */
+let prontoTimer = 0;
+
+/** Cancela la subida programada. La usan las pruebas para no cruzar una con otra. */
+export function cancelarSincronizacionPronto(): void {
+  window.clearTimeout(prontoTimer);
+}
+
+export function sincronizarPronto(esperaMs = 2000): void {
+  window.clearTimeout(prontoTimer);
+  prontoTimer = window.setTimeout(() => {
+    void flushAll().then((r) => avisar(r.pending, r.alcanzable)).catch(() => {});
+  }, esperaMs);
+}
+
+/**
  * Sincronizacion automatica de las dos colas.
  *
  * Los disparadores son los tres momentos en que de verdad puede haber cambiado algo:
@@ -187,22 +249,45 @@ export function startAutoSync(onChange?: (pending: number, alcanzable: boolean) 
     const r = await flushAll().catch(() => null);
     if (r) {
       espera = r.alcanzable ? MIN : Math.min(espera * 2, MAX);
-      onChange?.(r.pending, r.alcanzable);
+      avisar(r.pending, r.alcanzable);
     }
     programar();
   };
 
-  const alVolver = () => { espera = MIN; void intentar(); };
+  /**
+   * Con la cola vacia no se envia nada, asi que flushAll devuelve alcanzable=true sin
+   * haber hablado con nadie. Para poder decir "En linea" sin mentir hay que preguntar.
+   * Solo en los disparadores (montaje, vuelta de red, pantalla visible), nunca en
+   * bucle: es una PWA de celular y esto enciende la radio.
+   */
+  const revisarEstado = async () => {
+    if (!vivo) return;
+    const hay = (await db.outbox.count()) + (await db.entryOutbox.count());
+    if (hay > 0) return;   // hay algo que subir: el propio envio dira si se alcanza
+    const ok = await comprobarConexion();
+    if (vivo) avisar(0, ok);
+  };
+
+  const alVolver = () => { espera = MIN; void intentar(); void revisarEstado(); };
+  // El evento 'offline' si es fiable en su direccion: si el sistema dice que no hay
+  // red, no la hay. El 'online' solo dice que hay una interfaz levantada, por eso ese
+  // camino termina preguntando al servidor en vez de creerselo.
+  const alCaerse = () => avisar(0, false);
   const alVerse = () => { if (document.visibilityState === 'visible') alVolver(); };
 
+  if (onChange) escuchas.add(onChange);
   window.addEventListener('online', alVolver);
+  window.addEventListener('offline', alCaerse);
   document.addEventListener('visibilitychange', alVerse);
   void intentar();
+  void revisarEstado();
 
   return () => {
     vivo = false;
     window.clearTimeout(timer);
+    if (onChange) escuchas.delete(onChange);
     window.removeEventListener('online', alVolver);
+    window.removeEventListener('offline', alCaerse);
     document.removeEventListener('visibilitychange', alVerse);
   };
 }

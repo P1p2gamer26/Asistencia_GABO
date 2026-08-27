@@ -1,11 +1,11 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-// El :has() en styles.css reserva espacio en .contenido solo mientras
-// ".barra-offline" este realmente en el DOM. jsdom no calcula layout (no puede
-// afirmar que el padding se aplique), asi que esta prueba cubre lo que si es honesto
-// verificar desde aqui: que el elemento que dispara el selector aparece y desaparece
-// con el estado, no que se queda montado (oculto) tapando espacio permanente.
+// La franja esta SIEMPRE montada: el docente tiene que poder ver en que modo trabaja
+// sin tener que deducirlo de que no aparezca nada. Lo que cambia con el estado es el
+// mensaje y la clase de modo, y eso es lo que se verifica aqui. jsdom no calcula
+// layout, asi que el padding que reserva .contenido con :has() no se afirma desde una
+// prueba: solo la presencia del elemento que dispara ese selector.
 const mockEstado = vi.hoisted(() => ({ pendientes: 0, alcanzable: true }));
 vi.mock('../sync/useSincronizacion', () => ({
   useSincronizacion: () => ({ ...mockEstado, sincronizarAhora: vi.fn() }),
@@ -22,14 +22,40 @@ vi.mock('../sync/engine', () => ({
 import BarraOffline from './BarraOffline';
 
 describe('BarraOffline', () => {
-  it('con todo sincronizado no monta la franja: .contenido no reserva espacio', async () => {
+  it('con todo sincronizado dice que esta en linea y que no queda nada por subir', async () => {
     mockEstado.pendientes = 0;
     mockEstado.alcanzable = true;
     mockDatos.dias = 0;
     mockDatos.estudiantes = 10;
-    const { container } = render(<BarraOffline />);
-    // Espera a que se resuelva la consulta de estadoDeDatos antes de afirmar.
-    await waitFor(() => expect(container.querySelector('.barra-offline')).toBeNull());
+    render(<BarraOffline />);
+    const franja = await screen.findByRole('status');
+    await waitFor(() => expect(franja).toHaveClass('en-linea'));
+    expect(franja).toHaveTextContent(/En linea · todo subido/);
+    // En el caso normal no se ofrece reintentar: no hay nada que reintentar.
+    expect(screen.queryByRole('button', { name: /reintentar/i })).toBeNull();
+  });
+
+  it('sin internet lo dice y aclara que se puede seguir tomando lista', async () => {
+    mockEstado.pendientes = 0;
+    mockEstado.alcanzable = false;
+    mockDatos.dias = 0;
+    mockDatos.estudiantes = 10;
+    render(<BarraOffline />);
+    const franja = await screen.findByRole('status');
+    expect(franja).toHaveClass('sin-red');
+    expect(franja).toHaveTextContent(/Sin internet/);
+    expect(franja).toHaveTextContent(/se guarda en este dispositivo/);
+  });
+
+  it('sin internet y con marcas pendientes promete que suben solas al reconectar', async () => {
+    mockEstado.pendientes = 4;
+    mockEstado.alcanzable = false;
+    mockDatos.dias = 0;
+    mockDatos.estudiantes = 10;
+    render(<BarraOffline />);
+    const franja = await screen.findByRole('status');
+    expect(franja).toHaveTextContent(/4 marcas guardadas aqui/);
+    expect(franja).toHaveTextContent(/suben solas al reconectar/);
   });
 
   it('con cola pendiente monta la franja: el selector :has() de .contenido se dispara', async () => {
@@ -38,16 +64,9 @@ describe('BarraOffline', () => {
     mockDatos.dias = 0;
     mockDatos.estudiantes = 10;
     render(<BarraOffline />);
-    expect(await screen.findByRole('status')).toHaveClass('barra-offline');
-  });
-
-  it('sin alcance al servidor tambien monta la franja aunque no haya pendientes', async () => {
-    mockEstado.pendientes = 0;
-    mockEstado.alcanzable = false;
-    mockDatos.dias = 0;
-    mockDatos.estudiantes = 10;
-    render(<BarraOffline />);
-    expect(await screen.findByRole('status')).toHaveClass('barra-offline', 'sin-red');
+    const franja = await screen.findByRole('status');
+    expect(franja).toHaveClass('barra-offline', 'subiendo');
+    expect(franja).toHaveTextContent(/subiendo 3 marcas/);
   });
 
   it('sin datos descargados monta la franja aunque todo este sincronizado y alcanzable', async () => {
@@ -56,7 +75,7 @@ describe('BarraOffline', () => {
     mockDatos.dias = null as unknown as number;
     mockDatos.estudiantes = 0;
     render(<BarraOffline />);
-    expect(await screen.findByText(/No hay datos descargados/)).toBeTruthy();
+    expect(await screen.findByText(/faltan los datos del colegio/)).toBeTruthy();
   });
 
   it('con datos de mas de una semana avisa aunque todo este sincronizado', async () => {
@@ -65,7 +84,7 @@ describe('BarraOffline', () => {
     mockDatos.dias = 7;
     mockDatos.estudiantes = 10;
     render(<BarraOffline />);
-    expect(await screen.findByText(/se descargaron hace 7 dias/)).toBeTruthy();
+    expect(await screen.findByText(/son de hace 7 dias/)).toBeTruthy();
   });
 
   it('tras una descarga exitosa sin marcar nada, deja de decir que no hay datos al recuperar visibilidad', async () => {
@@ -76,13 +95,14 @@ describe('BarraOffline', () => {
     mockDatos.dias = null as unknown as number;
     mockDatos.estudiantes = 0;
     render(<BarraOffline />);
-    expect(await screen.findByText(/No hay datos descargados/)).toBeTruthy();
+    expect(await screen.findByText(/faltan los datos del colegio/)).toBeTruthy();
 
     // downloadBootstrap tuvo exito en Menu.tsx: ya hay estudiantes.
     mockDatos.dias = 0;
     mockDatos.estudiantes = 10;
     document.dispatchEvent(new Event('visibilitychange'));
 
-    await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent(/En linea · todo subido/));
   });
 });
