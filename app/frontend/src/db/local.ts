@@ -40,9 +40,18 @@ class LocalDb extends Dexie {
     // recorria la cola entera para encontrar lo suyo; con la jornada de un colegio
     // entero en el telefono eso empieza a notarse.
     //
-    // Anadir un indice NO borra datos: Dexie reindexa lo que ya hay. Lo que si borra
-    // es quitar una tabla del objeto stores o cambiarle la clave primaria; por eso el
-    // bloque de la version 1 se queda tal cual esta, para siempre.
+    // Que destruye datos locales al subir de version, VERIFICADO contra el codigo de
+    // Dexie (ver deleteRemovedTables en dexie.js), no contra lo que suele repetirse:
+    //
+    //   - Anadir un indice NO borra nada: Dexie reindexa lo que ya hay.
+    //   - Omitir una tabla en el stores de la version nueva TAMPOCO la borra: se
+    //     hereda del esquema anterior. Aun asi se declaran las seis, que es lo claro.
+    //   - Lo que SI destruye datos es `tabla: null` explicito, o cambiarle la clave
+    //     primaria a una tabla. Eso ultimo es lo que cubre la prueba de local.test.ts.
+    //
+    // Importa porque en outbox vive la asistencia de una jornada que aun no ha subido:
+    // aqui una equivocacion no se arregla volviendo a desplegar. Por eso el bloque de
+    // la version 1 se queda tal cual esta, para siempre.
     this.version(2).stores({
       blocks: 'id, grade, weekday',
       students: 'id, grade, documentId',
