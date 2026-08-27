@@ -1,11 +1,35 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../../api/client';
 import type { StudentAdmin } from '../../api/contract';
 import { ordenCurso } from '../../lib/ordenCurso';
+import { abrirCamara, scanOnce } from '../../scan/scanner';
+import { parseCarnet } from '../../scan/carnet';
 
 const VACIO = {
   documentId: '', firstName: '', middleName: '', lastName: '', secondSurname: '', grade: '',
 };
+
+/**
+ * Del texto del carnet arma el formulario. El reparto del nombre es una conjetura
+ * (dos nombres y dos apellidos es lo comun aqui, pero no siempre): por eso solo
+ * PRE-LLENA, y el admin corrige antes de crear.
+ */
+function desglosarCarnet(raw: string): typeof VACIO | null {
+  const c = parseCarnet(raw);
+  if (!c) return null;
+  const t = c.nombre.split(/\s+/).filter(Boolean);
+  let firstName = '', middleName = '', lastName = '', secondSurname = '';
+  if (t.length >= 4) {
+    firstName = t[0]; secondSurname = t[t.length - 1]; lastName = t[t.length - 2];
+    middleName = t.slice(1, t.length - 2).join(' ');
+  } else if (t.length === 3) { firstName = t[0]; lastName = t[1]; secondSurname = t[2]; }
+  else if (t.length === 2) { firstName = t[0]; lastName = t[1]; }
+  else if (t.length === 1) { firstName = t[0]; }
+  // Curso "Primero - 103" -> el ultimo grupo de 2-3 digitos ("103").
+  const mg = c.curso.match(/(\d{2,3})(?!.*\d)/);
+  return { documentId: c.documentId, firstName, middleName, lastName, secondSurname,
+           grade: mg ? mg[1] : '' };
+}
 
 /**
  * Alta, edicion y baja de estudiantes. La carga masiva por Excel sigue estando en su
@@ -21,6 +45,34 @@ export default function PanelEstudiantes() {
   const [aviso, setAviso] = useState('');
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(true);
+  const video = useRef<HTMLVideoElement>(null);
+  const [escaneando, setEscaneando] = useState(false);
+  const [scanMsg, setScanMsg] = useState('');
+
+  // Escaneo de un solo carnet para pre-llenar el formulario de alta.
+  useEffect(() => {
+    if (!escaneando) return;
+    const control = new AbortController();
+    let stream: MediaStream | null = null;
+    (async () => {
+      try {
+        stream = await abrirCamara(video.current!);
+        const texto = await scanOnce(video.current!, control.signal);
+        const datos = desglosarCarnet(texto);
+        if (!datos) setScanMsg('No se reconocio la cedula en el carnet. Intenta de nuevo.');
+        else {
+          setNuevo(datos);
+          setScanMsg(`Leido documento ${datos.documentId}. Revisa nombres y curso antes de crear.`);
+        }
+      } catch {
+        if (!control.signal.aborted) setScanMsg('No se pudo abrir la camara. Revisa los permisos.');
+      } finally {
+        stream?.getTracks().forEach((t) => t.stop());
+        setEscaneando(false);
+      }
+    })();
+    return () => { control.abort(); stream?.getTracks().forEach((t) => t.stop()); };
+  }, [escaneando]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   async function cargar() {
     setError('');
@@ -87,6 +139,25 @@ export default function PanelEstudiantes() {
 
   return (
     <section>
+      <div className="alta-carnet" style={{ display: 'grid', gap: 8, marginBottom: 12 }}>
+        {!escaneando ? (
+          <button type="button" className="secundario"
+                  onClick={() => { setScanMsg(''); setEscaneando(true); }}>
+            Escanear carnet
+          </button>
+        ) : (
+          <>
+            <div className="escaner">
+              <video ref={video} className="camara" muted playsInline />
+              <div className="recuadro" aria-hidden="true" />
+            </div>
+            <button type="button" className="secundario"
+                    onClick={() => setEscaneando(false)}>Cancelar escaneo</button>
+          </>
+        )}
+        {scanMsg && <p className="meta" role="status">{scanMsg}</p>}
+      </div>
+
       <form className="filtros" onSubmit={crear}>
         <label htmlFor="ed">Documento</label>
         <input id="ed" required value={nuevo.documentId}
