@@ -11,7 +11,11 @@
     <!-- El .ico de arriba lo entienden todos; este PNG es el que usan los
          navegadores modernos, que lo prefieren al .ico cuando esta disponible. -->
     <link rel="icon" type="image/png" href="/icon-192.png" />
-    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <!-- iOS pide 180 px y rellena de negro cualquier transparencia: este va con el
+         fondo crema del manifest, no transparente. -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Asistencia GGM" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <title>Asistencia GGM</title>
   </head>
