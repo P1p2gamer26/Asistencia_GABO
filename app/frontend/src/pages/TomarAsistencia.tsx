@@ -56,6 +56,7 @@ export default function TomarAsistencia() {
 
   // Panel lateral: las ultimas tomas de lista y, de la elegida, el detalle editable.
   const [sesiones, setSesiones] = useState<AttendanceSesion[]>([]);
+  const [cargado, setCargado] = useState(false);
   const esMovil = useEsMovil();
 
   useEffect(() => {
@@ -69,6 +70,7 @@ export default function TomarAsistencia() {
         locales = await db.blocks.toArray();
       }
       setBlocks(locales);
+      setCargado(true);
     })();
     void pendingCount().then(setPendientes);
     const cambio = () => setOnline(navigator.onLine);
@@ -225,6 +227,13 @@ export default function TomarAsistencia() {
 
       <span className="eyebrow">Planilla del dia</span>
       <h1>Asistencia a clase</h1>
+
+      {cargado && grados.length === 0 && (
+        <p className="banner no-lectivo" role="status">
+          No tienes cursos con horario asignado. Pide al administrador que te asigne
+          clases (Administracion &rarr; Horario) y vuelve a entrar.
+        </p>
+      )}
 
       <div className="filtros">
         <label htmlFor="grado">Curso</label>
