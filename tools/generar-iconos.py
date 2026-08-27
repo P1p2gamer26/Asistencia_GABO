@@ -24,8 +24,7 @@ FONDO = (245, 243, 234)      # #f5f3ea, el background_color del manifest
 # que la regla de 30 KB existe para lo que viaja en cada carga.
 LIMITES = {"icon-192.png": 30 * 1024, "icon-512.png": 40 * 1024,
            "favicon.ico": 30 * 1024, "escudo.png": 120 * 1024,
-           "icon-maskable-512.png": 40 * 1024, "apple-touch-icon.png": 30 * 1024,
-           "portada-1080.png": 120 * 1024}
+           "icon-maskable-512.png": 40 * 1024, "apple-touch-icon.png": 30 * 1024}
 
 
 def escudo() -> Image.Image:
@@ -110,8 +109,12 @@ if __name__ == "__main__":
 
     # 192 no se recorta nunca, asi que puede ir mas holgado.
     guardar(icono(base, 192, 0.88), DESTINO / "icon-192.png", LIMITES["icon-192.png"])
-    # 512 sirve tambien de maskable: al 68 % sobrevive entero al recorte circular.
-    guardar(icono(base, 512, 0.68), DESTINO / "icon-512.png", LIMITES["icon-512.png"])
+    # 512 no se recorta: el maskable vive en su propio fichero, asi que este puede
+    # llenar el marco igual que el de 192. No llega al mismo 0.88 de 192 ni al 0.86
+    # de apple-touch-icon: a este tamano el degradado del escudo pesa mas al
+    # cuantizar y el limite de 40 KB (LIMITES) es el techo real; 0.78 es la mayor
+    # ocupacion que sigue cabiendo debajo.
+    guardar(icono(base, 512, 0.78), DESTINO / "icon-512.png", LIMITES["icon-512.png"])
     # Favicon: nunca se recorta y a 16 px solo se distingue la silueta.
     icono(base, 256, 0.98, transparente=True).save(
         DESTINO / "favicon.ico", "ICO", sizes=[(16, 16), (32, 32), (48, 48), (64, 64)])
@@ -140,15 +143,8 @@ if __name__ == "__main__":
     guardar(icono(base, 180, 0.86), DESTINO / "apple-touch-icon.png",
             LIMITES["icon-192.png"])
 
-    # Portada del arranque y del login: apaisada, con el escudo centrado de verdad
-    # (mismo margen arriba/abajo que a los lados dentro del cuadrado central).
-    portada = Image.new("RGB", (1080, 1080), FONDO)
-    marca = icono(base, 1080, 0.62, transparente=True)
-    portada.paste(marca, (0, 0), marca)
-    guardar(portada, DESTINO / "portada-1080.png", 120 * 1024)
-
     for nombre in ("icon-192.png", "icon-512.png", "favicon.ico", "escudo.png",
-                   "icon-maskable-512.png", "apple-touch-icon.png", "portada-1080.png"):
+                   "icon-maskable-512.png", "apple-touch-icon.png"):
         tam = (DESTINO / nombre).stat().st_size
         marca = "OK " if tam <= LIMITES[nombre] else "GRANDE"
         print(f"  {marca} {nombre}: {tam / 1024:.1f} KB")
