@@ -6,7 +6,7 @@ const esIOS = () => /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
 /**
  * Instalar la aplicacion en el telefono. Es la unica forma de que funcione bien sin
- * senal: instalada arranca desde el service worker, sin depender de que el navegador
+ * señal: instalada arranca desde el service worker, sin depender de que el navegador
  * conserve la pestana.
  *
  * En iPhone no existe beforeinstallprompt, asi que no hay boton posible: lo unico
@@ -36,7 +36,7 @@ export default function BotonInstalar() {
         <button type="button" onClick={() => { void evento.prompt(); setEvento(null); }}>
           Instalar en el telefono
         </button>
-        <small className="meta">Instalada funciona sin senal y arranca mas rapido.</small>
+        <small className="meta">Instalada funciona sin señal y arranca mas rapido.</small>
       </div>
     );
   }
@@ -44,8 +44,8 @@ export default function BotonInstalar() {
   if (esIOS()) {
     return (
       <p className="instalar meta">
-        Para usarla sin senal: pulse <strong>Compartir</strong> en Safari y luego{' '}
-        <strong>Anadir a pantalla de inicio</strong>.
+        Para usarla sin señal: pulse <strong>Compartir</strong> en Safari y luego{' '}
+        <strong>Añadir a pantalla de inicio</strong>.
       </p>
     );
   }
