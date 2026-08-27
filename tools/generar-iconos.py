@@ -18,11 +18,14 @@ ORIGEN = RAIZ / "docs" / "marca" / "logo-colegio.jpeg"
 DESTINO = RAIZ / "app" / "frontend" / "public"
 
 FONDO = (245, 243, 234)      # #f5f3ea, el background_color del manifest
-# El limite del proyecto para imagenes del paquete son 30 KB. El icono de 512 se
-# queda en 31,5 KB y bajarlo mas hace que el degradado del escudo muestre bandas: se
-# le permite un poco mas porque el service worker lo precarga una sola vez, mientras
-# que la regla de 30 KB existe para lo que viaja en cada carga.
-LIMITES = {"icon-192.png": 30 * 1024, "icon-512.png": 40 * 1024,
+# El limite del proyecto para imagenes del paquete son 30 KB. Esa regla existe para
+# lo que viaja en cada carga; el icono de 512 (purpose any) no viaja en cada carga,
+# lo precarga el service worker una sola vez en la instalacion. Con ocupacion 0.88
+# (igual que icon-192.png, para que el escudo llene el marco y no se vea pequeno
+# dentro del icono sin recorte) pesa hasta 48 KB: 8 KB de mas sobre el limite base,
+# pagados una vez por instalacion, a cambio de que el icono any deje de verse
+# descentrado del marco.
+LIMITES = {"icon-192.png": 30 * 1024, "icon-512.png": 48 * 1024,
            "favicon.ico": 30 * 1024, "escudo.png": 120 * 1024,
            "icon-maskable-512.png": 40 * 1024, "apple-touch-icon.png": 30 * 1024}
 
@@ -110,11 +113,9 @@ if __name__ == "__main__":
     # 192 no se recorta nunca, asi que puede ir mas holgado.
     guardar(icono(base, 192, 0.88), DESTINO / "icon-192.png", LIMITES["icon-192.png"])
     # 512 no se recorta: el maskable vive en su propio fichero, asi que este puede
-    # llenar el marco igual que el de 192. No llega al mismo 0.88 de 192 ni al 0.86
-    # de apple-touch-icon: a este tamano el degradado del escudo pesa mas al
-    # cuantizar y el limite de 40 KB (LIMITES) es el techo real; 0.78 es la mayor
-    # ocupacion que sigue cabiendo debajo.
-    guardar(icono(base, 512, 0.78), DESTINO / "icon-512.png", LIMITES["icon-512.png"])
+    # llenar el marco igual que el de 192, con el mismo 0.88 (ver LIMITES arriba
+    # sobre por que a 48 KB en vez de 30-40).
+    guardar(icono(base, 512, 0.88), DESTINO / "icon-512.png", LIMITES["icon-512.png"])
     # Favicon: nunca se recorta y a 16 px solo se distingue la silueta.
     icono(base, 256, 0.98, transparente=True).save(
         DESTINO / "favicon.ico", "ICO", sizes=[(16, 16), (32, 32), (48, 48), (64, 64)])
@@ -136,7 +137,7 @@ if __name__ == "__main__":
     # que el escudo va al 68 % del lienzo. Compartir fichero con el icono normal
     # obligaba a elegir: o sobrevive al recorte, o llena el marco cuando no lo hay.
     guardar(icono(base, 512, 0.68), DESTINO / "icon-maskable-512.png",
-            LIMITES["icon-512.png"])
+            LIMITES["icon-maskable-512.png"])
 
     # iOS pide 180 px y NO respeta la transparencia: la rellena de negro. Va con el
     # fondo crema del manifest, no transparente.
