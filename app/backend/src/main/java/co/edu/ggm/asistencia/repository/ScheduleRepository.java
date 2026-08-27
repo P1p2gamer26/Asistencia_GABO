@@ -143,6 +143,23 @@ public interface ScheduleRepository extends JpaRepository<ScheduleBlock, Long> {
             @org.springframework.data.repository.query.Param("blockNo") int blockNo,
             @org.springframework.data.repository.query.Param("excludeId") Long excludeId);
 
+    /** Otro bloque del mismo curso en el mismo dia/bloque (el slot ya esta ocupado). */
+    @org.springframework.data.jpa.repository.Query(value = """
+            SELECT b.id AS id, b.grade AS grade, b.weekday AS weekday, b.block_no AS blockNo,
+                   s.name AS subject, b.start_time AS startTime, b.end_time AS endTime,
+                   b.room AS room, u.full_name AS teacherName
+            FROM schedule_blocks b
+            JOIN subjects s ON s.id = b.subject_id
+            JOIN users u ON u.id = b.teacher_id
+            WHERE b.grade = :grade AND b.weekday = :weekday AND b.block_no = :blockNo
+              AND (:excludeId IS NULL OR b.id <> :excludeId)
+            """, nativeQuery = true)
+    java.util.List<WeekRow> choqueDeCurso(
+            @org.springframework.data.repository.query.Param("grade") String grade,
+            @org.springframework.data.repository.query.Param("weekday") int weekday,
+            @org.springframework.data.repository.query.Param("blockNo") int blockNo,
+            @org.springframework.data.repository.query.Param("excludeId") Long excludeId);
+
     interface AdminRow {
         Long getId(); String getGrade(); int getWeekday(); int getBlockNo();
         String getSubject(); Long getSubjectId();

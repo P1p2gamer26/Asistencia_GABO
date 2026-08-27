@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Locale;
 
 @Service
 public class AdminStudentService {
@@ -46,7 +47,7 @@ public class AdminStudentService {
         s.setMiddleName(vacioANulo(middleName));
         s.setLastName(lastName.trim());
         s.setSecondSurname(vacioANulo(secondSurname));
-        s.setGrade(grade.trim());
+        s.setGrade(grade.trim().toUpperCase(Locale.ROOT));
         s.setActive(true);
         return students.save(s);
     }
@@ -60,7 +61,7 @@ public class AdminStudentService {
         s.setMiddleName(vacioANulo(middleName));
         s.setLastName(lastName.trim());
         s.setSecondSurname(vacioANulo(secondSurname));
-        s.setGrade(grade.trim());
+        s.setGrade(grade.trim().toUpperCase(Locale.ROOT));
         s.setActive(active);
         return students.save(s);
     }

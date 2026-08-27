@@ -13,6 +13,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.time.LocalTime;
+import java.util.Locale;
 
 /**
  * CRUD del horario para coordinacion/admin. Solo aqui se escribe schedule_blocks;
@@ -91,7 +92,10 @@ public class ScheduleAdminService {
         if (!users.existsById(d.teacherId())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No existe ese docente");
         }
-        b.setGrade(d.grade().trim());
+        // Curso en mayusculas: '8a' y '8A' deben ser el mismo curso. Si no, el bloque
+        // queda ligado a un curso que ningun estudiante tiene ('8A'), y al docente le
+        // sale la clase sin un solo estudiante.
+        b.setGrade(d.grade().trim().toUpperCase(Locale.ROOT));
         b.setWeekday((short) d.weekday());
         b.setBlockNo((short) d.blockNo());
         b.setStartTime(d.startTime());
@@ -102,6 +106,16 @@ public class ScheduleAdminService {
     }
 
     private void verificarChoques(Datos d, Long excludeId) {
+        // El curso ya tiene una clase en ese dia/bloque: sin este aviso, chocaba contra
+        // la restriccion unica de la base y salia un 500 en vez de un mensaje claro.
+        String curso = d.grade().trim().toUpperCase(Locale.ROOT);
+        var choqueCurso = schedules.choqueDeCurso(curso, d.weekday(), d.blockNo(), excludeId);
+        if (!choqueCurso.isEmpty()) {
+            var c = choqueCurso.get(0);
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "El curso " + curso + " ya tiene " + c.getSubject() + " con "
+                    + c.getTeacherName() + " en ese dia y bloque. Edita ese bloque en vez de crear otro.");
+        }
         var choqueDocente = schedules.choqueDeDocente(d.teacherId(), d.weekday(), d.blockNo(), excludeId);
         if (!choqueDocente.isEmpty()) {
             var c = choqueDocente.get(0);
