@@ -420,7 +420,11 @@ describe('TomarAsistencia: panel de ultimos llamados', () => {
     expect(enlace?.getAttribute('href')).toContain('curso=6A');
   });
 
-  it('sin conexion el panel queda vacio pero la planilla sigue usable', async () => {
+  it('sin conexion y sin respaldo el panel queda vacio pero la planilla sigue usable', async () => {
+    // Se limpia el respaldo de lecturas a proposito: con respaldo el panel SI pinta
+    // las ultimas tomas conocidas (esa es la funcion de la cache). Lo que se prueba
+    // aqui es el caso peor: sin red y sin nada guardado, la planilla sigue usable.
+    await db.meta.clear();
     vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('network'); }));
     render(<MemoryRouter><TomarAsistencia /></MemoryRouter>);
     expect(await screen.findByText(/todavia no hay tomas de lista/i)).toBeInTheDocument();

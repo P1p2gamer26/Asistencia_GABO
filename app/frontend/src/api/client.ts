@@ -1,4 +1,5 @@
 import type { Session } from './contract';
+import { guardarLectura, ultimaLectura } from './cacheLectura';
 export type { Session };
 
 const KEY = 'ggm.session';
@@ -75,6 +76,9 @@ async function refresh(refreshToken: string): Promise<boolean> {
   return true;
 }
 
+/** Rutas que nunca se sirven de respaldo: ver el comentario de `get`. */
+const SIN_RESPALDO = ['/api/attendance?', '/api/attendance/detalle'];
+
 export const api = {
   async login(email: string, password: string): Promise<Session> {
     const res = await fetch(apiUrl('/api/auth/login'), {
@@ -87,7 +91,34 @@ export const api = {
     setSession(session);
     return session;
   },
-  get: <T>(path: string) => request<T>(path, { method: 'GET' }),
+  /**
+   * GET con respaldo local: si el servidor no se alcanza, devuelve la ultima
+   * respuesta buena de esa misma ruta en vez de dejar la pantalla en blanco.
+   *
+   * SIN_RESPALDO son las rutas de las que depende una decision, no una consulta:
+   * /api/attendance dice que hay ya registrado para un bloque, y TomarAsistencia lo
+   * usa para avisar "puede que no vea todo lo que hay guardado". Servir eso de cache
+   * mataria el aviso y el docente podria sobrescribir la asistencia de otro sin
+   * enterarse. Ahi es mejor fallar que responder algo viejo.
+   */
+  get: async <T>(path: string): Promise<T> => {
+    const conRespaldo = !SIN_RESPALDO.some((r) => path.startsWith(r));
+    try {
+      const datos = await request<T>(path, { method: 'GET' });
+      // Solo se guarda lo que el servidor confirmo: nunca se cachea un error.
+      // El .catch() no sobra: si IndexedDB no esta disponible (modo privado, o un
+      // navegador con el almacenamiento bloqueado), guardar el respaldo falla y esa
+      // promesa suelta se convertiria en un rechazo no capturado. Guardar la copia es
+      // una comodidad; nunca puede afectar a la peticion que sí funciono.
+      if (conRespaldo) void guardarLectura(path, datos).catch(() => {});
+      return datos;
+    } catch (e) {
+      if (!conRespaldo || !(e instanceof OfflineError)) throw e;
+      const guardado = await ultimaLectura<T>(path).catch(() => null);
+      if (!guardado) throw e;   // sin respaldo, la pantalla debe decir que no hay datos
+      return guardado.datos;
+    }
+  },
   post: <T>(path: string, body: unknown) =>
     request<T>(path, { method: 'POST', body: JSON.stringify(body) }),
   put: <T>(path: string, body: unknown) =>
