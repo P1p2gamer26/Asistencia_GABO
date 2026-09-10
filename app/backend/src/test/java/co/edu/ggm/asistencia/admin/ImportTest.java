@@ -14,6 +14,8 @@ import java.nio.charset.StandardCharsets;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @AutoConfigureMockMvc
 class ImportTest extends AbstractIntegrationTest {
@@ -21,6 +23,7 @@ class ImportTest extends AbstractIntegrationTest {
     @Autowired MockMvc mvc;
     @Autowired UserRepository users;
     @Autowired JwtService jwt;
+    @Autowired co.edu.ggm.asistencia.repository.StudentRepository studentRepo;
 
     private String tokenAdmin() {
         var u = users.findByEmailAndActiveTrue("admin@ggm.edu.co").orElseThrow();
@@ -72,5 +75,48 @@ class ImportTest extends AbstractIntegrationTest {
         mvc.perform(multipart("/api/admin/import/students").file(csv("document_id\n1"))
                         .header("Authorization", "Bearer " + jwt.issueAccess(1L, "DOCENTE")))
            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void la_columna_active_respeta_el_estado_del_estudiante() throws Exception {
+        String contenido = """
+                document_id,first_name,middle_name,last_name,second_surname,grade,active
+                4040404040,OTRA,MARIA,RETIRADA,DIAZ,701,false
+                4040404041,NUEVA,SIN,COLUMNA,PEREZ,702
+                """;
+        mvc.perform(multipart("/api/admin/import/students").file(csv(contenido))
+                        .header("Authorization", tokenAdmin()))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.imported").value(2));
+
+        var retirada = studentRepo.findByDocumentIdAndActiveTrue("4040404040");
+        assertTrue(retirada.isEmpty(), "active=false en el CSV debe crear un estudiante inactivo");
+        var retiradaRow = studentRepo.findByDocumentId("4040404040").orElseThrow();
+        assertFalse(retiradaRow.isActive(), "la fila de 4040404040 debe quedar inactiva");
+
+        var sinColumna = studentRepo.findByDocumentIdAndActiveTrue("4040404041");
+        assertTrue(sinColumna.isPresent(), "sin la columna active el estudiante queda activo");
+    }
+
+    @Test
+    void reimportar_respeta_el_active_del_archivo() throws Exception {
+        String contenido = """
+                document_id,first_name,middle_name,last_name,second_surname,grade,active
+                5050505050,DEVUELVE,CARLOS,GOMEZ,LOPEZ,801,false
+                """;
+        mvc.perform(multipart("/api/admin/import/students").file(csv(contenido))
+                        .header("Authorization", tokenAdmin()))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.imported").value(1));
+
+        assertTrue(studentRepo.findByDocumentIdAndActiveTrue("5050505050").isEmpty());
+
+        // Reimportar SIN la columna sirve para re-activarlo como antes.
+        String reactiva = "document_id,first_name,middle_name,last_name,second_surname,grade\n"
+                + "5050505050,DEVUELVE,CARLOS,GOMEZ,LOPEZ,801\n";
+        mvc.perform(multipart("/api/admin/import/students").file(csv(reactiva))
+                        .header("Authorization", tokenAdmin()))
+           .andExpect(jsonPath("$.imported").value(1));
+        assertTrue(studentRepo.findByDocumentIdAndActiveTrue("5050505050").isPresent());
     }
 }
