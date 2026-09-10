@@ -41,7 +41,7 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/login", "/api/auth/refresh", "/actuator/health").permitAll()
+                .requestMatchers("/api/auth/login", "/api/auth/refresh", "/actuator/health", "/api/health/db").permitAll()
                 // El frontend compilado se sirve desde este mismo servidor: rutas
                 // fuera de /api son la SPA o sus recursos estaticos, publicos por diseno.
                 .requestMatchers(new RegexRequestMatcher("^(?!/api/).*$", null)).permitAll()
