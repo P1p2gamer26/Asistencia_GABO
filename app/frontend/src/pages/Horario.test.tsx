@@ -85,9 +85,20 @@ function pintarComo(role: string) {
     </MemoryRouter>);
 }
 
+const DOCENTES = [
+  { id: 5, email: 'pepito@co', fullName: 'Pepito Perez', role: 'DOCENTE', active: true },
+  { id: 6, email: 'laura@co', fullName: 'Laura Ruiz', role: 'DOCENTE', active: true },
+];
+
 describe('Horario: navegacion por curso', () => {
   beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn(async () => respuesta(SEMANA)));
+    // El selector de docente pide /api/admin/users y la semana pide /api/schedule/week.
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      const ruta = String(url);
+      return ruta.includes('/api/admin/users')
+        ? respuesta(DOCENTES)
+        : respuesta(SEMANA);
+    }));
   });
 
   // El horario se piensa por curso: la navegacion por salon se quito porque cada
@@ -102,5 +113,22 @@ describe('Horario: navegacion por curso', () => {
     pintarComo('COORDINADOR');
     await userEvent.type(await screen.findByLabelText(/horario de un curso/i), '6A');
     expect(await screen.findByText(/Horario del curso 6A/i)).toBeInTheDocument();
+  });
+
+  it('coordinacion puede pedir el horario de un docente por el selector', async () => {
+    pintarComo('COORDINADOR');
+    await waitFor(() =>
+      expect(screen.getByLabelText(/horario de un docente/i)).toBeInTheDocument());
+    await userEvent.selectOptions(screen.getByLabelText(/horario de un docente/i), '5');
+    expect(await screen.findByText(/Horario de Pepito Perez/i)).toBeInTheDocument();
+    // La peticion a la semana debe ir filtrada por ese docente y no por curso.
+    await waitFor(() => expect(screen.getByLabelText(/lunes.*bloque 1.*Ciencias/i)).toBeInTheDocument());
+  });
+
+  it('un docente no ve el selector ni la lista de docentes', async () => {
+    pintarComo('DOCENTE');
+    await waitFor(() => expect(screen.getByText(/Ciencias/)).toBeInTheDocument());
+    expect(screen.queryByLabelText(/horario de un docente/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/horario de un curso/i)).not.toBeInTheDocument();
   });
 });

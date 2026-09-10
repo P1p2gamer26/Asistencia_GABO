@@ -341,6 +341,34 @@ describe('TomarAsistencia', () => {
     });
   });
 
+  it('enviar sin conexion confirma que la lista quedo guardada en el telefono', async () => {
+    await elegirCursoYBloque();
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('network'); }));
+
+    await userEvent.click(screen.getByRole('button', { name: /enviar asistencia/i }));
+
+    // Este es el aviso que pedian en el colegio: offline no se tocan 40 botones y
+    // "esperemos que se haya guardado"; el docente debe saber que el trabajo quedo.
+    expect(await screen.findByText(/guardada en el telefono/i)).toBeInTheDocument();
+    expect(screen.getByText(/se subira sola cuando haya conexion/i)).toBeInTheDocument();
+  });
+
+  it('enviar con conexion confirma que la lista llego al servidor', async () => {
+    await elegirCursoYBloque();
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      if (String(url).includes('/api/attendance/sync')) {
+        const records = (JSON.parse(String(init?.body)) as { records: unknown[] }).records;
+        return new Response(JSON.stringify({ accepted: records.length, rejected: [] }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }));
+
+    await userEvent.click(screen.getByRole('button', { name: /enviar asistencia/i }));
+
+    expect(await screen.findByText(/enviada al servidor/i)).toBeInTheDocument();
+  });
+
   it('al abrir un bloque ya registrado muestra lo que hay guardado', async () => {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => {
       if (String(url).includes('/api/attendance?')) {

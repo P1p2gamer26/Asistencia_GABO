@@ -84,6 +84,25 @@ class HorarioTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void coordinacion_puede_pedir_el_horario_de_un_docente_por_su_id() throws Exception {
+        // Desde /horario un admin o coordinador elige un docente y pide su semana:
+        // el /api/schedule/week sin `grade` y con `teacherId` debe devolver solo sus bloques.
+        mvc.perform(get("/api/schedule/week").param("teacherId", docenteId.toString())
+                        .header("Authorization", tokenDe("coord@ggm.edu.co", "COORDINADOR")))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$[0].grade").value("888"))
+           .andExpect(jsonPath("$[0].subject").value("CienciasHorario"))
+           .andExpect(jsonPath("$[?(@.grade=='601')]").doesNotExist());
+    }
+
+    @Test
+    void un_docente_no_puede_pedir_el_horario_de_otro_docente() throws Exception {
+        mvc.perform(get("/api/schedule/week").param("teacherId", docenteId.toString())
+                        .header("Authorization", "Bearer " + jwt.issueAccess(999L, "DOCENTE")))
+           .andExpect(status().isForbidden());
+    }
+
+    @Test
     void un_docente_no_puede_pedir_el_horario_de_un_curso() throws Exception {
         mvc.perform(get("/api/schedule/week").param("grade", "888")
                         .header("Authorization", "Bearer " + jwt.issueAccess(docenteId, "DOCENTE")))

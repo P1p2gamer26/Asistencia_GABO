@@ -53,6 +53,7 @@ export default function TomarAsistencia() {
   const [pendientes, setPendientes] = useState(0);
   const [error, setError] = useState('');
   const [avisoCarga, setAvisoCarga] = useState('');
+  const [avisoEnvio, setAvisoEnvio] = useState('');
 
   // Panel lateral: las ultimas tomas de lista y, de la elegida, el detalle editable.
   const [sesiones, setSesiones] = useState<AttendanceSesion[]>([]);
@@ -141,6 +142,9 @@ export default function TomarAsistencia() {
   useEffect(() => {
     if (!blockId) { setMarcas({}); setMotivos({}); setAvisoCarga(''); return; }
 
+    // El recuento de "Enviar asistencia (N)" cambia de bloque: la confirmacion del
+    // envio anterior deja de describir lo que se esta viendo.
+    setAvisoEnvio('');
     let vigente = true;
     (async () => {
       const nuevasMarcas: Record<number, Status> = {};
@@ -180,6 +184,7 @@ export default function TomarAsistencia() {
 
   async function marcar(studentId: number, status: Status) {
     if (!blockId) return;
+    setAvisoEnvio('');
     try {
       await markAttendance({ studentId, scheduleBlockId: blockId, classDate: fecha, status });
       setMarcas((prev) => ({ ...prev, [studentId]: status }));
@@ -197,16 +202,21 @@ export default function TomarAsistencia() {
   }
 
   /**
-   * Registra el curso completo y lo sincroniza.
+   * Registra el curso completo y lo sincroniza, y confirma que paso.
    *
    * Antes solo viajaban los estudiantes a los que el docente habia pulsado un boton,
    * aunque la pantalla mostrara la "P" resaltada para todos: de un curso de 40 con 3
    * faltas se guardaban 3 filas y los 37 presentes no existian en la base. El estado
    * efectivo de cada uno es el que se ve en pantalla, y eso es lo que se envia.
+   *
+   * La confirmacion tiene que decir que paso con TODA la lista, no solo que el boton
+   * se toco: si no hay señal la lista queda en el telefono y el docente debe poder
+   * separarse del celular sabiendo que el trabajo no se perdio.
    */
   async function enviar() {
     if (!blockId || !lectivo || students.length === 0) return;
     setError('');
+    setAvisoEnvio('');
     try {
       for (const s of students) {
         await markAttendance({
@@ -220,6 +230,15 @@ export default function TomarAsistencia() {
       const { pending, alcanzable: hay } = await flushOutbox();
       setPendientes(pending);
       setAlcanzable(hay);
+      if (pending === 0) {
+        setAvisoEnvio(`Lista de ${students.length} estudiantes enviada al servidor.`);
+      } else if (!hay) {
+        setAvisoEnvio(`Lista de ${students.length} estudiantes guardada en el telefono.`
+          + ' Se subira sola cuando haya conexion.');
+      } else {
+        setAvisoEnvio(`El servidor rechazo ${pending} ${pending === 1 ? 'registro' : 'registros'};`
+          + ' se reintentara solo.');
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo enviar');
     }
@@ -263,6 +282,7 @@ export default function TomarAsistencia() {
 
       {error && <p role="alert" className="error">{error}</p>}
       {avisoCarga && <p className="banner no-lectivo" role="status">{avisoCarga}</p>}
+      {avisoEnvio && <p className="banner pendiente" role="status">{avisoEnvio}</p>}
 
       {!lectivo
         ? <p className="meta">Elija un dia lectivo para tomar asistencia.</p>

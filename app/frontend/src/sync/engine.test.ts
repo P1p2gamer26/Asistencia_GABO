@@ -218,4 +218,61 @@ describe('motor de sincronizacion', () => {
     expect(e.dias).toBeNull();
     expect(e.estudiantes).toBe(0);
   });
+
+  it('un error del servidor deja la cola marcada y avisada, en vez de colgarla', async () => {
+    await markAttendance({ ...base, status: 'P' });
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('ups', { status: 500 })));
+
+    // Antes flushOutbox relanzaba el error, flushAll se lo tragaba con .catch(() => null)
+    // y la franja se quedaba diciendo "subiendo N marcas..." para siempre sin enterarse.
+    const res = await flushOutbox();
+    expect(res.sent).toBe(0);
+    expect(res.alcanzable).toBe(true);       // el servidor SI contesto, no fue la señal
+    expect(res.pending).toBe(1);
+    expect(res.conError).toBe(1);            // una marca rechazada, no "subiendo"
+    const [r] = await db.outbox.toArray();
+    expect(r.status).toBe('P');              // la marca sigue a salvo
+    expect(r.error).toBeTruthy();            // con el motivo puesto para el reintento
+
+    // flushAll tampoco puede lanzar: es lo que llaman el auto-sync y la franja.
+    await expect(flushAll()).resolves.toMatchObject({ pending: 1, alcanzable: true, conError: 1 });
+  });
+
+  it('el auto-sync le avisa a la franja cuando un 500 deja marcas rechazadas', async () => {
+    await markAttendance({ ...base, status: 'P' });
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('ups', { status: 500 })));
+
+    const estados: [number, boolean, number][] = [];
+    const detener = startAutoSync((p, a, c) => estados.push([p, a, c]));
+    await vi.waitFor(() => expect(estados.some(([, , c]) => c === 1)).toBe(true));
+    detener();
+    expect(estados[estados.length - 1]).toEqual([1, true, 1]);
+  });
+
+  it('con mas de 400 marcas las sube en lotes de 400', async () => {
+    await db.outbox.bulkPut(
+      Array.from({ length: 405 }, (_, i) => ({
+        key: `${i + 1}:7:${base.classDate}`, id: `u${i}`,
+        studentId: i + 1, scheduleBlockId: 7, classDate: base.classDate,
+        status: 'P' as const, recordedAt: new Date().toISOString(),
+      })),
+    );
+
+    const tamanos: number[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      if (String(url).includes('/api/attendance/sync')) {
+        const records = (JSON.parse(String(init?.body)) as { records: unknown[] }).records;
+        tamanos.push(records.length);
+        return new Response(JSON.stringify({ accepted: records.length, rejected: [] }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }));
+
+    const res = await flushOutbox();
+
+    expect(tamanos).toEqual([400, 5]);
+    expect(res.sent).toBe(405);
+    expect(res.pending).toBe(0);
+  });
 });
