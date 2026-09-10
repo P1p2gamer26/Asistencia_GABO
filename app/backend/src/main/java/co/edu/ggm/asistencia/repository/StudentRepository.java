@@ -18,7 +18,13 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 
     // Administracion tambien ve los inactivos: si no, un estudiante desactivado por
     // error no se puede encontrar para volver a activarlo.
-    List<Student> findAllByOrderByGradeAscLastNameAscFirstNameAsc();
+    // Consulta nativa y no metodo derivado porque el orden por curso lo da
+    // orden_curso() (V64): "ORDER BY grade" a secas pone '1001' antes que '101'.
+    @Query(value = """
+            SELECT s.* FROM students s
+            ORDER BY orden_curso(s.grade), s.grade, s.last_name, s.first_name
+            """, nativeQuery = true)
+    List<Student> findAllOrdenados();
     List<Student> findByGradeOrderByLastNameAscFirstNameAsc(String grade);
     boolean existsByDocumentId(String documentId);
 

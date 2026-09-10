@@ -11,3 +11,12 @@ dist/
 # manual para probar en local); nunca se versiona.
 app/backend/src/main/resources/static/
 .loop-*.lock
+
+# Datos personales de estudiantes menores de edad (documento, fecha de nacimiento,
+# EPS, discapacidad, telefono...). El archivo vive solo en local; ver
+# docs/datos-oficiales/README.md.
+docs/datos-oficiales/*.xlsx
+
+# CSV generados por tools/generar-datos-oficiales.py a partir del plano de
+# matricula: llevan los mismos datos de menores que el .xlsx.
+docs/datos-oficiales/*.csv

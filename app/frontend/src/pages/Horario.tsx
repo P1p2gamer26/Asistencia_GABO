@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, getSession } from '../api/client';
+import { useDebounce } from '../lib/useDebounce';
 
 type Bloque = {
   id: number; grade: string; weekday: number; blockNo: number; subject: string;
@@ -22,19 +23,25 @@ export default function Horario() {
   const [cargando, setCargando] = useState(true);
 
   const puedeVerCursos = ['COORDINADOR', 'ADMIN'].includes(getSession()?.role ?? '');
+  const cursoBuscado = useDebounce(curso);
   const hoy = diaDeHoy();
 
   // Se navega por curso y no por salon: el horario del colegio se piensa por curso,
   // y con un aula fija por curso la lista de salones era la misma lista dos veces.
   useEffect(() => {
+    // El guardia: si el curso cambia mientras la peticion va en camino, la respuesta
+    // vieja se descarta. Sin el, la respuesta de "60" puede llegar despues que la de
+    // "601" y dejar la pantalla diciendo que 601 no tiene horario.
+    let vigente = true;
     setCargando(true);
     setError('');
-    const params = curso ? `?grade=${encodeURIComponent(curso)}` : '';
+    const params = cursoBuscado ? `?grade=${encodeURIComponent(cursoBuscado)}` : '';
     api.get<Bloque[]>(`/api/schedule/week${params}`)
-       .then(setBloques)
-       .catch(() => setError('No se pudo cargar el horario. Requiere conexion.'))
-       .finally(() => setCargando(false));
-  }, [curso]);
+       .then((b) => { if (vigente) setBloques(b); })
+       .catch(() => { if (vigente) setError('No se pudo cargar el horario. Requiere conexion.'); })
+       .finally(() => { if (vigente) setCargando(false); });
+    return () => { vigente = false; };
+  }, [cursoBuscado]);
 
   const numeros = [...new Set(bloques.map((b) => b.blockNo))].sort((a, b) => a - b);
 
@@ -57,8 +64,8 @@ export default function Horario() {
 
       {!cargando && !error && bloques.length === 0 && (
         <p className="meta">
-          {curso
-            ? `El curso ${curso} no tiene bloques asignados en el horario.`
+          {cursoBuscado
+            ? `El curso ${cursoBuscado} no tiene bloques asignados en el horario.`
             : 'No tiene bloques asignados en el horario. Avise a coordinacion.'}
         </p>
       )}
