@@ -22,20 +22,29 @@ class OrdenCursoTest extends AbstractIntegrationTest {
     @Autowired JdbcTemplate jdbc;
 
     private static final String[] DOC_IDS = {
-        "9995000001", "9995000002", "9995000003", "9995000004", "9995000005", "9995000006"
+        "9995000001", "9995000002", "9995000003", "9995000004", "9995000005", "9995000006",
+        "9995000007", "9995000008", "9995000009", "9995000010", "9995000011", "9995000012"
     };
 
     @BeforeEach
     void datos() {
         // 0A, 9B, 10A, 11B en desorden + un paralelo B para probar estabilidad
-        // A/B, mas un valor que no calza con el formato ('Transicion' y '601',
-        // que es el formato viejo) para probar que no rompe ni desaparece.
+        // A/B, mas un valor que no calza con ningun formato ('Transicion') para
+        // probar que no rompe ni desaparece.
         insertar("9995000001", "9B");
         insertar("9995000002", "0A");
         insertar("9995000003", "11B");
         insertar("9995000004", "10A");
         insertar("9995000005", "Transicion");
         insertar("9995000006", "9A");
+        // Los codigos reales del plano de matricula (ver V64): preescolar, el codigo
+        // oficial de 1 a 11, y aceleracion.
+        insertar("9995000007", "601");
+        insertar("9995000008", "1001");
+        insertar("9995000009", "T01");
+        insertar("9995000010", "J02");
+        insertar("9995000011", "PJ01");
+        insertar("9995000012", "9901");
     }
 
     @AfterEach
@@ -59,7 +68,9 @@ class OrdenCursoTest extends AbstractIntegrationTest {
             ORDER BY orden_curso(grade), grade
             """, String.class, (Object) DOC_IDS);
 
-        assertThat(orden).containsExactly("0A", "9A", "9B", "10A", "11B", "Transicion");
+        assertThat(orden).containsExactly(
+                "PJ01", "J02", "T01", "0A", "601", "9A", "9B", "1001", "10A", "11B",
+                "9901", "Transicion");
     }
 
     @Test
@@ -70,7 +81,7 @@ class OrdenCursoTest extends AbstractIntegrationTest {
             """, String.class, (Object) DOC_IDS);
 
         assertThat(orden).contains("Transicion");
-        assertThat(orden).hasSize(6);
+        assertThat(orden).hasSize(12);
     }
 
     @Test

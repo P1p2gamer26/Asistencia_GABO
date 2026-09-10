@@ -184,7 +184,7 @@ public interface ScheduleRepository extends JpaRepository<ScheduleBlock, Long> {
             LEFT JOIN users uu ON uu.id = b.updated_by
             WHERE (:grade IS NULL OR b.grade = :grade)
               AND (:teacherId IS NULL OR b.teacher_id = :teacherId)
-            ORDER BY b.grade, b.weekday, b.block_no
+            ORDER BY orden_curso(b.grade), b.grade, b.weekday, b.block_no
             """, nativeQuery = true)
     java.util.List<AdminRow> paraAdmin(
             @org.springframework.data.repository.query.Param("grade") String grade,

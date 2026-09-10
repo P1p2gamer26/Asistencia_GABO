@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
+import { useDebounce } from '../../lib/useDebounce';
 import type { AdminUser, ScheduleBlockAdmin } from '../../api/contract';
 
 type Materia = { id: number; name: string };
@@ -33,7 +34,28 @@ export default function PanelHorario() {
     }
   }
 
-  useEffect(() => { void cargar(); }, [filtroGrado, filtroDocente]);
+  // Mismo problema que en la pagina Horario: el filtro es un campo de texto, cada
+  // tecla lanzaba una consulta y la respuesta de un filtro viejo podia pisar a la del
+  // nuevo. useDebounce corta el trafico; `vigente` corta la carrera.
+  const gradoBuscado = useDebounce(filtroGrado);
+
+  useEffect(() => {
+    let vigente = true;
+    void (async () => {
+      setError('');
+      const q = [
+        gradoBuscado && `grade=${encodeURIComponent(gradoBuscado)}`,
+        filtroDocente && `teacherId=${filtroDocente}`,
+      ].filter(Boolean).join('&');
+      try {
+        const b = await api.get<ScheduleBlockAdmin[]>(`/api/admin/schedule${q ? `?${q}` : ''}`);
+        if (vigente) setBloques(b);
+      } catch {
+        if (vigente) setError('No se pudo cargar el horario.');
+      }
+    })();
+    return () => { vigente = false; };
+  }, [gradoBuscado, filtroDocente]);
 
   useEffect(() => {
     void (async () => {
