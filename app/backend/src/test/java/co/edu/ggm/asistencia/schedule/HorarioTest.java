@@ -131,6 +131,21 @@ class HorarioTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void coordinacion_ve_la_lista_de_cursos_con_el_grado_de_prueba() throws Exception {
+        mvc.perform(get("/api/schedule/grades")
+                        .header("Authorization", tokenDe("coord@ggm.edu.co", "COORDINADOR")))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$[?(@=='888')]").exists());
+    }
+
+    @Test
+    void un_docente_no_puede_pedir_la_lista_de_cursos() throws Exception {
+        mvc.perform(get("/api/schedule/grades")
+                        .header("Authorization", "Bearer " + jwt.issueAccess(docenteId, "DOCENTE")))
+           .andExpect(status().isForbidden());
+    }
+
+    @Test
     void coordinacion_puede_ver_el_detalle_de_un_salon() throws Exception {
         mvc.perform(get("/api/schedule/week").param("room", "AulaHorarioTest")
                         .header("Authorization", tokenDe("coord@ggm.edu.co", "COORDINADOR")))

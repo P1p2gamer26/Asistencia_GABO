@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, getSession } from '../api/client';
 import type { AdminUser } from '../api/contract';
-import { useDebounce } from '../lib/useDebounce';
 
 type Bloque = {
   id: number; grade: string; weekday: number; blockNo: number; subject: string;
@@ -19,6 +18,9 @@ function diaDeHoy(): number {
 
 export default function Horario() {
   const [bloques, setBloques] = useState<Bloque[]>([]);
+  // "Ver el horario de": '' = el mio (por defecto), 'salon' o 'docente'.
+  const [por, setPor] = useState('');
+  const [salones, setSalones] = useState<string[]>([]);
   const [curso, setCurso] = useState('');
   const [docentes, setDocentes] = useState<AdminUser[]>([]);
   const [docente, setDocente] = useState('');
@@ -26,22 +28,24 @@ export default function Horario() {
   const [cargando, setCargando] = useState(true);
 
   const puedeVerCursos = ['COORDINADOR', 'ADMIN'].includes(getSession()?.role ?? '');
-  const cursoBuscado = useDebounce(curso);
   const hoy = diaDeHoy();
 
-  // La lista de docentes para el selector: es un dato de coordinacion y solo lo
-  // necesita quien pueda pedir el horario de un curso ajeno.
+  // Listas para los desplegables: salones y docentes. Son datos de coordinacion y
+  // solo los necesita quien pueda pedir el horario de un curso ajeno.
   useEffect(() => {
     if (!puedeVerCursos) return;
     let vigente = true;
+    api.get<string[]>('/api/schedule/grades')
+       .then((d) => { if (vigente) setSalones(d); })
+       .catch(() => {});
     api.get<AdminUser[]>('/api/admin/users?role=DOCENTE')
        .then((d) => { if (vigente) setDocentes(d); })
        .catch(() => {});
     return () => { vigente = false; };
   }, [puedeVerCursos]);
 
-  // Se navega por curso y no por salon: el horario del colegio se piensa por curso,
-  // y con un aula fija por curso la lista de salones era la misma lista dos veces.
+  // Se navega por curso (salon) y por docente: la pregunta de coordinacion es
+  // "como quiero verlo", y luego el desplegable de la opcion elegida.
   useEffect(() => {
     // El guardia: si el filtro cambia mientras la peticion va en camino, la respuesta
     // vieja se descarta. Sin el, la respuesta de "60" puede llegar despues que la de
@@ -49,15 +53,15 @@ export default function Horario() {
     let vigente = true;
     setCargando(true);
     setError('');
-    const params = docente
+    const params = por === 'docente' && docente
       ? `?teacherId=${encodeURIComponent(docente)}`
-      : cursoBuscado ? `?grade=${encodeURIComponent(cursoBuscado)}` : '';
+      : por === 'salon' && curso ? `?grade=${encodeURIComponent(curso)}` : '';
     api.get<Bloque[]>(`/api/schedule/week${params}`)
        .then((b) => { if (vigente) setBloques(b); })
        .catch(() => { if (vigente) setError('No se pudo cargar el horario. Requiere conexion.'); })
        .finally(() => { if (vigente) setCargando(false); });
     return () => { vigente = false; };
-  }, [cursoBuscado, docente]);
+  }, [curso, docente, por]);
 
   const numeros = [...new Set(bloques.map((b) => b.blockNo))].sort((a, b) => a - b);
   const docenteNombre = docentes.find((d) => String(d.id) === docente)?.fullName;
@@ -71,18 +75,41 @@ export default function Horario() {
       </h1>
 
       {puedeVerCursos && (
-        <div className="leyenda" style={{ marginBottom: 12 }}>
-          <label htmlFor="curso-horario">Ver el horario de un curso</label>
-          <input id="curso-horario" value={curso} placeholder="601 (vacio = el mio)"
-                 onChange={(e) => setCurso(e.target.value.trim())} />
-          <label htmlFor="docente-horario">Ver el horario de un docente</label>
-          <select id="docente-horario" value={docente}
-                  onChange={(e) => setDocente(e.target.value)}>
-            <option value="">Ninguno</option>
-            {docentes.map((d) => (
-              <option key={d.id} value={d.id}>{d.fullName}</option>
-            ))}
+        <div className="filtros" style={{ marginBottom: 12, gridTemplateColumns: 'auto 1fr 1.4fr 1fr' }}>
+          <label htmlFor="por-horario">Ver el horario de</label>
+          <select id="por-horario" value={por}
+                  onChange={(e) => { setPor(e.target.value); setCurso(''); setDocente(''); }}>
+            <option value="">El mio</option>
+            <option value="salon">Un salon</option>
+            <option value="docente">Un docente</option>
           </select>
+          {por === 'salon' && (
+            <>
+              <label htmlFor="salon-horario">Salon</label>
+              <select id="salon-horario" value={curso}
+                      onChange={(e) => setCurso(e.target.value)}>
+                <option value="">Ninguno</option>
+                {salones.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </>
+          )}
+          {por === 'docente' && (
+            <>
+              <label htmlFor="docente-horario">Docente</label>
+              <select id="docente-horario" value={docente}
+                      onChange={(e) => setDocente(e.target.value)}>
+                <option value="">Ninguno</option>
+                {docentes.map((d) => (
+                  <option key={d.id} value={d.id}>{d.fullName}</option>
+                ))}
+              </select>
+            </>
+          )}
+          {por === '' && <span className="meta" style={{ gridColumn: '2 / -1' }}>
+            Elija salon o docente para ver el horario de otro.
+          </span>}
         </div>
       )}
 
@@ -93,8 +120,8 @@ export default function Horario() {
         <p className="meta">
           {docente
             ? `${docenteNombre ?? 'Ese docente'} no tiene bloques asignados en el horario.`
-            : cursoBuscado
-              ? `El curso ${cursoBuscado} no tiene bloques asignados en el horario.`
+            : curso
+              ? `El curso ${curso} no tiene bloques asignados en el horario.`
               : 'No tiene bloques asignados en el horario. Avise a coordinacion.'}
         </p>
       )}

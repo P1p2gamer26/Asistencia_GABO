@@ -90,45 +90,59 @@ const DOCENTES = [
   { id: 6, email: 'laura@co', fullName: 'Laura Ruiz', role: 'DOCENTE', active: true },
 ];
 
-describe('Horario: navegacion por curso', () => {
+describe('Horario: navegacion por salon y por docente', () => {
   beforeEach(() => {
-    // El selector de docente pide /api/admin/users y la semana pide /api/schedule/week.
+    // El selector pregunta por salon (/api/schedule/grades) y por docente
+    // (/api/admin/users); la semana pide /api/schedule/week.
     vi.stubGlobal('fetch', vi.fn(async (url: string) => {
       const ruta = String(url);
-      return ruta.includes('/api/admin/users')
-        ? respuesta(DOCENTES)
-        : respuesta(SEMANA);
+      if (ruta.includes('/api/schedule/grades')) return respuesta(['6A', '601', '602']);
+      if (ruta.includes('/api/admin/users')) return respuesta(DOCENTES);
+      return respuesta(SEMANA);
     }));
   });
 
-  // El horario se piensa por curso: la navegacion por salon se quito porque cada
-  // curso tiene su aula fija y era la misma lista dos veces.
-  it('nadie ve una lista de salones', async () => {
+  it('pedir el horario por salon muestra el desplegable con los cursos', async () => {
     pintarComo('COORDINADOR');
     await waitFor(() => expect(screen.getByText(/Ciencias/)).toBeInTheDocument());
-    expect(screen.queryByRole('button', { name: /Aula/i })).not.toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText(/ver el horario de/i), 'salon');
+    const salon = screen.getByLabelText(/salon/i);
+    expect(salon).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: '6A' })).toBeInTheDocument();
   });
 
-  it('coordinacion puede pedir el horario de otro curso', async () => {
+  it('coordinacion puede pedir el horario de otro curso desde el desplegable', async () => {
     pintarComo('COORDINADOR');
-    await userEvent.type(await screen.findByLabelText(/horario de un curso/i), '6A');
+    await userEvent.selectOptions(await screen.findByLabelText(/ver el horario de/i), 'salon');
+    await userEvent.selectOptions(await screen.findByLabelText(/salon/i), '6A');
     expect(await screen.findByText(/Horario del curso 6A/i)).toBeInTheDocument();
   });
 
   it('coordinacion puede pedir el horario de un docente por el selector', async () => {
     pintarComo('COORDINADOR');
     await waitFor(() =>
-      expect(screen.getByLabelText(/horario de un docente/i)).toBeInTheDocument());
-    await userEvent.selectOptions(screen.getByLabelText(/horario de un docente/i), '5');
+      expect(screen.getByLabelText(/ver el horario de/i)).toBeInTheDocument());
+    await userEvent.selectOptions(screen.getByLabelText(/ver el horario de/i), 'docente');
+    await userEvent.selectOptions(await screen.findByLabelText(/docente/i), '5');
     expect(await screen.findByText(/Horario de Pepito Perez/i)).toBeInTheDocument();
-    // La peticion a la semana debe ir filtrada por ese docente y no por curso.
+    // La peticion a la semana debe ir filtrada por ese docente y no por salon.
     await waitFor(() => expect(screen.getByLabelText(/lunes.*bloque 1.*Ciencias/i)).toBeInTheDocument());
+  });
+
+  it('elegir docente oculta el desplegable de salones y viceversa', async () => {
+    pintarComo('COORDINADOR');
+    await userEvent.selectOptions(await screen.findByLabelText(/ver el horario de/i), 'salon');
+    expect(screen.getByLabelText(/salon/i)).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText(/ver el horario de/i), 'docente');
+    expect(screen.queryByLabelText(/salon/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/docente/i)).toBeInTheDocument();
   });
 
   it('un docente no ve el selector ni la lista de docentes', async () => {
     pintarComo('DOCENTE');
     await waitFor(() => expect(screen.getByText(/Ciencias/)).toBeInTheDocument());
-    expect(screen.queryByLabelText(/horario de un docente/i)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/horario de un curso/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/ver el horario de/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/docente/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/salon/i)).not.toBeInTheDocument();
   });
 });

@@ -70,6 +70,13 @@ public class ScheduleController {
 
     public record Salones(List<String> rooms, long withoutRoom) {}
 
+    /** Lista de cursos con clase asignada: para que coordinacion elija en un desplegable. */
+    @GetMapping("/grades")
+    public List<String> grades() {
+        exigirCoordinacion("Solo coordinacion puede consultar la lista de cursos");
+        return schedules.distinctGrades();
+    }
+
     /** Lista de salones con clase asignada, y cuantos bloques no tienen aula: util para coordinacion. */
     @GetMapping("/rooms")
     public Salones rooms() {
