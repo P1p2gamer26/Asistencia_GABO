@@ -95,6 +95,15 @@ public interface ScheduleRepository extends JpaRepository<ScheduleBlock, Long> {
     java.util.List<WeekRow> weekOfRoom(
             @org.springframework.data.repository.query.Param("room") String room);
 
+    /** Cursos con al menos un bloque asignado, en el orden del colegio (601, 602, ..., 1103). */
+    @org.springframework.data.jpa.repository.Query(value = """
+            SELECT grade FROM (
+                SELECT DISTINCT b.grade, orden_curso(b.grade) AS orden
+                FROM schedule_blocks b
+            ) cursos ORDER BY orden, grade
+            """, nativeQuery = true)
+    java.util.List<String> distinctGrades();
+
     /** Salones distintos con al menos un bloque asignado, en orden alfabetico. */
     @org.springframework.data.jpa.repository.Query(value = """
             SELECT DISTINCT b.room FROM schedule_blocks b
