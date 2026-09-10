@@ -40,10 +40,16 @@ public class ScheduleController {
 
     @GetMapping("/week")
     public List<WeekBlock> week(@RequestParam(required = false) String grade,
-                                @RequestParam(required = false) String room) {
+                                @RequestParam(required = false) String room,
+                                @RequestParam(required = false) Long teacherId) {
         List<ScheduleRepository.WeekRow> filas;
 
-        if (room != null && !room.isBlank()) {
+        if (teacherId != null) {
+            // "Que clases tiene Pepito": la pregunta de coordinacion sobre otra
+            // persona, asi que exige el mismo rol que pedir el de un curso ajeno.
+            exigirCoordinacion("Solo coordinacion puede consultar el horario de un docente");
+            filas = schedules.weekOfTeacher(teacherId);
+        } else if (room != null && !room.isBlank()) {
             // "Quien esta usando el laboratorio el martes": igual que pedir el horario
             // de un curso ajeno, muestra cursos y docentes que no son los del que
             // pregunta, asi que exige el mismo rol.

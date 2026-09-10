@@ -31,8 +31,10 @@ describe('useSincronizacion', () => {
     });
 
     render(<Sonda />);
-    await waitFor(() => expect(screen.getByText(/pendientes=1/)).toBeInTheDocument());
-    expect(screen.getByText(/alcanzable=false/)).toBeInTheDocument();
+    // Ambos valores viven en el mismo <p>; esperar cada uno por separado es una
+    // carrera: el snapshot del conteo llega antes que el primer intento de subida.
+    await waitFor(() =>
+      expect(screen.getByText(/pendientes=1 alcanzable=false/)).toBeInTheDocument());
   });
 
   it('cuando el servidor responde, vacia la cola sin que nadie pulse nada', async () => {

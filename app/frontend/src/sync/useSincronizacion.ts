@@ -12,10 +12,13 @@ import { flushAll, pendingCount, startAutoSync } from './engine';
 export function useSincronizacion() {
   const [pendientes, setPendientes] = useState(0);
   const [alcanzable, setAlcanzable] = useState(true);
+  const [conError, setConError] = useState(0);
 
   useEffect(() => {
+    // Snapshot inmediato del conteo; el auto-sync recien montado lo lleva al estado
+    // real (incluido si el servidor rechazo marcas) con su primer intento.
     void pendingCount().then(setPendientes);
-    return startAutoSync((p, a) => { setPendientes(p); setAlcanzable(a); });
+    return startAutoSync((p, a, c) => { setPendientes(p); setAlcanzable(a); setConError(c); });
   }, []);
 
   const sincronizarAhora = useCallback(async () => {
@@ -23,7 +26,8 @@ export function useSincronizacion() {
     if (!r) return;
     setPendientes(r.pending);
     setAlcanzable(r.alcanzable);
+    setConError(r.conError);
   }, []);
 
-  return { pendientes, alcanzable, sincronizarAhora };
+  return { pendientes, alcanzable, conError, sincronizarAhora };
 }

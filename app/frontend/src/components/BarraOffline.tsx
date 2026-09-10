@@ -11,7 +11,7 @@ import { useSincronizacion } from '../sync/useSincronizacion';
  * confiar; lo que hace falta es saber en que modo se esta trabajando, siempre.
  */
 export default function BarraOffline() {
-  const { pendientes, alcanzable, sincronizarAhora } = useSincronizacion();
+  const { pendientes, alcanzable, conError, sincronizarAhora } = useSincronizacion();
   const [datos, setDatos] = useState<{ dias: number | null; estudiantes: number } | null>(null);
 
   useEffect(() => {
@@ -48,7 +48,14 @@ export default function BarraOffline() {
           mensaje: 'En linea · faltan los datos del colegio, espere a que terminen de bajar',
         }
       : pendientes > 0
-        ? { modo: 'subiendo', mensaje: `En linea · subiendo ${marcas(pendientes)}...` }
+        // Con marcas rechazadas, prometer que estan "subiendo" seria mentira: el
+        // servidor respondio que no las quiere aun. Se dice y se ofrece reintentar.
+        ? conError > 0
+          ? {
+              modo: 'aviso',
+              mensaje: `En linea · ${marcas(pendientes)} rechazada${pendientes === 1 ? '' : 's'} por el servidor, corregir o reintentar`,
+            }
+          : { modo: 'subiendo', mensaje: `En linea · subiendo ${marcas(pendientes)}...` }
         : datosViejos
           ? {
               modo: 'aviso',

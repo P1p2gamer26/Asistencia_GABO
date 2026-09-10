@@ -45,33 +45,67 @@ export async function markAttendance(mark: Mark): Promise<void> {
 
 export const pendingCount = () => db.outbox.count();
 
-export async function flushOutbox(): Promise<{ sent: number; pending: number; alcanzable: boolean }> {
-  const records = await db.outbox.toArray();
-  if (records.length === 0) return { sent: 0, pending: 0, alcanzable: true };
+export interface ResultadoCola {
+  sent: number;
+  pending: number;
+  alcanzable: boolean;
+  conError: number;
+}
 
-  let result: { accepted: number; rejected: { id: string; reason: string }[] };
-  try {
-    result = await api.post('/api/attendance/sync', {
-      records: records.map(({ key, error, ...r }) => r),
+/**
+ * Limite de registros por lote: el contrato del servidor acepta hasta 500, y una
+ * semana entera sin señal supera esa cifra. Sin este recorte, una fila que lavara
+ * en lotes de 500 respondia 400, la cola reenviaba los mismos datos y se quedaba
+ * colgada "subiendo" para siempre.
+ */
+const LOTE = 400;
+
+export async function flushOutbox(): Promise<ResultadoCola> {
+  const records = await db.outbox.toArray();
+  if (records.length === 0) return { sent: 0, pending: 0, alcanzable: true, conError: 0 };
+
+  let sent = 0;
+  for (let desde = 0; desde < records.length; desde += LOTE) {
+    const lote = records.slice(desde, desde + LOTE);
+    let result: { accepted: number; rejected: { id: string; reason: string }[] };
+    try {
+      result = await api.post('/api/attendance/sync', {
+        records: lote.map(({ key, error, ...r }) => r),
+      });
+    } catch (e) {
+      // OfflineError significa que la peticion no llego a ninguna parte. Es la unica
+      // senal fiable: navigator.onLine dice true con WiFi sin internet, que es
+      // exactamente lo que pasa en el colegio.
+      if (e instanceof OfflineError) {
+        return { sent, pending: await pendingCount(), alcanzable: false, conError: 0 };
+      }
+      // El servidor contesta pero rechazo el lote entero (401, 400, 500...). Antes
+      // esto se reenviaba aqui arriba, la franja se quedaba en "subiendo N marcas ..."
+      // sin enterarse nunca. Ahora el lote no se pierde y queda marcado con el motivo:
+      // el proximo ciclo reintenta y la interface dice la verdad en vez de prometer.
+      const motivo = e instanceof Error ? e.message : 'El servidor no acepto el lote';
+      await db.outbox.bulkPut(lote.map((r) => ({ ...r, error: motivo })));
+      break;
+    }
+
+    const rechazados = new Map(result.rejected.map((r) => [r.id, r.reason]));
+    await db.transaction('rw', db.outbox, async () => {
+      for (const r of lote) {
+        const motivo = rechazados.get(r.id);
+        if (motivo) await db.outbox.update(r.key, { error: motivo });
+        else await db.outbox.delete(r.key);
+      }
     });
-  } catch (e) {
-    // OfflineError significa que la peticion no llego a ninguna parte. Es la unica
-    // senal fiable: navigator.onLine dice true con WiFi sin internet, que es
-    // exactamente lo que pasa en el colegio.
-    if (e instanceof OfflineError) return { sent: 0, pending: records.length, alcanzable: false };
-    throw e;
+    sent += result.accepted;
   }
 
-  const rechazados = new Map(result.rejected.map((r) => [r.id, r.reason]));
-  await db.transaction('rw', db.outbox, async () => {
-    for (const r of records) {
-      const motivo = rechazados.get(r.id);
-      if (motivo) await db.outbox.update(r.key, { error: motivo });
-      else await db.outbox.delete(r.key);
-    }
-  });
-
-  return { sent: result.accepted, pending: await pendingCount(), alcanzable: true };
+  const quedan = await db.outbox.toArray();
+  return {
+    sent,
+    pending: quedan.length,
+    alcanzable: true,
+    conError: quedan.filter((r) => r.error).length,
+  };
 }
 
 export async function downloadBootstrap(): Promise<void> {
@@ -109,10 +143,13 @@ export async function estadoDeDatos(): Promise<{
  * es un formulario con memoria.
  */
 export async function flushEntries(): Promise<{
-  sent: number; pending: number; alcanzable: boolean; nombres: Record<string, string>;
+  sent: number; pending: number; alcanzable: boolean; conError: number;
+  nombres: Record<string, string>;
 }> {
   const cola = await db.entryOutbox.toArray();
-  if (cola.length === 0) return { sent: 0, pending: 0, alcanzable: true, nombres: {} };
+  if (cola.length === 0) {
+    return { sent: 0, pending: 0, alcanzable: true, conError: 0, nombres: {} };
+  }
 
   // El contrato es `entries` (no `records` como en asistencia) y la respuesta trae
   // `names`: la porteria escanea un carne y necesita ver de quien es al confirmarlo.
@@ -127,9 +164,13 @@ export async function flushEntries(): Promise<{
     });
   } catch (e) {
     if (e instanceof OfflineError) {
-      return { sent: 0, pending: cola.length, alcanzable: false, nombres: {} };
+      return { sent: 0, pending: cola.length, alcanzable: false, conError: 0, nombres: {} };
     }
-    throw e;
+    // Igual que en asistencia: el servidor contesta pero rechazo todo el lote. Los
+    // ingresos no se pierden y quedan marcados para que la franja diga la verdad.
+    const motivo = e instanceof Error ? e.message : 'El servidor no acepto el lote';
+    await db.entryOutbox.bulkPut(cola.map((e) => ({ ...e, error: motivo })));
+    return { sent: 0, pending: cola.length, alcanzable: true, conError: cola.length, nombres: {} };
   }
 
   const rechazados = new Map(result.rejected.map((r) => [r.id, r.reason]));
@@ -141,33 +182,37 @@ export async function flushEntries(): Promise<{
     }
   });
 
+  const quedan = await db.entryOutbox.toArray();
   return {
     sent: result.accepted,
-    pending: await db.entryOutbox.count(),
+    pending: quedan.length,
     alcanzable: true,
+    conError: quedan.filter((e) => e.error).length,
     nombres: result.names ?? {},
   };
 }
 
 /** Las dos colas de una pasada. Es lo que llama el sincronizador automatico. */
-export async function flushAll(): Promise<{ pending: number; alcanzable: boolean }> {
+export async function flushAll(): Promise<{ pending: number; alcanzable: boolean; conError: number }> {
   const marcas = await flushOutbox();
   const ingresos = await flushEntries();
   return {
     pending: marcas.pending + ingresos.pending,
     alcanzable: marcas.alcanzable && ingresos.alcanzable,
+    conError: marcas.conError + ingresos.conError,
   };
 }
 
 /**
  * Quien quiere enterarse del estado de la sincronizacion. Es un conjunto y no un solo
  * callback porque la franja de estado, la planilla y cualquier pantalla futura miran
- * lo mismo: cuantas marcas quedan sin subir y si el servidor contesta.
+ * lo mismo: cuantas marcas quedan sin subir, si el servidor contesta y si alguna fue
+ * rechazada.
  */
-type Escucha = (pending: number, alcanzable: boolean) => void;
+type Escucha = (pending: number, alcanzable: boolean, conError: number) => void;
 const escuchas = new Set<Escucha>();
-const avisar = (pending: number, alcanzable: boolean) => {
-  for (const f of escuchas) f(pending, alcanzable);
+const avisar = (pending: number, alcanzable: boolean, conError = 0) => {
+  for (const f of escuchas) f(pending, alcanzable, conError);
 };
 
 /**
@@ -213,7 +258,7 @@ export function cancelarSincronizacionPronto(): void {
 export function sincronizarPronto(esperaMs = 2000): void {
   window.clearTimeout(prontoTimer);
   prontoTimer = window.setTimeout(() => {
-    void flushAll().then((r) => avisar(r.pending, r.alcanzable)).catch(() => {});
+    void flushAll().then((r) => avisar(r.pending, r.alcanzable, r.conError)).catch(() => {});
   }, esperaMs);
 }
 
@@ -229,7 +274,7 @@ export function sincronizarPronto(esperaMs = 2000): void {
  * durante una jornada entera se come la bateria sin conseguir nada. Vuelve al minimo
  * en cuanto un intento llega al servidor.
  */
-export function startAutoSync(onChange?: (pending: number, alcanzable: boolean) => void) {
+export function startAutoSync(onChange?: (pending: number, alcanzable: boolean, conError: number) => void) {
   const MIN = 30_000;
   const MAX = 300_000;
   let espera = MIN;
@@ -244,12 +289,13 @@ export function startAutoSync(onChange?: (pending: number, alcanzable: boolean) 
 
   const intentar = async () => {
     if (!vivo) return;
-    // flushOutbox y flushEntries ya salen antes de tocar la red si su cola esta
-    // vacia: una cola vacia no justifica encender la radio del telefono.
+    // flushOutbox, flushEntries y flushAll nunca lanzan: un error del servidor deja
+    // la cola marcada en vez de colgar la sincronizacion. Antes un 400/401 recreaba
+    // "subiendo N marcas..." sin que nadie lo supiera.
     const r = await flushAll().catch(() => null);
     if (r) {
       espera = r.alcanzable ? MIN : Math.min(espera * 2, MAX);
-      avisar(r.pending, r.alcanzable);
+      avisar(r.pending, r.alcanzable, r.conError);
     }
     programar();
   };

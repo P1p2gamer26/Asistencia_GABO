@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 // mensaje y la clase de modo, y eso es lo que se verifica aqui. jsdom no calcula
 // layout, asi que el padding que reserva .contenido con :has() no se afirma desde una
 // prueba: solo la presencia del elemento que dispara ese selector.
-const mockEstado = vi.hoisted(() => ({ pendientes: 0, alcanzable: true }));
+const mockEstado = vi.hoisted(() => ({ pendientes: 0, alcanzable: true, conError: 0 }));
 vi.mock('../sync/useSincronizacion', () => ({
   useSincronizacion: () => ({ ...mockEstado, sincronizarAhora: vi.fn() }),
 }));
@@ -61,12 +61,27 @@ describe('BarraOffline', () => {
   it('con cola pendiente monta la franja: el selector :has() de .contenido se dispara', async () => {
     mockEstado.pendientes = 3;
     mockEstado.alcanzable = true;
+    mockEstado.conError = 0;
     mockDatos.dias = 0;
     mockDatos.estudiantes = 10;
     render(<BarraOffline />);
     const franja = await screen.findByRole('status');
     expect(franja).toHaveClass('barra-offline', 'subiendo');
     expect(franja).toHaveTextContent(/subiendo 3 marcas/);
+  });
+
+  it('si el servidor rechazo marcas lo dice y ofrece reintentar, sin prometer que suben', async () => {
+    mockEstado.pendientes = 3;
+    mockEstado.alcanzable = true;
+    mockEstado.conError = 3;
+    mockDatos.dias = 0;
+    mockDatos.estudiantes = 10;
+    render(<BarraOffline />);
+    const franja = await screen.findByRole('status');
+    expect(franja).toHaveTextContent(/3 marcas rechazadas/);
+    expect(franja).not.toHaveTextContent(/subiendo/);
+    // Reintentar si aparece aqui: es un rechazo del servidor, no falta de señal.
+    expect(screen.getByRole('button', { name: /reintentar/i })).toBeInTheDocument();
   });
 
   it('sin datos descargados monta la franja aunque todo este sincronizado y alcanzable', async () => {
