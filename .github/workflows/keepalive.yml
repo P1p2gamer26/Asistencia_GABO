@@ -1,0 +1,27 @@
+name: Keepalive
+
+# Mantiene despierta la base de Supabase (Free se pausa tras ~7 dias sin consultas)
+# y, si el contenedor vive en Render Free (se duerme a los 15 min), lo despierta.
+# Llama al endpoint publico /api/health/db del backend, que consulta la base:
+# una consulta cuenta como actividad. Sin credenciales ni datos sensibles.
+#
+# URL publica: se toma de la variable de repositorio APP_URL, o el default apunta
+# al dominio del colegio (asistencia.ggm.edu.co). Cambarla en Settings -> Variables.
+
+on:
+  schedule:
+    - cron: '30 14 * * *'   # 14:30 UTC = 09:30 Bogota, una vez al dia
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sonda de salud (base + app)
+        env:
+          APP_URL: ${{ vars.APP_URL || 'https://asistencia-ggm.onrender.com' }}
+        run: |
+          # Si la app esta dormida, el retry espera su arranque en frio (Render).
+          curl -sf --retry 6 --retry-delay 60 --retry-all-errors \
+               --connect-timeout 30 --max-time 120 \
+               "${APP_URL}/api/health/db"
