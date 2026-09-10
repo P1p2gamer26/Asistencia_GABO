@@ -15,6 +15,7 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     List<Student> findByActiveTrueOrderByLastNameAscFirstNameAsc();
     List<Student> findByActiveTrueAndGradeOrderByLastNameAscFirstNameAsc(String grade);
     Optional<Student> findByDocumentIdAndActiveTrue(String documentId);
+    Optional<Student> findByDocumentId(String documentId);
 
     // Administracion tambien ve los inactivos: si no, un estudiante desactivado por
     // error no se puede encontrar para volver a activarlo.
@@ -76,20 +77,21 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 
     @Modifying
     @Query(value = """
-            INSERT INTO students (document_id, first_name, middle_name, last_name, second_surname, grade)
-            VALUES (:documentId, :firstName, :middleName, :lastName, :secondSurname, :grade)
+            INSERT INTO students (document_id, first_name, middle_name, last_name, second_surname, grade, active)
+            VALUES (:documentId, :firstName, :middleName, :lastName, :secondSurname, :grade, :active)
             ON CONFLICT (document_id) DO UPDATE
               SET first_name = EXCLUDED.first_name,
                   middle_name = EXCLUDED.middle_name,
                   last_name = EXCLUDED.last_name,
                   second_surname = EXCLUDED.second_surname,
                   grade = EXCLUDED.grade,
-                  active = TRUE
+                  active = EXCLUDED.active
             """, nativeQuery = true)
     void upsert(@Param("documentId") String documentId,
                 @Param("firstName") String firstName,
                 @Param("middleName") String middleName,
                 @Param("lastName") String lastName,
                 @Param("secondSurname") String secondSurname,
-                @Param("grade") String grade);
+                @Param("grade") String grade,
+                @Param("active") boolean active);
 }

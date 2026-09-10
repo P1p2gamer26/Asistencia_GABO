@@ -4,7 +4,7 @@ import type { ImportResult } from '../../api/contract';
 
 const CARGAS = [
   { clave: 'students',  titulo: 'Estudiantes',
-    cabecera: 'document_id,first_name,middle_name,last_name,second_surname,grade' },
+    cabecera: 'document_id,first_name,middle_name,last_name,second_surname,grade[,active]' },
   { clave: 'schedule',  titulo: 'Horario',
     cabecera: 'grade,weekday,block_no,start_time,end_time,subject,teacher_email,room' },
   { clave: 'guardians', titulo: 'Acudientes',
@@ -40,7 +40,9 @@ export default function PanelCarga() {
       <p className="meta">
         Orden de carga: <strong>estudiantes primero</strong>, luego horario, y acudientes
         al final. Los dos ultimos necesitan que el estudiante ya exista.
-        Los archivos deben ser CSV codificados en UTF-8.
+        Los archivos deben ser CSV codificados en UTF-8. La columna <code>active</code>
+        de estudiantes es opcional: <code>true</code> activo (o re-activa) y
+        <code>false</code> lo da de baja. Si no viene, queda activo.
       </p>
 
       {CARGAS.map((c) => {

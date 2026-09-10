@@ -53,6 +53,15 @@ def estudiantes():
         v = fila[col[nombre]]
         return "" if v is None else str(v).strip()
 
+    def activo(fila):
+        """'ESTADO' del plano -> active. 'RETIRADO' es el unico estado que saca del
+        sistema: 'MATRICULADO' y 'ASIGNADO' siguen siendo estudiantes activos. Si el
+        plano no trae la columna, todos quedan activos (como antes)."""
+        c = campo(fila, "ESTADO")
+        if not c:
+            return True
+        return c != "RETIRADO"
+
     salida, cursos, vistos = [], collections.Counter(), set()
     for n, fila in enumerate(filas, start=2):
         doc = campo(fila, "DOC")
@@ -70,6 +79,7 @@ def estudiantes():
             sys.exit("Fila %d: hay una coma dentro de un campo: %s" % (n, campos))
         if not campos[1] or not campos[3]:
             sys.exit("Fila %d: falta nombre o apellido: %s" % (n, campos))
+        campos.append("true" if activo(fila) else "false")
         salida.append(campos)
         cursos[curso] += 1
     return salida, cursos
@@ -102,15 +112,29 @@ DOCENTES = [
     "YAMILE PACHON", "YAZMIN MORENO",
 ]
 
+# El horario imprime a algunos docentes con un solo nombre. Sin esto, "YAMILE" y
+# "YAMILE PACHON" serian dos cuentas distintas para la misma persona.
+COMPLETOS = {"YAMILE": "YAMILE PACHON", "ANDERSSON": "ANDERSSON TUNJANO"}
+
 # El PDF identifica a los docentes por nombre y el sistema por correo. Los correos
-# institucionales todavia no los tiene el colegio: mientras no esten aqui, horario.csv
-# sale con el nombre del docente en la columna del correo (o sea, como borrador, no
-# como archivo para subir) y el script lo avisa al terminar.
+# institucionales todavia no los tiene el colegio, asi que por ahora se derivan del
+# nombre con la regla de abajo (inicial + apellido, como el fpalacios de la semilla)
+# y el dominio propio del colegio, que deja claro que son provisionales.
 #
-# Cuando lleguen: "NOMBRE COMO SALE ARRIBA": "correo@...", y subir horario.csv. El
-# ON CONFLICT (grade, weekday, block_no) DO UPDATE de ImportService le cambia el
-# docente a cada bloque sin duplicar nada.
+# Cuando lleguen los de verdad: "NOMBRE COMO SALE EN EL PDF": "correo@...", aqui. Lo
+# que este en este diccionario le gana a la regla. Despues se vuelve a subir
+# horario.csv: el ON CONFLICT (grade, weekday, block_no) DO UPDATE de ImportService
+# le cambia el docente a cada bloque sin duplicar nada.
 CORREOS = {}
+
+
+def correo(nombre):
+    """Nombre del PDF -> correo. Devuelve tambien si es provisional."""
+    completo = COMPLETOS.get(nombre, nombre)
+    if completo in CORREOS:
+        return CORREOS[completo], False
+    partes = completo.lower().split()
+    return "%s%s@ggm.edu.co" % (partes[0][0], partes[-1]), True
 
 BLOQUES = [                                # columna del PDF -> bloque y horas
     (1, "06:30", "07:35"), (2, "07:35", "08:25"), (3, "08:25", "09:15"),
@@ -191,7 +215,7 @@ def titulo(nombre):
 
 
 def horario():
-    salida, por_curso = [], collections.Counter()
+    salida, por_curso, provisionales = [], collections.Counter(), {}
     with pdfplumber.open(PDF_CURSOS) as pdf:
         for pagina in pdf.pages:
             curso = pagina.extract_text().split("\n")[0].strip()
@@ -231,11 +255,13 @@ def horario():
                         if BLOQUES[col] is None:
                             continue
                         n, ini, fin = BLOQUES[col]
-                        salida.append([curso, dia, n, ini, fin, titulo(materia),
-                                       CORREOS.get(docente, docente),
+                        buzon, provisional = correo(docente)
+                        if provisional:
+                            provisionales[docente] = buzon
+                        salida.append([curso, dia, n, ini, fin, titulo(materia), buzon,
                                        plano(aula).replace(",", " ")])
                         por_curso[curso] += 1
-    return salida, por_curso
+    return salida, por_curso, provisionales
 
 
 # ------------------------------------------------------------------- salida
@@ -266,21 +292,21 @@ def main():
     alumnos, cursos = estudiantes()
     escribir(RAIZ / "estudiantes.csv",
              ["document_id", "first_name", "middle_name", "last_name",
-              "second_surname", "grade"], alumnos)
+              "second_surname", "grade", "active"], alumnos)
     print("  %d cursos: %s" % (len(cursos),
                                ", ".join("%s=%d" % kv for kv in sorted(cursos.items()))))
 
-    bloques, por_curso = horario()
+    bloques, por_curso, provisionales = horario()
     comprobar(bloques, cursos)
     escribir(RAIZ / "horario.csv",
              ["grade", "weekday", "block_no", "start_time", "end_time", "subject",
               "teacher_email", "room"], bloques)
     print("  bloques por curso: %s"
           % ", ".join("%s=%d" % kv for kv in por_curso.items()))
-    faltan = sorted({b[6] for b in bloques if "@" not in b[6]})
-    if faltan:
-        print("  OJO: horario.csv es un BORRADOR, no subirlo. Faltan los correos de: %s"
-              % ", ".join(faltan))
+    if provisionales:
+        print("  OJO: %d correos provisionales (derivados del nombre, no son los "
+              "institucionales): %s" % (len(provisionales),
+              ", ".join(sorted(provisionales.values()))))
 
 
 if __name__ == "__main__":

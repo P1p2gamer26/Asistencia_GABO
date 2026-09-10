@@ -67,8 +67,11 @@ public class ImportController {
                     errores.add("Linea " + numero + ": documento, primer nombre y primer apellido son obligatorios");
                     continue;
                 }
+                // La columna "active" es opcional y va al final: los archivos de 6
+                // columnas siguen sirviendo (activo por defecto).
+                boolean activo = c.length < 7 || c[6].isBlank() || Boolean.parseBoolean(c[6].trim());
                 students.upsert(documento, c[1].trim(), vacioANull(c[2]), c[3].trim(),
-                        vacioANull(c[4]), c[5].trim());
+                        vacioANull(c[4]), c[5].trim(), activo);
                 importados++;
             }
         }
