@@ -22,6 +22,9 @@ public class SchoolDay {
 
     private String description;
 
+    /** Ancla manual del dia de ciclo; null = conteo automatico. */
+    @Column(name = "cycle_day_fixed") private Short cycleDayFixed;
+
     @Column(name = "updated_by") private Long updatedBy;
     @Column(name = "updated_at") private Instant updatedAt;
 }

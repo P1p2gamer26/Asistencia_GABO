@@ -322,6 +322,10 @@ tbody tr:hover { background: #fbfaf4; }
                   gap: 2px; font-size: .75rem; }
 .calendario-dia .numero { font-weight: 700; font-size: .95rem; }
 .calendario-dia .tipo { color: var(--tinta-suave); }
+.calendario-dia .ciclo { font-size: .75rem; font-weight: 700; }
+.calendario-dia.anclado .ciclo { text-decoration: underline; }
+.ciclo-editor { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.ciclo-editor button { font-size: .75rem; padding: 2px 6px; }
 .calendario-dia .motivo { color: var(--tinta-mute); font-size: .7rem; }
 .calendario-dia select { font-size: .7rem; padding: 2px; min-height: 0; margin-top: auto; }
 

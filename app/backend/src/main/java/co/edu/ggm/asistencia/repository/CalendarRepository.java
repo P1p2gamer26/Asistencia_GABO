@@ -16,6 +16,7 @@ public interface CalendarRepository extends JpaRepository<SchoolDay, LocalDate> 
         DayType getDayType();
         String getDescription();
         Integer getCycleDay();
+        Integer getCycleDayFixed();
     }
 
     List<SchoolDay> findByCalendarDateBetweenOrderByCalendarDate(LocalDate from, LocalDate to);
@@ -29,8 +30,17 @@ public interface CalendarRepository extends JpaRepository<SchoolDay, LocalDate> 
     Integer cycleDayOf(@Param("date") LocalDate date);
 
     @Query(value = """
+            SELECT calendar_date FROM school_calendar
+            WHERE day_type = 'LECTIVO' AND calendar_date > :date
+              AND EXTRACT(YEAR FROM calendar_date) = EXTRACT(YEAR FROM CAST(:date AS date))
+            ORDER BY calendar_date LIMIT 1
+            """, nativeQuery = true)
+    LocalDate siguienteLectivo(@Param("date") LocalDate date);
+
+    @Query(value = """
             SELECT c.calendar_date AS calendarDate, c.day_type AS dayType,
-                   c.description AS description, cc.cycle_day AS cycleDay
+                   c.description AS description, cc.cycle_day AS cycleDay,
+                   c.cycle_day_fixed AS cycleDayFixed
             FROM school_calendar c
             LEFT JOIN calendario_ciclo cc ON cc.calendar_date = c.calendar_date
             WHERE c.calendar_date BETWEEN :from AND :to

@@ -94,12 +94,13 @@ export default function PanelCalendario() {
 
       <div className="tabla-scroll">
         <table>
-          <thead><tr><th>Fecha</th><th>Tipo</th><th>Motivo</th></tr></thead>
+          <thead><tr><th>Fecha</th><th>Dia</th><th>Tipo</th><th>Motivo</th></tr></thead>
           <tbody>
             {dias.map((d) => (
               <tr key={d.calendarDate}>
                 <td>{new Date(`${d.calendarDate}T00:00`).toLocaleDateString('es-CO',
                       { weekday: 'short', day: '2-digit', month: 'short' })}</td>
+                <td>{d.cycleDay ? `D${d.cycleDay}` : ''}</td>
                 <td>
                   <select aria-label={`Tipo de dia para ${d.calendarDate}`} value={d.dayType}
                           onChange={(e) => void cambiar(d, e.target.value as DayType,
