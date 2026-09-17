@@ -4,7 +4,9 @@ import co.edu.ggm.asistencia.model.DayType;
 import co.edu.ggm.asistencia.model.SchoolDay;
 import co.edu.ggm.asistencia.repository.CalendarRepository;
 import jakarta.annotation.PostConstruct;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
@@ -74,6 +76,41 @@ public class CalendarService {
 
         if (type == DayType.LECTIVO) lectivos.add(date); else lectivos.remove(date);
         return guardado;
+    }
+
+    /**
+     * Fija a mano el dia de ciclo de una fecha lectiva (null = volver al automatico).
+     * En cascada, los lectivos siguientes cuentan desde aqui. Sin cascada, solo cambia
+     * este dia: al siguiente lectivo se le ancla el valor que ya tenia, para que el
+     * resto del calendario no se mueva.
+     */
+    @Transactional
+    public void fijarDiaCiclo(LocalDate date, Integer cycleDay, boolean cascada, Long userId) {
+        SchoolDay dia = repo.findById(date)
+                .filter(d -> d.getDayType() == DayType.LECTIVO)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Solo un dia lectivo tiene dia de ciclo"));
+        if (cycleDay != null && (cycleDay < 1 || cycleDay > 5)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El dia de ciclo va de 1 a 5");
+        }
+        if (!cascada && cycleDay != null) {
+            LocalDate siguiente = repo.siguienteLectivo(date);
+            if (siguiente != null) {
+                SchoolDay sig = repo.findById(siguiente).orElseThrow();
+                if (sig.getCycleDayFixed() == null) {
+                    // Se lee ANTES de mover el ancla de hoy, que es lo que lo cambiaria.
+                    Integer actual = repo.cycleDayOf(siguiente);
+                    sig.setCycleDayFixed(actual == null ? null : actual.shortValue());
+                    sig.setUpdatedBy(userId);
+                    sig.setUpdatedAt(Instant.now());
+                    repo.save(sig);
+                }
+            }
+        }
+        dia.setCycleDayFixed(cycleDay == null ? null : cycleDay.shortValue());
+        dia.setUpdatedBy(userId);
+        dia.setUpdatedAt(Instant.now());
+        repo.saveAndFlush(dia);
     }
 
     /**

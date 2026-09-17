@@ -62,6 +62,23 @@ export default function Calendario({ hoy = new Date() }: { hoy?: Date }) {
 
   useEffect(() => { void cargar(); }, [anio, mes]);
 
+  // Dia de ciclo elegido pero aun no aplicado, por fecha: el usuario elige el
+  // numero y luego decide si es solo ese dia o en cascada.
+  const [cicloElegido, setCicloElegido] = useState<Record<string, string>>({});
+
+  async function fijarCiclo(fecha: string, cascada: boolean) {
+    const v = cicloElegido[fecha] ?? '';
+    setError('');
+    try {
+      await api.put(`/api/calendar/school-days/${fecha}/cycle-day`,
+        { cycleDay: v === '' ? null : Number(v), cascada });
+      setCicloElegido((c) => { const { [fecha]: _, ...resto } = c; return resto; });
+      await cargar();
+    } catch {
+      setError('No se pudo fijar el dia de ciclo.');
+    }
+  }
+
   async function cambiar(fecha: string, tipo: DayType) {
     setError('');
     try {
@@ -101,7 +118,7 @@ export default function Calendario({ hoy = new Date() }: { hoy?: Date }) {
 
       <p className="meta">
         {cargando ? 'Cargando...' : `${lectivos} dias de clase este mes.`}
-        {puedeEditar && ' Puede cambiar el tipo de cualquier dia.'}
+        {puedeEditar && ' Puede cambiar el tipo de cualquier dia y fijar el dia de ciclo (D1 a D5).'}
       </p>
       {error && <p role="alert" className="error">{error}</p>}
 
@@ -123,9 +140,16 @@ export default function Calendario({ hoy = new Date() }: { hoy?: Date }) {
           const etiquetaCorta = tipo ? ETIQUETA_CORTA[tipo] : '';
 
           return (
-            <div key={fecha} role="gridcell" className={`calendario-dia ${clase}`}
-                 aria-label={`${dia} de ${MESES[mes]}: ${etiqueta}`}>
+            <div key={fecha} role="gridcell"
+                 className={`calendario-dia ${clase}${info?.cycleDayFixed ? ' anclado' : ''}`}
+                 aria-label={`${dia} de ${MESES[mes]}: ${etiqueta}`
+                   + (info?.cycleDay ? `, dia ${info.cycleDay}` : '')}>
               <span className="numero">{dia}</span>
+              {info?.cycleDay && (
+                <span className="ciclo" title={info.cycleDayFixed ? 'Dia fijado a mano' : undefined}>
+                  D{info.cycleDay}{info.cycleDayFixed ? '*' : ''}
+                </span>
+              )}
               <span className="tipo">{etiqueta}</span>
               {etiquetaCorta && <span className="tipo-corto">{etiquetaCorta}</span>}
               {info?.description && <span className="motivo">{info.description}</span>}
@@ -134,6 +158,24 @@ export default function Calendario({ hoy = new Date() }: { hoy?: Date }) {
                         onChange={(e) => void cambiar(fecha, e.target.value as DayType)}>
                   {TIPOS.map((t) => <option key={t} value={t}>{ETIQUETA[t]}</option>)}
                 </select>
+              )}
+              {puedeEditar && info?.cycleDay && (
+                <div className="ciclo-editor">
+                  <select aria-label={`Dia de ciclo para ${fecha}`}
+                          value={cicloElegido[fecha] ?? String(info.cycleDayFixed ?? '')}
+                          onChange={(e) => setCicloElegido((c) => ({ ...c, [fecha]: e.target.value }))}>
+                    <option value="">Auto</option>
+                    {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>Dia {n}</option>)}
+                  </select>
+                  {fecha in cicloElegido && (
+                    <>
+                      <button type="button" className="secundario"
+                              onClick={() => void fijarCiclo(fecha, false)}>Solo este dia</button>
+                      <button type="button" className="secundario"
+                              onClick={() => void fijarCiclo(fecha, true)}>Este y los siguientes</button>
+                    </>
+                  )}
+                </div>
               )}
             </div>
           );

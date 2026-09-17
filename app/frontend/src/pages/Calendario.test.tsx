@@ -9,8 +9,8 @@ import Calendario from './Calendario';
 const HOY = new Date(2026, 7, 15);
 
 const DIAS = [
-  { calendarDate: '2026-08-03', dayType: 'LECTIVO' },
-  { calendarDate: '2026-08-04', dayType: 'LECTIVO' },
+  { calendarDate: '2026-08-03', dayType: 'LECTIVO', cycleDay: 1 },
+  { calendarDate: '2026-08-04', dayType: 'LECTIVO', cycleDay: 2, cycleDayFixed: 2 },
   { calendarDate: '2026-08-07', dayType: 'FESTIVO', description: 'Batalla de Boyaca' },
   { calendarDate: '2026-08-17', dayType: 'FESTIVO', description: 'Asuncion' },
   { calendarDate: '2026-08-19', dayType: 'SUSPENDIDO', description: 'Paro de transporte' },
@@ -127,5 +127,25 @@ describe('Calendario', () => {
     const estrecha = css.slice(css.indexOf('@media (max-width: 560px)'));
     expect(estrecha).toMatch(/\.calendario-dia \.tipo\s*\{[^}]*display:\s*none/);
     expect(estrecha).toMatch(/\.calendario-dia \.tipo-corto\s*\{[^}]*display:\s*block/);
+  });
+
+  it('muestra el dia de ciclo y coordinacion lo puede fijar solo para ese dia', async () => {
+    localStorage.setItem('ggm.session', JSON.stringify({
+      token: 't', refreshToken: 'r', role: 'COORDINADOR',
+      fullName: 'Coord', userId: 1, mustChangePassword: false,
+    }));
+    const fetchMock = vi.fn(async () => respuesta(DIAS));
+    vi.stubGlobal('fetch', fetchMock);
+    render(<Calendario hoy={HOY} />);
+    await waitFor(() => expect(screen.getByLabelText(/^3 de agosto.*dia 1/i)).toBeInTheDocument());
+    expect(screen.getByText('D2*')).toBeInTheDocument();
+
+    await userEvent.selectOptions(screen.getByLabelText('Dia de ciclo para 2026-08-03'), '4');
+    await userEvent.click(screen.getByRole('button', { name: 'Solo este dia' }));
+    const llamada = fetchMock.mock.calls.find(([url]) => String(url).includes('/cycle-day'));
+    expect(llamada).toBeTruthy();
+    expect(String(llamada![0])).toContain('/api/calendar/school-days/2026-08-03/cycle-day');
+    expect(JSON.parse(String((llamada![1] as RequestInit).body)))
+      .toEqual({ cycleDay: 4, cascada: false });
   });
 });
