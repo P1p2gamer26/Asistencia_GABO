@@ -43,7 +43,7 @@ class RecientesTest extends AbstractIntegrationTest {
     private Long crearBloque(int blockNo, Long teacherId) {
         jdbcBase.update(
                 "INSERT INTO subjects (name) VALUES ('Materia RCA') ON CONFLICT (name) DO NOTHING");
-        int weekday = LocalDate.parse(FECHA).getDayOfWeek().getValue();
+        int weekday = diaCiclo(FECHA);
         jdbcBase.update("""
                 INSERT INTO schedule_blocks (grade, weekday, block_no, start_time, end_time,
                                              subject_id, teacher_id)
@@ -63,6 +63,14 @@ class RecientesTest extends AbstractIntegrationTest {
                 VALUES (?, ?, ?, ?, 'P', ?, now())
                 ON CONFLICT ON CONSTRAINT attendance_unique_slot DO NOTHING
                 """, UUID.randomUUID(), estudianteId, blockId, LocalDate.parse(FECHA), recordedBy);
+    }
+
+    private int diaCiclo(String fecha) {
+        jdbcBase.update("""
+                INSERT INTO school_calendar (calendar_date, day_type) VALUES (?, 'LECTIVO')
+                ON CONFLICT (calendar_date) DO UPDATE SET day_type = 'LECTIVO'
+                """, LocalDate.parse(fecha));
+        return jdbcBase.queryForObject("SELECT dia_ciclo(?::date)", Integer.class, fecha);
     }
 
     @BeforeEach

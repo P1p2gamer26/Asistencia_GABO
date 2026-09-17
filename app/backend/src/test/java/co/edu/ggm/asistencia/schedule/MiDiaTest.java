@@ -7,7 +7,6 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 
 import static org.hamcrest.Matchers.greaterThan;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -47,7 +46,7 @@ class MiDiaTest extends AbstractIntegrationTest {
         jdbcBase.update(
                 "INSERT INTO subjects (name) VALUES (?) ON CONFLICT (name) DO NOTHING", subject);
 
-        int weekday = LocalDate.parse(fecha, DateTimeFormatter.ISO_DATE).getDayOfWeek().getValue();
+        int weekday = diaCiclo(fecha);
         jdbcBase.update("""
                 INSERT INTO schedule_blocks (grade, weekday, block_no, start_time, end_time,
                                              subject_id, teacher_id, room)
@@ -73,6 +72,14 @@ class MiDiaTest extends AbstractIntegrationTest {
         }
 
         return "Bearer " + jwt.issueAccess(docenteId, "DOCENTE");
+    }
+
+    private int diaCiclo(String fecha) {
+        jdbcBase.update("""
+                INSERT INTO school_calendar (calendar_date, day_type) VALUES (?, 'LECTIVO')
+                ON CONFLICT (calendar_date) DO UPDATE SET day_type = 'LECTIVO'
+                """, LocalDate.parse(fecha));
+        return jdbcBase.queryForObject("SELECT dia_ciclo(?::date)", Integer.class, fecha);
     }
 
     private void marcarPrimeros(String fecha, String grade, int n) {

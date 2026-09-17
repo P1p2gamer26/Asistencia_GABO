@@ -125,7 +125,7 @@ public class ReportController {
     @GetMapping("/pending-today")
     public List<ReportRepository.PendingBlock> pendingToday() {
         LocalDate hoy = LocalDate.now(BOGOTA);
-        return repo.pendingToday(JwtService.currentUserId(), hoy.getDayOfWeek().getValue(), hoy);
+        return repo.pendingToday(JwtService.currentUserId(), calendarioService.cycleDay(hoy), hoy);
     }
 
     /** Una fila por dia+curso, no por bloque: un curso al que nunca se le toma

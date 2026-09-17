@@ -19,6 +19,9 @@ vi.mock('../sync/engine', () => ({
   estadoDeDatos: () => Promise.resolve(mockDatos),
 }));
 
+const mockRol = vi.hoisted(() => ({ role: 'DOCENTE' }));
+vi.mock('../api/client', () => ({ getSession: () => mockRol }));
+
 import BarraOffline from './BarraOffline';
 
 describe('BarraOffline', () => {
@@ -91,6 +94,15 @@ describe('BarraOffline', () => {
     mockDatos.estudiantes = 0;
     render(<BarraOffline />);
     expect(await screen.findByText(/faltan los datos del colegio/)).toBeTruthy();
+  });
+
+  it('al acudiente no le reclama datos del colegio: nunca los descarga porque no toma lista', async () => {
+    mockRol.role = 'ACUDIENTE';
+    mockDatos.estudiantes = 0;
+    render(<BarraOffline />);
+    expect(await screen.findByText(/todo subido/)).toBeTruthy();
+    mockRol.role = 'DOCENTE';
+    mockDatos.estudiantes = 10;
   });
 
   it('con datos de mas de una semana avisa aunque todo este sincronizado', async () => {

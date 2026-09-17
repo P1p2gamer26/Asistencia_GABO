@@ -12,7 +12,7 @@ export type Block = {
 };
 export type PendingBlock = { blockId: number; grade: string; subject: string; blockNo: number };
 export type StudentDto = { id: number; documentId: string; fullName: string; grade: string };
-export type SchoolDay = { calendarDate: string; dayType: DayType; description?: string };
+export type SchoolDay = { calendarDate: string; dayType: DayType; description?: string; cycleDay?: number | null };
 export type Bootstrap = { blocks: Block[]; students: StudentDto[]; schoolDays: SchoolDay[] };
 
 export type SummaryRow = {

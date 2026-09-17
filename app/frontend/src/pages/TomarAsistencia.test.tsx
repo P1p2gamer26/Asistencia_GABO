@@ -16,9 +16,9 @@ describe('TomarAsistencia', () => {
     await db.schoolDays.clear();
 
     await db.schoolDays.bulkPut([
-      { calendarDate: HOY, dayType: 'LECTIVO' },
-      { calendarDate: '2026-08-17', dayType: 'LECTIVO' },   // lunes
-      { calendarDate: '2026-08-18', dayType: 'LECTIVO' },   // martes
+      { calendarDate: HOY, dayType: 'LECTIVO', cycleDay: 1 },
+      { calendarDate: '2026-08-17', dayType: 'LECTIVO', cycleDay: 1 },
+      { calendarDate: '2026-08-18', dayType: 'LECTIVO', cycleDay: 2 },
     ]);
     await db.blocks.bulkPut([
       { id: 1, grade: '601', weekday: 1, blockNo: 4, subject: 'Ciencias', startTime: '09:00' },
@@ -124,7 +124,7 @@ describe('TomarAsistencia', () => {
       const opciones = Array.from(
         screen.getByLabelText(/bloque/i).querySelectorAll('option'))
         .map((o) => o.value).filter(Boolean);
-      // De los tres bloques de 601, solo el del lunes (id 1)
+      // De los tres bloques de 601, solo el del dia de ciclo 1 (id 1).
       expect(opciones).toEqual(['1']);
     });
   });
@@ -171,7 +171,7 @@ describe('TomarAsistencia', () => {
     await userEvent.selectOptions(screen.getByLabelText(/curso/i), '601');
 
     await waitFor(() =>
-      expect(screen.getByLabelText(/bloque/i)).toHaveTextContent(/lunes/i));
+      expect(screen.getByLabelText(/bloque/i)).toHaveTextContent(/dia 1/i));
   });
 
   async function elegirCursoYBloque() {

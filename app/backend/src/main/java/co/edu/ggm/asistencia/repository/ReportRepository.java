@@ -155,7 +155,7 @@ public interface ReportRepository extends Repository<Student, Long> {
                    b.room AS room, b.block_no AS blockNo
             FROM school_calendar c
             JOIN schedule_blocks b
-              ON b.teacher_id = :teacherId AND b.weekday = EXTRACT(ISODOW FROM c.calendar_date)
+              ON b.teacher_id = :teacherId AND b.weekday = dia_ciclo(c.calendar_date)
             JOIN subjects sub ON sub.id = b.subject_id
             WHERE c.calendar_date IN (:dias)
               AND EXISTS (SELECT 1 FROM students s WHERE s.grade = b.grade AND s.active)
@@ -357,7 +357,7 @@ public interface ReportRepository extends Repository<Student, Long> {
                    count(*) AS faltados,
                    (SELECT count(*) FROM schedule_blocks b
                      WHERE b.grade = s.grade
-                       AND b.weekday = EXTRACT(ISODOW FROM a.class_date)) AS totalBloques
+                       AND b.weekday = dia_ciclo(a.class_date)) AS totalBloques
             FROM attendance a
             JOIN students s ON s.id = a.student_id
             WHERE a.status = 'F' AND a.class_date BETWEEN :from AND :to

@@ -7,7 +7,7 @@
     { "id": 2, "documentId": "1010101011", "fullName": "JUAN DIEGO AVILA VERGARA", "grade": "601" }
   ],
   "schoolDays": [
-    { "calendarDate": "2026-07-13", "dayType": "LECTIVO" },
+    { "calendarDate": "2026-07-13", "dayType": "LECTIVO", "cycleDay": 1 },
     { "calendarDate": "2026-07-20", "dayType": "FESTIVO" }
   ]
 }

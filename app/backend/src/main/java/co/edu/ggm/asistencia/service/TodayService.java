@@ -41,7 +41,7 @@ public class TodayService {
 
     public ResumenDeHoy resumen(LocalDate dia) {
         boolean lectivo = calendar.isSchoolDay(dia);
-        int weekday = dia.getDayOfWeek().getValue();
+        int weekday = calendar.cycleDay(dia);
 
         // Un dia no lectivo no espera ningun bloque: decir "0 de 36" un domingo seria
         // dar una alarma falsa todos los fines de semana.

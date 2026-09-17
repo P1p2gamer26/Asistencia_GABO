@@ -79,7 +79,7 @@ public class ScheduleAdminService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El curso es obligatorio");
         }
         if (d.weekday() < 1 || d.weekday() > 6) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El dia debe ser entre 1 (lunes) y 6 (sabado)");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El dia de ciclo (1 a 5) debe ser entre 1 y 6");
         }
         if (d.blockNo() < 1) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El numero de bloque debe ser positivo");

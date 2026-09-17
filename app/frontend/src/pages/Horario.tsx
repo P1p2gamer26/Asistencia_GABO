@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, getSession } from '../api/client';
+import { db } from '../db/local';
 import type { AdminUser } from '../api/contract';
 
 type Bloque = {
@@ -8,13 +9,7 @@ type Bloque = {
   startTime: string; endTime: string; room?: string; teacherName?: string;
 };
 
-const DIAS = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'];
-
-/** Dia de la semana de hoy en formato 1..5; 0 si es fin de semana. */
-function diaDeHoy(): number {
-  const d = new Date().getDay();
-  return d >= 1 && d <= 5 ? d : 0;
-}
+const DIAS = ['Dia 1', 'Dia 2', 'Dia 3', 'Dia 4', 'Dia 5'];
 
 export default function Horario() {
   const [bloques, setBloques] = useState<Bloque[]>([]);
@@ -26,9 +21,13 @@ export default function Horario() {
   const [docente, setDocente] = useState('');
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(true);
+  const [hoy, setHoy] = useState<number | null>(null);
 
   const puedeVerCursos = ['COORDINADOR', 'ADMIN'].includes(getSession()?.role ?? '');
-  const hoy = diaDeHoy();
+  useEffect(() => {
+    void db.schoolDays.get(new Date().toLocaleDateString('en-CA'))
+      .then((dia) => setHoy(dia?.cycleDay ?? null));
+  }, []);
 
   // Listas para los desplegables: salones y docentes. Son datos de coordinacion y
   // solo los necesita quien pueda pedir el horario de un curso ajeno.

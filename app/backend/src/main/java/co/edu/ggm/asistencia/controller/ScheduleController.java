@@ -130,7 +130,7 @@ public class ScheduleController {
                     .map(co.edu.ggm.asistencia.model.SchoolDay::getDescription).orElse(null);
             return new MiDia(false, dia, motivo, List.of());
         }
-        var filas = schedules.myDay(JwtService.currentUserId(), dia.getDayOfWeek().getValue(), dia);
+        var filas = schedules.myDay(JwtService.currentUserId(), calendario.cycleDay(dia), dia);
         return new MiDia(true, dia, null, filas.stream()
                 .map(f -> new BloqueDelDia(f.getId(), f.getBlockNo(), f.getGrade(),
                         f.getSubject(), f.getRoom(),

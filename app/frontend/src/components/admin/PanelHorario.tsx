@@ -127,7 +127,7 @@ export default function PanelHorario() {
         <label htmlFor="hg">Curso</label>
         <input id="hg" required value={form.grade}
                onChange={(e) => setForm({ ...form, grade: e.target.value })} />
-        <label htmlFor="hd">Dia (1=lunes .. 6=sabado)</label>
+        <label htmlFor="hd">Dia de ciclo (1 a 5)</label>
         <input id="hd" type="number" min={1} max={6} required value={form.weekday}
                onChange={(e) => setForm({ ...form, weekday: Number(e.target.value) })} />
         <label htmlFor="hb">Bloque</label>
@@ -190,7 +190,7 @@ export default function PanelHorario() {
             {bloques.map((b) => (
               <tr key={b.id}>
                 <td>{b.grade}</td>
-                <td>{b.weekday}</td>
+                <td>Dia {b.weekday}</td>
                 <td>{b.blockNo}</td>
                 <td>{b.startTime}-{b.endTime}</td>
                 <td>{b.subject}</td>

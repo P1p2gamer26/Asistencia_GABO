@@ -45,7 +45,7 @@ class CrudAsistenciaTest extends AbstractIntegrationTest {
     private Long crearBloque(String grade, int blockNo, Long teacherId) {
         jdbcBase.update(
                 "INSERT INTO subjects (name) VALUES ('Materia CRA') ON CONFLICT (name) DO NOTHING");
-        int weekday = LocalDate.parse(FECHA).getDayOfWeek().getValue();
+        int weekday = diaCiclo(FECHA);
         jdbcBase.update("""
                 INSERT INTO schedule_blocks (grade, weekday, block_no, start_time, end_time,
                                              subject_id, teacher_id)
@@ -73,6 +73,14 @@ class CrudAsistenciaTest extends AbstractIntegrationTest {
                 "SELECT id FROM students WHERE document_id = 'CRA0001'", Long.class);
 
         jdbcBase.update("DELETE FROM attendance WHERE student_id = ?", estudianteId);
+    }
+
+    private int diaCiclo(String fecha) {
+        jdbcBase.update("""
+                INSERT INTO school_calendar (calendar_date, day_type) VALUES (?, 'LECTIVO')
+                ON CONFLICT (calendar_date) DO UPDATE SET day_type = 'LECTIVO'
+                """, LocalDate.parse(fecha));
+        return jdbcBase.queryForObject("SELECT dia_ciclo(?::date)", Integer.class, fecha);
     }
 
     private UUID marcar(Long blockId, Long recordedBy) {

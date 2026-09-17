@@ -174,7 +174,7 @@ describe('Padre', () => {
     await userEvent.click(screen.getByRole('button', { name: /horario de Ana Perez/i }));
     expect(screen.getByText(/Laboratorio 1/)).toBeInTheDocument();
     expect(screen.getByText(/Pepito Perez/)).toBeInTheDocument();
-    expect(screen.getByText(/lunes/i)).toBeInTheDocument();
+    expect(screen.getByText(/Dia 1/i)).toBeInTheDocument();
   });
 
   it('un hijo sin horario cargado lo dice', async () => {
