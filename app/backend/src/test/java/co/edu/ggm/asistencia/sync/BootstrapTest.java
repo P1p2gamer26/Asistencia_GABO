@@ -124,7 +124,10 @@ class BootstrapTest extends AbstractIntegrationTest {
                 .containsExactlyInAnyOrderElementsOf(campos(fixture.get("blocks").get(0)));
         assertThat(campos(real.get("students").get(0)))
                 .containsExactlyInAnyOrderElementsOf(campos(fixture.get("students").get(0)));
-        assertThat(campos(real.get("schoolDays").get(0))).contains("calendarDate", "dayType");
+        // cycleDay solo viaja en los dias LECTIVO (non_null): se busca uno de esos.
+        var lectivo = java.util.stream.StreamSupport.stream(real.get("schoolDays").spliterator(), false)
+                .filter(d -> "LECTIVO".equals(d.get("dayType").asText())).findFirst().orElseThrow();
+        assertThat(campos(lectivo)).contains("calendarDate", "dayType", "cycleDay");
     }
 
     private static java.util.List<String> campos(com.fasterxml.jackson.databind.JsonNode nodo) {

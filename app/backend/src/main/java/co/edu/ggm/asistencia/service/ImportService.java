@@ -64,7 +64,7 @@ public class ImportService {
             String grade = c[0].trim();
             short weekday = Short.parseShort(c[1].trim());
             if (weekday < 1 || weekday > 5) {
-                throw new IllegalArgumentException("weekday debe estar entre 1 y 5, llego " + weekday);
+                throw new IllegalArgumentException("dia de ciclo (1 a 5) debe estar entre 1 y 5, llego " + weekday);
             }
             short blockNo = Short.parseShort(c[2].trim());
             LocalTime inicio = LocalTime.parse(c[3].trim());

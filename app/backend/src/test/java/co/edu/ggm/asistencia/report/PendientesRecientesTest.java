@@ -40,6 +40,11 @@ class PendientesRecientesTest extends AbstractIntegrationTest {
 
     private Long docenteId;
     private Long bloqueLunesId;
+    // Dia de ciclo del lunes previo: el horario ya no va por dia de la semana sino por
+    // dia de ciclo (1..5 sobre los lectivos), y en una ventana de 5 lectivos cada
+    // dia de ciclo cae exactamente en una fecha.
+    private int cicloLunes;
+    private int cicloMartes;
 
     @BeforeEach
     void datos() {
@@ -61,19 +66,22 @@ class PendientesRecientesTest extends AbstractIntegrationTest {
         jdbcBase.update(
                 "INSERT INTO subjects (name) VALUES ('MateriaPendRec') ON CONFLICT (name) DO NOTHING");
 
-        // Bloque del lunes (weekday=1): sin tomar en ninguno de los tests salvo que se
+        cicloLunes = jdbcBase.queryForObject("SELECT dia_ciclo(?::date)", Integer.class, LUNES_PREVIO);
+        cicloMartes = jdbcBase.queryForObject("SELECT dia_ciclo(?::date)", Integer.class, MARTES_PREVIO);
+
+        // Bloque del lunes previo (su dia de ciclo): sin tomar en ninguno de los tests salvo que se
         // marque explicitamente.
         jdbcBase.update("""
                 INSERT INTO schedule_blocks (grade, weekday, block_no, start_time, end_time,
                                              subject_id, teacher_id, room)
-                VALUES ('995', 1, 8, '15:00', '15:50',
+                VALUES ('995', ?, 8, '15:00', '15:50',
                         (SELECT id FROM subjects WHERE name = 'MateriaPendRec'), ?, 'Aula PR')
                 ON CONFLICT (grade, weekday, block_no) DO UPDATE
                   SET teacher_id = EXCLUDED.teacher_id
-                """, docenteId);
+                """, cicloLunes, docenteId);
         bloqueLunesId = jdbcBase.queryForObject(
-                "SELECT id FROM schedule_blocks WHERE grade = '995' AND weekday = 1 AND block_no = 8",
-                Long.class);
+                "SELECT id FROM schedule_blocks WHERE grade = '995' AND weekday = ? AND block_no = 8",
+                Long.class, cicloLunes);
         jdbcBase.update("DELETE FROM attendance WHERE schedule_block_id = ?", bloqueLunesId);
 
         // Varios tests de esta clase agregan bloques propios (995ahoga, 995poco,
@@ -145,7 +153,7 @@ class PendientesRecientesTest extends AbstractIntegrationTest {
     void un_curso_sin_estudiantes_activos_no_es_una_lista_pendiente() throws Exception {
         // Bloque del martes previo, curso propio sin ningun estudiante activo: nadie
         // puede tomar esa lista, asi que no debe figurar como pendiente.
-        bloque("995vacio", 2, 8);
+        bloque("995vacio", cicloMartes, 8);
 
         mvc.perform(get("/api/reports/pending-recent" + QS)
                 .header("Authorization", tokenDocente()))
@@ -155,7 +163,7 @@ class PendientesRecientesTest extends AbstractIntegrationTest {
 
     @Test
     void ordena_del_mas_reciente_al_mas_antiguo() throws Exception {
-        bloque("995", 2, 7);
+        bloque("995", cicloMartes, 7);
 
         mvc.perform(get("/api/reports/pending-recent" + QS)
                 .header("Authorization", tokenDocente()))
@@ -169,7 +177,7 @@ class PendientesRecientesTest extends AbstractIntegrationTest {
         // Dos bloques del mismo curso el mismo lunes: debe salir UNA fila con
         // listas=2, no dos filas casi identicas (el patron del curso 607 real: seis
         // bloques por dia enterrando a los demas cursos).
-        bloque("995", 1, 7);
+        bloque("995", cicloLunes, 7);
 
         mvc.perform(get("/api/reports/pending-recent" + QS)
                 .header("Authorization", tokenDocente()))
@@ -199,7 +207,7 @@ class PendientesRecientesTest extends AbstractIntegrationTest {
             bloque("995ahoga", weekday, 8);
         }
         // Un curso con un solo pendiente, el martes previo.
-        bloque("995poco", 2, 8);
+        bloque("995poco", cicloMartes, 8);
 
         mvc.perform(get("/api/reports/pending-recent" + QS + "&limite=3")
                 .header("Authorization", tokenDocente()))

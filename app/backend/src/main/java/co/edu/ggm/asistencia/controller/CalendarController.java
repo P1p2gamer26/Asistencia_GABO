@@ -23,7 +23,7 @@ public class CalendarController {
 
     public CalendarController(CalendarService service) { this.service = service; }
 
-    public record DayDto(LocalDate calendarDate, DayType dayType, String description) {}
+    public record DayDto(LocalDate calendarDate, DayType dayType, String description, Integer cycleDay) {}
     public record UpdateRequest(@NotNull DayType dayType, String description) {}
     public record RangeRequest(@NotNull LocalDate from, @NotNull LocalDate to,
                                @NotNull DayType dayType, String description,
@@ -34,7 +34,7 @@ public class CalendarController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return service.range(from, to).stream()
-                .map(d -> new DayDto(d.getCalendarDate(), d.getDayType(), d.getDescription()))
+                .map(d -> new DayDto(d.getCalendarDate(), d.getDayType(), d.getDescription(), d.getCycleDay()))
                 .toList();
     }
 
@@ -43,7 +43,7 @@ public class CalendarController {
     public DayDto update(@PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
                          @Valid @RequestBody UpdateRequest req) {
         var d = service.update(date, req.dayType(), req.description(), JwtService.currentUserId());
-        return new DayDto(d.getCalendarDate(), d.getDayType(), d.getDescription());
+        return new DayDto(d.getCalendarDate(), d.getDayType(), d.getDescription(), service.cycleDay(date));
     }
 
     @PutMapping("/school-days")

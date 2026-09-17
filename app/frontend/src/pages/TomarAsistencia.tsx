@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { db } from '../db/local';
-import { isSchoolDay } from '../db/local';
 import { api } from '../api/client';
 import type { Block, StudentDto, Status, AttendanceSesion } from '../api/contract';
 import { ESTADOS } from '../api/contract';
@@ -27,14 +26,6 @@ function useEsMovil(): boolean {
   return movil;
 }
 
-const DIAS = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
-
-/** Dia de la semana (1 lunes ... 7 domingo) de una fecha YYYY-MM-DD, en hora local. */
-function diaDeLaSemana(fecha: string): number {
-  const d = new Date(`${fecha}T00:00`).getDay();
-  return d === 0 ? 7 : d;
-}
-
 export default function TomarAsistencia() {
   // Los pendientes de hoy en el inicio enlazan aqui con el curso y el bloque ya elegidos.
   const [params] = useSearchParams();
@@ -46,6 +37,7 @@ export default function TomarAsistencia() {
   );
   const [fecha, setFecha] = useState(params.get('fecha') ?? hoyISO());
   const [lectivo, setLectivo] = useState(true);
+  const [diaCiclo, setDiaCiclo] = useState<number | null>(null);
   const [marcas, setMarcas] = useState<Record<number, Status>>({});
   const [motivos, setMotivos] = useState<Record<number, string>>({});
   const [online, setOnline] = useState(navigator.onLine);
@@ -88,7 +80,12 @@ export default function TomarAsistencia() {
     };
   }, []);
 
-  useEffect(() => { void isSchoolDay(fecha).then(setLectivo); }, [fecha]);
+  useEffect(() => {
+    void db.schoolDays.get(fecha).then((dia) => {
+      setLectivo(dia?.dayType === 'LECTIVO');
+      setDiaCiclo(dia?.cycleDay ?? null);
+    });
+  }, [fecha]);
 
   useEffect(() => {
     void api.get<AttendanceSesion[]>('/api/attendance/recientes')
@@ -113,14 +110,13 @@ export default function TomarAsistencia() {
     [blocks],
   );
 
-  // Solo los bloques que ocurren el dia de la fecha elegida. Un bloque del martes no
-  // se puede marcar un lunes, asi que ofrecerlo es ofrecer un error: el docente elegia
-  // entre cinco opciones identicas y la equivocada guardaba la asistencia en otro dia.
+  // Solo los bloques que ocurren el dia de ciclo de la fecha elegida. Ofrecer otro
+  // bloque permitiria guardar la asistencia en una clase que no corresponde.
   const bloquesDelGrado = useMemo(
     () => blocks
-      .filter((b) => b.grade === grade && b.weekday === diaDeLaSemana(fecha))
+      .filter((b) => b.grade === grade && b.weekday === diaCiclo)
       .sort((a, b) => a.blockNo - b.blockNo),
-    [blocks, grade, fecha],
+    [blocks, grade, diaCiclo],
   );
 
   useEffect(() => {
@@ -272,7 +268,7 @@ export default function TomarAsistencia() {
           <option value="">Seleccione...</option>
           {bloquesDelGrado.map((b) => (
             <option key={b.id} value={b.id}>
-              {b.blockNo}. {b.subject} ({b.startTime}) · {DIAS[b.weekday % 7]}
+              {b.blockNo}. {b.subject} ({b.startTime}) · Dia {b.weekday}
             </option>
           ))}
         </select>

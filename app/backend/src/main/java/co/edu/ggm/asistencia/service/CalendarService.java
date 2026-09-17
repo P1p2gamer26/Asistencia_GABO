@@ -40,6 +40,12 @@ public class CalendarService {
         return lectivos.contains(date);
     }
 
+    /** Dia de ciclo 1..5, o 0 cuando la fecha no es lectiva. */
+    public int cycleDay(LocalDate date) {
+        Integer day = repo.cycleDayOf(date);
+        return day == null ? 0 : day;
+    }
+
     /** Los ultimos n dias lectivos anteriores a una fecha, del mas reciente al mas antiguo. */
     public List<LocalDate> ultimosLectivosAntesDe(LocalDate antesDe, int n) {
         return lectivos.stream()
@@ -49,8 +55,8 @@ public class CalendarService {
                 .toList();
     }
 
-    public List<SchoolDay> range(LocalDate from, LocalDate to) {
-        return repo.findByCalendarDateBetweenOrderByCalendarDate(from, to);
+    public List<CalendarRepository.DayWithCycle> range(LocalDate from, LocalDate to) {
+        return repo.findRangeWithCycle(from, to);
     }
 
     @Transactional

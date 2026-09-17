@@ -17,8 +17,6 @@ const ETIQUETA: Record<string, string> = {
   P: 'Presente', T: 'Llego tarde', F: 'No asistio', E: 'Evadio clase',
 };
 
-const DIAS = ['', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes'];
-
 export default function Padre() {
   const [hijos, setHijos] = useState<Child[]>([]);
   const [error, setError] = useState('');
@@ -80,7 +78,7 @@ export default function Padre() {
                 : <ul className="horario-hijo">
                     {h.horario.map((b, i) => (
                       <li key={i}>
-                        <strong>{DIAS[b.weekday]}</strong> {b.startTime} — {b.subject}
+                        <strong>Dia {b.weekday}</strong> {b.startTime} — {b.subject}
                         {b.room && <em className="aula"> en {b.room}</em>}
                         {b.teacherName && <span className="meta"> con {b.teacherName}</span>}
                       </li>

@@ -78,4 +78,21 @@ class SchemaTest extends AbstractIntegrationTest {
                 """, Integer.class);
         assertThat(finesDeSemana).isZero();
     }
+
+    @Test
+    void el_dia_de_ciclo_omite_un_lunes_festivo_y_reinicia_cada_ano() {
+        jdbc.update("""
+                INSERT INTO school_calendar (calendar_date, day_type) VALUES
+                    (DATE '2027-01-04', 'FESTIVO'),
+                    (DATE '2027-01-05', 'LECTIVO'), (DATE '2027-01-06', 'LECTIVO'),
+                    (DATE '2027-01-07', 'LECTIVO'), (DATE '2027-01-08', 'LECTIVO'),
+                    (DATE '2027-01-11', 'LECTIVO')
+                ON CONFLICT (calendar_date) DO UPDATE SET day_type = EXCLUDED.day_type
+                """);
+
+        assertThat(jdbc.queryForObject("SELECT dia_ciclo(DATE '2027-01-04')", Integer.class)).isNull();
+        assertThat(jdbc.queryForObject("SELECT dia_ciclo(DATE '2027-01-05')", Integer.class)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT dia_ciclo(DATE '2027-01-08')", Integer.class)).isEqualTo(4);
+        assertThat(jdbc.queryForObject("SELECT dia_ciclo(DATE '2027-01-11')", Integer.class)).isEqualTo(5);
+    }
 }

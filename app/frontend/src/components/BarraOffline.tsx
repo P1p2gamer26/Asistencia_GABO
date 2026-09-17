@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { estadoDeDatos } from '../sync/engine';
 import { useSincronizacion } from '../sync/useSincronizacion';
+import { getSession } from '../api/client';
 
 /**
  * Franja fija de estado, SIEMPRE visible.
@@ -28,7 +29,9 @@ export default function BarraOffline() {
   }, [pendientes]);
 
   // Sin copia local no se puede tomar lista: es mas grave que tener cola pendiente.
-  const sinDatos = datos !== null && datos.estudiantes === 0;
+  // El acudiente no toma lista ni descarga el catalogo: para el no falta nada.
+  const tomaLista = getSession()?.role !== 'ACUDIENTE';
+  const sinDatos = tomaLista && datos !== null && datos.estudiantes === 0;
   const datosViejos = datos !== null && datos.dias !== null && datos.dias >= 7;
 
   const marcas = (n: number) => `${n} marca${n === 1 ? '' : 's'}`;
