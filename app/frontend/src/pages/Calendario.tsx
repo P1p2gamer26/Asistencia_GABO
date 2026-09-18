@@ -162,10 +162,10 @@ export default function Calendario({ hoy = new Date() }: { hoy?: Date }) {
               {puedeEditar && info?.cycleDay && (
                 <div className="ciclo-editor">
                   <select aria-label={`Dia de ciclo para ${fecha}`}
-                          value={cicloElegido[fecha] ?? String(info.cycleDayFixed ?? '')}
+                          value={cicloElegido[fecha] ?? String(info.cycleDay)}
                           onChange={(e) => setCicloElegido((c) => ({ ...c, [fecha]: e.target.value }))}>
-                    <option value="">Auto</option>
                     {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>Dia {n}</option>)}
+                    {info.cycleDayFixed && <option value="">Quitar ajuste</option>}
                   </select>
                   {fecha in cicloElegido && (
                     <>
