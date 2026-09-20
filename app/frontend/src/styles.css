@@ -579,3 +579,164 @@ body::before {
 @media (prefers-reduced-motion: reduce) {
   body::before { opacity: .03; }
 }
+
+
+/* --- Portal publico --------------------------------------------------- */
+/* Portada institucional al estilo de un portal universitario: barra de utilidad,
+   nav blanca, foto a todo ancho, pestanas, noticias + agenda. Sangre completa. */
+.portal {
+  --p-verde: #0f5a36; --p-verde-oscuro: #08361f; --p-amarillo: #ffd200; --p-gris: #f1f1f1;
+  --p-gris-borde: #dcdcdc; --p-texto: #333; --p-texto-suave: #666;
+  margin: 0 calc(-1 * var(--e3)) calc(-1 * var(--e5)); background: #fff; color: var(--p-texto);
+  font-family: var(--ui);
+}
+.portal a { color: var(--p-verde); }
+
+.portal-utilidad {
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--e2);
+  background: var(--p-verde); color: #fff; font-size: .8rem; padding: 6px clamp(1rem, 3vw, 2rem);
+}
+.portal-utilidad nav { display: flex; }
+.portal .portal-utilidad a { color: #fff; text-decoration: none; padding: 2px 12px; border-right: 1px solid rgba(255,255,255,.5); }
+.portal-utilidad a:first-child { padding-left: 0; }
+.portal-utilidad a:hover { text-decoration: underline; }
+
+.portal-nav {
+  position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: var(--e5);
+  padding: var(--e2) clamp(1rem, 3vw, 2rem); background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.12);
+}
+.portal-nav-marca { display: flex; align-items: center; gap: var(--e3); text-decoration: none; color: var(--p-verde-oscuro); }
+.portal-nav-marca span { font-weight: 700; font-size: 1.1rem; line-height: 1.1; letter-spacing: -.01em; }
+.portal-nav-marca small { display: block; font-weight: 400; font-size: .7rem; text-transform: uppercase; letter-spacing: .1em; }
+.portal-nav-menu { display: flex; flex: 1; justify-content: center; gap: clamp(1rem, 3vw, 3rem); }
+.portal-nav-menu a {
+  text-decoration: none; color: var(--p-verde); font-size: 1rem; padding: 10px 4px; position: relative;
+}
+.portal-nav-menu a::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--p-amarillo);
+  transform: scaleX(0); transition: transform .25s ease;
+}
+.portal-nav-menu a:hover::after { transform: scaleX(1); }
+.portal .portal-nav-cta {
+  background: var(--p-amarillo); color: var(--p-verde-oscuro); text-decoration: none; font-weight: 600;
+  padding: 14px 22px; border-radius: 6px; white-space: nowrap; transition: transform .15s, box-shadow .15s;
+}
+.portal-nav-cta:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(255, 210, 0, .45); }
+
+.portal-hero {
+  position: relative; height: min(72vh, 600px); display: flex; align-items: flex-end;
+  padding: 0 clamp(1rem, 3vw, 2rem) clamp(2.5rem, 6vh, 4rem); overflow: hidden; isolation: isolate;
+  color: #fff; background: var(--p-verde-oscuro);
+}
+.portal-hero-video { position: absolute; inset: 0; z-index: -2; width: 100%; height: 100%; object-fit: cover; }
+.portal-hero::after {
+  content: ''; position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(to top, rgba(8, 54, 31, .85), rgba(8, 54, 31, .1) 55%, transparent);
+}
+.portal-hero-texto { animation: portal-entrada .9s .2s cubic-bezier(.2,.7,.2,1) both; }
+.portal-hero h1 { font-size: clamp(1.8rem, 4vw, 3rem); margin: 0 0 var(--e1); color: #fff; text-shadow: 0 2px 12px rgba(0,0,0,.4); }
+.portal-hero p { margin: 0; font-size: clamp(1rem, 1.5vw, 1.25rem); opacity: .95; }
+.portal .portal-hero-cta {
+  position: absolute; right: clamp(1rem, 3vw, 4rem); bottom: 0; z-index: 1;
+  background: var(--p-verde); color: #fff; text-decoration: none; font-weight: 700; font-size: 1.1rem;
+  padding: 16px 32px; border-radius: 999px 999px 0 0; box-shadow: 0 -6px 20px rgba(0,0,0,.25);
+  display: inline-flex; gap: 12px; align-items: center; transition: background .2s, gap .2s;
+}
+.portal-hero-cta span { color: var(--p-amarillo); font-size: 1.4rem; line-height: 1; }
+.portal-hero-cta:hover { background: var(--p-verde-oscuro); gap: 20px; }
+@keyframes portal-entrada { from { opacity: 0; transform: translateY(18px); } }
+
+.portal-pestanas {
+  display: flex; gap: var(--e2); flex-wrap: wrap; justify-content: center;
+  padding: clamp(2rem, 5vh, 3rem) clamp(1rem, 3vw, 2rem) 0;
+}
+.portal-pestanas button {
+  min-height: 0; flex: 1 1 10rem; max-width: 14rem; padding: 14px 16px; border: 0; border-bottom: 3px solid var(--p-gris-borde);
+  border-radius: 8px 8px 0 0; background: var(--p-gris); color: var(--p-texto); font-weight: 400; font-size: 1rem;
+  transition: background .2s, color .2s, border-color .2s;
+}
+.portal-pestanas button:hover { border-bottom-color: var(--p-verde); background: #e8e8e8; }
+.portal-pestanas button.activa { background: var(--p-verde); color: #fff; font-weight: 600; border-bottom-color: var(--p-amarillo); }
+.portal-pestana-detalle {
+  margin: 0 clamp(1rem, 3vw, 2rem); padding: var(--e4) var(--e5); background: #fff;
+  border-top: 1px solid var(--p-verde); font-family: var(--texto); font-size: 1.05rem; text-align: center;
+}
+.portal-pestana-detalle p { margin: 0; }
+.portal-pestana-detalle a { font-weight: 600; margin-left: 6px; }
+
+.portal-cuerpo {
+  display: grid; grid-template-columns: minmax(0, 2fr) minmax(18rem, 1fr); gap: clamp(1.5rem, 4vw, 4rem);
+  padding: clamp(2rem, 5vh, 3.5rem) clamp(1rem, 3vw, 2rem);
+}
+.portal h2 { font-size: 1.6rem; color: var(--p-verde-oscuro); margin: 0 0 var(--e4); padding-bottom: var(--e2);
+  border-bottom: 3px solid var(--p-amarillo); }
+.portal-noticia { display: grid; grid-template-columns: 11rem 1fr; gap: var(--e4); margin-bottom: var(--e5); font-family: var(--texto); }
+.portal-noticia img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 4px; }
+.portal-noticia h3 { margin: 0 0 4px; font-size: 1.15rem; font-family: var(--ui); }
+.portal-noticia h3 a { text-decoration: none; color: var(--p-verde); background: linear-gradient(var(--p-verde), var(--p-verde)) no-repeat 0 100% / 0 2px; transition: background-size .25s; }
+.portal-noticia h3 a:hover { background-size: 100% 2px; }
+.portal-noticia-meta { font-size: .85rem; color: var(--p-texto-suave); }
+.portal-noticia p { margin: var(--e2) 0 0; color: var(--p-texto); }
+
+.portal-evento {
+  display: flex; align-items: center; gap: var(--e3); background: var(--p-gris); border-radius: 8px;
+  padding: var(--e3); margin-bottom: var(--e2); font-family: var(--texto);
+}
+.portal-evento time {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 0 0 4.2rem; height: 4.2rem;
+  background: #fff; border-radius: 4px; color: var(--p-verde); font-family: var(--ui); font-weight: 700; line-height: 1;
+}
+.portal-evento time strong { font-size: 1.8rem; }
+.portal-evento span { font-weight: 600; color: var(--p-verde-oscuro); font-size: .95rem; }
+.portal-agenda-todo { display: inline-block; margin-top: var(--e2); font-weight: 600; }
+
+/* Revelado al hacer scroll: una sola vez, sin animacion si el usuario lo pide. */
+.portal [data-revelar] { opacity: 0; transform: translateY(20px); transition: opacity .6s ease, transform .6s ease; }
+.portal [data-revelar].visible { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .portal [data-revelar] { opacity: 1; transform: none; transition: none; }
+  .portal-hero-texto { animation: none; }
+}
+
+.portal-videos, .portal-manual { padding: clamp(2rem, 5vh, 3.5rem) clamp(1rem, 3vw, 2rem); }
+.portal-videos { background: var(--p-gris); }
+.portal-videos-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: var(--e4); }
+.portal-video { margin: 0; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.portal-video video { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; }
+.portal-video figcaption { padding: var(--e3) var(--e4) var(--e4); font-family: var(--texto); }
+.portal-video strong { color: var(--p-verde-oscuro); font-family: var(--ui); }
+.portal-video small { color: var(--p-texto-suave); margin-left: 6px; }
+.portal-video p { margin: 4px 0 0; color: var(--p-texto); font-size: .95rem; }
+
+.portal-manual { max-width: 52rem; margin: 0 auto; font-family: var(--texto); }
+.portal-manual-intro { margin: 0 0 var(--e4); color: var(--p-texto-suave); }
+.portal-manual details { border: 1px solid var(--p-gris-borde); border-radius: 8px; margin-bottom: var(--e2); background: #fff; }
+.portal-manual details[open] { border-color: var(--p-verde); }
+.portal-manual summary {
+  cursor: pointer; padding: var(--e3) var(--e4); font-family: var(--ui); font-weight: 600; color: var(--p-verde-oscuro);
+  list-style: none; display: flex; justify-content: space-between; align-items: center;
+}
+.portal-manual summary::-webkit-details-marker { display: none; }
+.portal-manual summary::after { content: '+'; font-size: 1.4rem; color: var(--p-verde); transition: transform .2s; }
+.portal-manual details[open] summary::after { transform: rotate(45deg); }
+.portal-manual ol { margin: 0; padding: 0 var(--e4) var(--e4) 2.5rem; }
+.portal-manual li { margin-bottom: var(--e2); line-height: 1.5; }
+.portal-manual li::marker { color: var(--p-verde); font-weight: 700; font-family: var(--ui); }
+
+.portal-pie {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--e4);
+  padding: var(--e6) clamp(1rem, 3vw, 2rem); background: var(--p-verde-oscuro); color: rgba(255,255,255,.7);
+  border-top: 4px solid var(--p-amarillo);
+}
+.portal-pie strong { display: block; color: #fff; }
+
+@media (max-width: 800px) {
+  .portal-utilidad span, .portal-nav-menu { display: none; }
+  .portal-nav { justify-content: space-between; }
+  .portal-nav-cta { padding: 10px 14px; font-size: .9rem; }
+  .portal-hero { height: 60vh; padding-bottom: 5rem; }
+  .portal-hero-cta { right: 1rem; left: 1rem; justify-content: center; }
+  .portal-cuerpo { grid-template-columns: 1fr; }
+  .portal-noticia { grid-template-columns: 1fr; }
+  .portal-noticia img { aspect-ratio: 16 / 7; }
+}

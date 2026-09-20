@@ -16,6 +16,7 @@ import Calendario from './pages/Calendario';
 import Horario from './pages/Horario';
 import InicioAdmin from './pages/InicioAdmin';
 import InicioDocente from './pages/InicioDocente';
+import Portal from './pages/Portal';
 import Layout from './components/Layout';
 
 const PERSONAL = ['DOCENTE', 'COORDINADOR', 'ADMIN'];
@@ -38,7 +39,7 @@ function SoloRoles({ roles, children }: { roles: string[]; children: React.React
 /** El acudiente no ve el menu del docente: su inicio es su propio portal. */
 function Inicio() {
   const session = getSession();
-  if (!session) return <Navigate to="/login" replace />;
+  if (!session) return <Portal />;
   if (useDesvioPorClave(session)) return <Navigate to="/cambiar-clave" replace />;
   if (session.role === 'ACUDIENTE') return <Layout><Padre /></Layout>;
   // Coordinacion y administracion entran preguntando "como va hoy"; el docente entra
