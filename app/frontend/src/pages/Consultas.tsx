@@ -139,6 +139,7 @@ function PorCurso({ from, to, fechas, cursos, setError }: Comun & { cursos: stri
           <option value="resumen">Resumen por estudiante</option>
           <option value="matriz">Asistencia dia por dia</option>
           <option value="inasistencias">Consolidado de inasistencias</option>
+          <option value="completo">Detalle completo (cada marca, con docente y hora)</option>
         </select>
       </div>
       <p className="meta">

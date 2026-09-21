@@ -525,4 +525,36 @@ public interface ReportRepository extends Repository<Student, Long> {
             """, nativeQuery = true)
     List<TomaRow> tomas(@Param("grade") String grade, @Param("teacherId") Long teacherId,
                         @Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    interface MarcaCompletaRow {
+        LocalDate getClassDate(); String getGrade(); Short getBlockNo(); String getSubject();
+        String getTeacherName(); String getRoom(); String getDocumentId(); String getFullName();
+        String getStatus(); String getComment(); String getRecordedByName(); java.time.Instant getRecordedAt();
+        String getEditedByName(); java.time.Instant getEditedAt(); String getPreviousStatus();
+    }
+
+    /** Cada marca de asistencia con todo su contexto: el volcado completo para analizar por fuera. */
+    @Query(value = """
+            SELECT a.class_date AS classDate, sb.grade AS grade, sb.block_no AS blockNo, su.name AS subject,
+                   tu.full_name AS teacherName, sb.room AS room,
+                   s.document_id AS documentId,
+                   trim(regexp_replace(concat_ws(' ', s.first_name, s.middle_name,
+                        s.last_name, s.second_surname), '\\s+', ' ', 'g')) AS fullName,
+                   a.status AS status, a.comment AS comment,
+                   ru.full_name AS recordedByName, a.recorded_at AS recordedAt,
+                   eu.full_name AS editedByName, a.edited_at AS editedAt, a.previous_status AS previousStatus
+            FROM attendance a
+            JOIN students s ON s.id = a.student_id
+            JOIN schedule_blocks sb ON sb.id = a.schedule_block_id
+            LEFT JOIN subjects su ON su.id = sb.subject_id
+            LEFT JOIN users tu ON tu.id = sb.teacher_id
+            LEFT JOIN users ru ON ru.id = a.recorded_by
+            LEFT JOIN users eu ON eu.id = a.edited_by
+            WHERE a.deleted_at IS NULL
+              AND a.class_date BETWEEN :from AND :to
+              AND (:grade IS NULL OR sb.grade = :grade)
+            ORDER BY a.class_date, orden_curso(sb.grade), sb.grade, sb.block_no, s.last_name, s.first_name
+            """, nativeQuery = true)
+    List<MarcaCompletaRow> marcasCompletas(@Param("grade") String grade,
+                                           @Param("from") LocalDate from, @Param("to") LocalDate to);
 }

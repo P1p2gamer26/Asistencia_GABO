@@ -175,6 +175,10 @@ public class ReportController {
                 libro = excel.buildTomas(repo.tomas(grade, teacherId, from, to), from, to);
                 nombre = "tomas_%s_%s_%s.xlsx".formatted(curso, from, to);
             }
+            case "completo" -> {
+                libro = excel.buildCompleto(repo.marcasCompletas(grade, from, to), from, to);
+                nombre = "asistencia_completa_%s_%s_%s.xlsx".formatted(curso, from, to);
+            }
             case "inasistencias" -> {
                 libro = excel.buildInasistencias(repo.absences(grade, from, to), from, to);
                 nombre = "inasistencias_%s_%s_%s.xlsx".formatted(curso, from, to);

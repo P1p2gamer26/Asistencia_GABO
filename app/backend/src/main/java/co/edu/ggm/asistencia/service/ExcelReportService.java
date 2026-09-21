@@ -212,4 +212,47 @@ public class ExcelReportService {
             throw new UncheckedIOException(e);
         }
     }
+
+    /**
+     * Volcado completo: una fila por marca con todo su contexto. Es para quien quiere
+     * armar sus propias tablas dinamicas; puede pasar de cien mil filas, por eso se
+     * escribe en streaming.
+     */
+    public byte[] buildCompleto(List<ReportRepository.MarcaCompletaRow> filas, LocalDate from, LocalDate to) {
+        String[] cabeceras = {"Fecha", "Curso", "Bloque", "Materia", "Docente asignado", "Salon",
+                              "Documento", "Estudiante", "Estado", "Estado (texto)", "Comentario",
+                              "Registrado por", "Hora de registro", "Editado por", "Hora de edicion", "Estado anterior"};
+        try (var wb = new SXSSFWorkbook(100); var out = new ByteArrayOutputStream()) {
+            var hoja = wb.createSheet("Detalle " + from + " a " + to);
+            Row cabecera = hoja.createRow(0);
+            for (int i = 0; i < cabeceras.length; i++) cabecera.createCell(i).setCellValue(cabeceras[i]);
+            int n = 1;
+            for (var f : filas) {
+                Row r = hoja.createRow(n++);
+                r.createCell(0).setCellValue(f.getClassDate().toString());
+                r.createCell(1).setCellValue(f.getGrade());
+                r.createCell(2).setCellValue(f.getBlockNo() == null ? 0 : f.getBlockNo());
+                r.createCell(3).setCellValue(texto(f.getSubject()));
+                r.createCell(4).setCellValue(texto(f.getTeacherName()));
+                r.createCell(5).setCellValue(texto(f.getRoom()));
+                r.createCell(6).setCellValue(f.getDocumentId());
+                r.createCell(7).setCellValue(f.getFullName());
+                r.createCell(8).setCellValue(f.getStatus());
+                r.createCell(9).setCellValue(ESTADO_LEGIBLE.getOrDefault(f.getStatus(), f.getStatus()));
+                r.createCell(10).setCellValue(texto(f.getComment()));
+                r.createCell(11).setCellValue(texto(f.getRecordedByName()));
+                r.createCell(12).setCellValue(f.getRecordedAt() == null ? "" : HORA_BOGOTA.format(f.getRecordedAt()));
+                r.createCell(13).setCellValue(texto(f.getEditedByName()));
+                r.createCell(14).setCellValue(f.getEditedAt() == null ? "" : HORA_BOGOTA.format(f.getEditedAt()));
+                r.createCell(15).setCellValue(texto(f.getPreviousStatus()));
+            }
+            wb.write(out);
+            wb.dispose();
+            return out.toByteArray();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private static String texto(String v) { return v == null ? "" : v; }
 }
