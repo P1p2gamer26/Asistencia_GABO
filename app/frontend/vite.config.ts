@@ -12,9 +12,9 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      // prompt y no autoUpdate: recargar sola puede pasar mientras alguien toma
-      // lista. El componente Version ofrece el boton cuando hay algo nuevo.
-      registerType: 'prompt',
+      // autoUpdate: la version nueva se instala y recarga sola, sin boton. Lo marcado
+      // en una lista a medias no se pierde: vive en IndexedDB y se retoma al volver.
+      registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'icon-192.png', 'icon-512.png',
         'apple-touch-icon.png', 'icon-maskable-512.png'],
       manifest: {
