@@ -586,8 +586,8 @@ body::before {
 
 
 /* --- Portal publico --------------------------------------------------- */
-/* Portada institucional al estilo de un portal universitario: barra de utilidad,
-   nav blanca, foto a todo ancho, pestanas, noticias + agenda. Sangre completa. */
+/* Portada institucional al estilo de un portal universitario:
+   nav blanca, foto a todo ancho, noticias + agenda. Sangre completa. */
 .portal {
   --p-verde: #0f5a36; --p-verde-oscuro: #08361f; --p-amarillo: #ffd200; --p-gris: #f1f1f1;
   --p-gris-borde: #dcdcdc; --p-texto: #333; --p-texto-suave: #666;
@@ -595,15 +595,6 @@ body::before {
   font-family: var(--ui);
 }
 .portal a { color: var(--p-verde); }
-
-.portal-utilidad {
-  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--e2);
-  background: var(--p-verde); color: #fff; font-size: .8rem; padding: 6px clamp(1rem, 3vw, 2rem);
-}
-.portal-utilidad nav { display: flex; }
-.portal .portal-utilidad a { color: #fff; text-decoration: none; padding: 2px 12px; border-right: 1px solid rgba(255,255,255,.5); }
-.portal-utilidad a:first-child { padding-left: 0; }
-.portal-utilidad a:hover { text-decoration: underline; }
 
 .portal-nav {
   position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: var(--e5);
@@ -650,23 +641,6 @@ body::before {
 .portal-hero-cta:hover { background: var(--p-verde-oscuro); gap: 20px; }
 @keyframes portal-entrada { from { opacity: 0; transform: translateY(18px); } }
 
-.portal-pestanas {
-  display: flex; gap: var(--e2); flex-wrap: wrap; justify-content: center;
-  padding: clamp(2rem, 5vh, 3rem) clamp(1rem, 3vw, 2rem) 0;
-}
-.portal-pestanas button {
-  min-height: 0; flex: 1 1 10rem; max-width: 14rem; padding: 14px 16px; border: 0; border-bottom: 3px solid var(--p-gris-borde);
-  border-radius: 8px 8px 0 0; background: var(--p-gris); color: var(--p-texto); font-weight: 400; font-size: 1rem;
-  transition: background .2s, color .2s, border-color .2s;
-}
-.portal-pestanas button:hover { border-bottom-color: var(--p-verde); background: #e8e8e8; }
-.portal-pestanas button.activa { background: var(--p-verde); color: #fff; font-weight: 600; border-bottom-color: var(--p-amarillo); }
-.portal-pestana-detalle {
-  margin: 0 clamp(1rem, 3vw, 2rem); padding: var(--e4) var(--e5); background: #fff;
-  border-top: 1px solid var(--p-verde); font-family: var(--texto); font-size: 1.05rem; text-align: center;
-}
-.portal-pestana-detalle p { margin: 0; }
-.portal-pestana-detalle a { font-weight: 600; margin-left: 6px; }
 
 .portal-cuerpo {
   display: grid; grid-template-columns: minmax(0, 2fr) minmax(18rem, 1fr); gap: clamp(1.5rem, 4vw, 4rem);
@@ -735,7 +709,7 @@ body::before {
 .portal-pie strong { display: block; color: #fff; }
 
 @media (max-width: 800px) {
-  .portal-utilidad span, .portal-nav-menu { display: none; }
+  .portal-nav-menu { display: none; }
   .portal-nav { justify-content: space-between; }
   .portal-nav-cta { padding: 10px 14px; font-size: .9rem; }
   .portal-hero { height: 60vh; padding-bottom: 5rem; }
