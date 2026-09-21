@@ -25,7 +25,11 @@ export default function BarraOffline() {
     // dispara este efecto por si sola. Se vuelve a consultar al desbloquear el
     // telefono, que es cuando Menu ya tuvo ocasion de llamar downloadBootstrap.
     document.addEventListener('visibilitychange', consultar);
-    return () => document.removeEventListener('visibilitychange', consultar);
+    window.addEventListener('datos-descargados', consultar);
+    return () => {
+      document.removeEventListener('visibilitychange', consultar);
+      window.removeEventListener('datos-descargados', consultar);
+    };
   }, [pendientes]);
 
   // Sin copia local no se puede tomar lista: es mas grave que tener cola pendiente.

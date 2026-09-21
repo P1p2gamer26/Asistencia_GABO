@@ -53,11 +53,13 @@ public class ImportController {
 
         try (var reader = new BufferedReader(
                 new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
-            String linea;
+            String linea, sep = ",";
             while ((linea = reader.readLine()) != null) {
                 numero++;
+                // Excel en espanol guarda el CSV con punto y coma: se acepta el que traiga la cabecera.
+                if (numero == 1) sep = linea.contains(";") ? ";" : ",";
                 if (numero == 1 || linea.isBlank()) continue;   // cabecera
-                String[] c = linea.split(",", -1);
+                String[] c = linea.split(sep, -1);
                 if (c.length < 6) {
                     errores.add("Linea " + numero + ": se esperaban 6 columnas y llegaron " + c.length);
                     continue;

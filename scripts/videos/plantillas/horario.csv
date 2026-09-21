@@ -1,0 +1,9 @@
+grade,weekday,block_no,start_time,end_time,subject,teacher_email,room
+601,1,1,06:30,07:30,Matematicas,docente01@ggm.edu.co,Salon 12
+601,1,2,07:30,08:30,Espanol,docente02@ggm.edu.co,Salon 12
+601,1,3,08:30,09:30,Ciencias,docente03@ggm.edu.co,Laboratorio
+601,1,4,09:45,10:45,Ingles,docente04@ggm.edu.co,
+601,2,1,06:30,07:30,Matematicas,docente01@ggm.edu.co,Salon 12
+601,2,2,07:30,08:30,Espanol,docente02@ggm.edu.co,Salon 12
+601,2,3,08:30,09:30,Ciencias,docente03@ggm.edu.co,Laboratorio
+601,2,4,09:45,10:45,Ingles,docente04@ggm.edu.co,

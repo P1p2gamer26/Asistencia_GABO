@@ -120,6 +120,9 @@ export async function downloadBootstrap(): Promise<void> {
     await db.schoolDays.bulkPut(data.schoolDays);
     await db.meta.put({ key: 'lastBootstrap', value: new Date().toISOString() });
   });
+  // La franja de estado no consulta sola: sin esto seguia diciendo "faltan los datos"
+  // hasta que el docente cambiaba de pestana.
+  window.dispatchEvent(new Event('datos-descargados'));
 }
 
 /**

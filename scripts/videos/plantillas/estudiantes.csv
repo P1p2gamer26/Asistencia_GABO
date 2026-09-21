@@ -1,0 +1,7 @@
+document_id,first_name,middle_name,last_name,second_surname,grade,active
+1023456789,Valentina,Sofia,Rojas,Pineda,601,true
+1023456790,Samuel,,Cardenas,Mora,601,true
+1023456791,Mariana,Isabel,Guerrero,Lopez,601,true
+1023456792,Juan,Esteban,Torres,Nino,602,true
+1023456793,Luciana,,Bermudez,Salas,602,false
+1023456794,Nicolas,David,Acosta,Rueda,701,true
