@@ -1,0 +1,44 @@
+<!doctype html>
+<!-- Hoja de cálculo de utilería para los videos: imita un Excel web sin marcas. -->
+<html lang="es"><head><meta charset="utf-8"><title>Hoja de calculo</title>
+<style>
+  body{margin:0;font:14px Segoe UI,sans-serif;background:#f3f3f3;color:#222}
+  header{background:#1e6b3a;color:#fff;height:48px;display:flex;align-items:center;padding:0 18px;gap:14px;position:relative}
+  header b{font-size:16px} header span{opacity:.8}
+  #btnCsv{margin-left:auto;background:#fff;color:#1e6b3a;border:0;border-radius:6px;padding:8px 14px;font:600 14px Segoe UI;cursor:pointer}
+  #menuCsv{display:none;position:absolute;right:18px;top:46px;background:#fff;color:#222;border:1px solid #ccc;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:5;min-width:300px}
+  #menuCsv div{padding:12px 16px;cursor:pointer} #menuCsv div:hover{background:#e8f0ea}
+  #barra{background:#fff;border-bottom:1px solid #ccc;padding:6px 18px;display:flex;gap:10px;align-items:center}
+  #ref{width:60px;border:1px solid #bbb;padding:3px 6px;text-align:center} #fx{flex:1;border:1px solid #bbb;padding:3px 8px;min-height:18px}
+  table{border-collapse:collapse;background:#fff}
+  th{background:#e9e9e9;font-weight:500;color:#555;border:1px solid #cfcfcf;width:150px;height:26px}
+  th.n{width:40px}
+  td{border:1px solid #d9d9d9;width:150px;height:28px;padding:0 6px;white-space:nowrap;overflow:hidden;outline:0}
+  td:focus{outline:2px solid #1e6b3a;outline-offset:-2px}
+  tr:first-child td:not(:empty){background:#e8f0ea;font-weight:700}
+  #toast{position:fixed;left:50%;bottom:40px;transform:translateX(-50%);background:#1e6b3a;color:#fff;padding:12px 22px;border-radius:8px;display:none}
+</style></head><body>
+<header><b id="nombre">estudiantes.csv</b><span>· Guardado en el equipo</span>
+  <button id="btnCsv">Guardar como CSV ▾</button>
+  <div id="menuCsv"><div>CSV UTF-8 (delimitado por comas)</div><div>CSV (delimitado por punto y coma)</div></div>
+</header>
+<div id="barra"><div id="ref">A1</div><div id="fx"></div></div>
+<table id="grid"></table>
+<div id="toast">Archivo guardado</div>
+<script>
+  const COLS = 'ABCDEFGHIJKL'.split(''), FILAS = 22, grid = document.getElementById('grid');
+  document.getElementById('nombre').textContent = new URLSearchParams(location.search).get('archivo') || 'estudiantes.csv';
+  let h = '<tr><th class="n"></th>' + COLS.map(c => `<th>${c}</th>`).join('') + '</tr>';
+  for (let f = 1; f <= FILAS; f++) h += `<tr><th class="n">${f}</th>` + COLS.map(c => `<td contenteditable id="c${f}_${c}" data-fila="${f}" data-col="${c}"></td>`).join('') + '</tr>';
+  grid.innerHTML = h;
+  grid.addEventListener('focusin', e => { if (e.target.tagName === 'TD') { document.getElementById('ref').textContent = e.target.dataset.col + e.target.dataset.fila; document.getElementById('fx').textContent = e.target.textContent; } });
+  grid.addEventListener('input', e => { document.getElementById('fx').textContent = e.target.textContent; });
+  const menu = document.getElementById('menuCsv');
+  document.getElementById('btnCsv').onclick = () => menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+  menu.querySelectorAll('div').forEach(d => d.onclick = () => { menu.style.display = 'none'; const t = document.getElementById('toast'); t.style.display = 'block'; setTimeout(() => t.style.display = 'none', 2000); });
+  window.hoja = {
+    poner(fila, col, texto) { document.getElementById(`c${fila}_${col}`).textContent = texto; },
+    limpiar() { grid.querySelectorAll('td').forEach(t => t.textContent = ''); },
+    cargar(m) { this.limpiar(); m.forEach((fila, i) => fila.forEach((v, j) => this.poner(i + 1, COLS[j], v))); },
+  };
+</script></body></html>

@@ -1,0 +1,39 @@
+{
+ "base_url": "http://127.0.0.1:8080",
+ "login": {
+  "url": "/login",
+  "email_sel": "#email",
+  "pass_sel": "#password",
+  "submit_sel": "button[type=submit]",
+  "email": "docente1@ggm.edu.co",
+  "password": "cambiar123",
+  "wait_url": "http://127.0.0.1:8080/"
+ },
+ "channel": "msedge",
+ "voz": "es-CO-SalomeNeural",
+ "rate": "+0%",
+ "logo": "C:/Users/Julian/Downloads/sistema-control-asistencia/app/frontend/public/escudo.png",
+ "marca": "Asistencia GGM · Tutoriales",
+ "color": "#14663b",
+ "color_fondo": "0x0b2e1a",
+ "cierre_titulo": "Asistencia GGM",
+ "cierre_sub": "Colegio Gabriel Garcia Marquez",
+ "cierre_pie": "Dudas o fallas: escribame y lo mejoramos",
+ "musica": "C:/Users/Julian/Downloads/Drogueria_try-videos/scripts/videos/musica.mp3",
+ "musica_vol": 0.14,
+ "salida": "C:/Users/Julian/Downloads/asistencia-tutoriales",
+ "viewport": {
+  "width": 414,
+  "height": 852
+ },
+ "record_size": {
+  "width": 414,
+  "height": 852
+ },
+ "video_size": [
+  828,
+  1704
+ ],
+ "scale": 2,
+ "mobile": true
+}
