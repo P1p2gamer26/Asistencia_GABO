@@ -32,6 +32,14 @@ class CalendarTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void el_calendario_se_puede_leer_sin_sesion() throws Exception {
+        mvc.perform(get("/api/calendar/school-days")
+                        .param("from", "2026-07-20").param("to", "2026-07-21"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.length()").value(2));
+    }
+
+    @Test
     void devuelve_el_rango_pedido_con_su_tipo_de_dia() throws Exception {
         mvc.perform(get("/api/calendar/school-days")
                         .param("from", "2026-07-20").param("to", "2026-07-21")

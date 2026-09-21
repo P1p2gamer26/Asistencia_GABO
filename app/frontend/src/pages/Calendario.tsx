@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api, getSession } from '../api/client';
 import type { DayType, SchoolDay } from '../api/contract';
 
@@ -40,7 +41,8 @@ export default function Calendario({ hoy = new Date() }: { hoy?: Date }) {
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(true);
 
-  const puedeEditar = ['COORDINADOR', 'ADMIN'].includes(getSession()?.role ?? '');
+  const sesion = getSession();
+  const puedeEditar = ['COORDINADOR', 'ADMIN'].includes(sesion?.role ?? '');
 
   const primero = new Date(anio, mes, 1);
   const ultimo = new Date(anio, mes + 1, 0);
@@ -106,6 +108,7 @@ export default function Calendario({ hoy = new Date() }: { hoy?: Date }) {
 
   return (
     <main className="card ancha">
+      {!sesion && <p><Link to="/">« Volver al inicio</Link></p>}
       <h1>Calendario escolar</h1>
 
       <div className="leyenda" style={{ marginBottom: 12 }}>

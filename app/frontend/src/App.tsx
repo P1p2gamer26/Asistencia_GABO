@@ -76,7 +76,8 @@ export default function App() {
       <Route path="/dashboard"
              element={<SoloRoles roles={['COORDINADOR', 'ADMIN']}><Dashboard /></SoloRoles>} />
       <Route path="/admin" element={<SoloRoles roles={['ADMIN']}><Admin /></SoloRoles>} />
-      <Route path="/calendario" element={<Protegida><Calendario /></Protegida>} />
+      {/* Calendario publico en solo lectura: sin sesion se ve sin el menu lateral. */}
+      <Route path="/calendario" element={getSession() ? <Protegida><Calendario /></Protegida> : <Calendario />} />
       <Route path="/horario" element={<Protegida><Horario /></Protegida>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

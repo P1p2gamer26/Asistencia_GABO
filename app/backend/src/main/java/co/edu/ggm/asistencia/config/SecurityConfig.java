@@ -3,6 +3,7 @@ package co.edu.ggm.asistencia.config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -42,6 +43,8 @@ public class SecurityConfig {
             .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/login", "/api/auth/refresh", "/actuator/health", "/api/health/db").permitAll()
+                // El calendario escolar es publico en solo lectura; editarlo sigue exigiendo rol.
+                .requestMatchers(HttpMethod.GET, "/api/calendar/school-days").permitAll()
                 // El frontend compilado se sirve desde este mismo servidor: rutas
                 // fuera de /api son la SPA o sus recursos estaticos, publicos por diseno.
                 .requestMatchers(new RegexRequestMatcher("^(?!/api/).*$", null)).permitAll()
