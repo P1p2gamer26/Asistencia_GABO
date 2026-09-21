@@ -1,6 +1,10 @@
 package co.edu.ggm.asistencia.config;
 
+import java.time.Duration;
+
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.CacheControl;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -11,6 +15,18 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  */
 @Configuration
 public class SpaConfig implements WebMvcConfigurer {
+
+    /**
+     * Spring Security pone "Cache-Control: no-store" a todo, y Safari/iOS se niega a
+     * reproducir un video servido asi (no puede pedir rangos sobre algo que no puede
+     * guardar). Los videos son publicos e inmutables: se cachean y listo.
+     */
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        registry.addResourceHandler("/videos/**")
+                .addResourceLocations("classpath:/static/videos/")
+                .setCacheControl(CacheControl.maxAge(Duration.ofDays(30)).cachePublic());
+    }
 
     @Override
     public void addViewControllers(ViewControllerRegistry registry) {
