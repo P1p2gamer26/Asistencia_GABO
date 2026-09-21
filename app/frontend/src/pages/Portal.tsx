@@ -1,12 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import Escudo from '../components/Escudo';
 import BotonInstalar from '../components/BotonInstalar';
 
 // Reel de 61 s con siete tomas del colegio (dron, patio, panoramica) unidas con fundidos.
 // Se arma con ffmpeg desde los videos originales; ver docs/portada-reel.md.
-
-const PESTANAS = ['Docentes', 'Coordinación', 'Familias', 'Calendario', 'Horario'];
 
 const NOVEDADES = [
   { foto: '/fotos/colegio-2.jpg', tipo: 'Docentes', fecha: '15 de septiembre de 2026',
@@ -28,8 +26,8 @@ const AGENDA = [
 ];
 
 const VIDEOS = [
-  { src: '/videos/promo.mp4', titulo: 'Conozca el colegio', duracion: '4:48',
-    texto: 'Un recorrido por el Colegio Gabriel García Márquez y su comunidad.' },
+  { src: '/videos/promo.mp4', titulo: 'Conozca el colegio', duracion: '0:55',
+    texto: 'Tomas aéreas y del patio del Colegio Gabriel García Márquez.' },
   { src: '/videos/tutorial-docentes.mp4', titulo: 'Tutorial para docentes', duracion: '2:44',
     texto: 'Cómo tomar la lista de clase desde el celular, con o sin internet.' },
   { src: '/videos/tutorial-coordinacion.mp4', titulo: 'Tutorial para coordinación', duracion: '3:10',
@@ -93,7 +91,6 @@ function useRevelar() {
 
 /** Portada publica: lo que ve quien llega sin sesion, antes de entrar. */
 export default function Portal() {
-  const [pestana, setPestana] = useState(0);
   const fondo = useRef<HTMLVideoElement>(null);
   useRevelar();
 
@@ -112,16 +109,6 @@ export default function Portal() {
 
   return (
     <div className="portal">
-      <div className="portal-utilidad">
-        <nav aria-label="Accesos rápidos">
-          <Link to="/login">Intranet</Link>
-          <Link to="/login">Mi asistencia</Link>
-          <Link to="/calendario">Calendario</Link>
-          <Link to="/horario">Horario</Link>
-        </nav>
-        <span>Bogotá D.C. · Institución Educativa Distrital</span>
-      </div>
-
       <header className="portal-nav">
         <Link to="/" className="portal-nav-marca">
           <Escudo size={56} />
@@ -145,20 +132,6 @@ export default function Portal() {
         </div>
         <Link to="/login" className="portal-hero-cta">Tomar asistencia hoy <span aria-hidden="true">»</span></Link>
       </section>
-
-      <div id="accesos" className="portal-pestanas" role="tablist" aria-label="Accesos">
-        {PESTANAS.map((p, i) => (
-          <button key={p} role="tab" aria-selected={i === pestana} className={i === pestana ? 'activa' : ''}
-                  onClick={() => setPestana(i)}>{p}</button>
-        ))}
-      </div>
-      <div className="portal-pestana-detalle" data-revelar>
-        {pestana === 0 && <p>Tome la lista desde el celular en el salón. Funciona sin internet y sincroniza sola. <Link to="/login">Entrar como docente</Link></p>}
-        {pestana === 1 && <p>Panorama del día, registro de ingreso en portería y reportes en Excel. <Link to="/login">Entrar como coordinación</Link></p>}
-        {pestana === 2 && <p>Avisos de inasistencia y consulta del historial de cada estudiante a cargo. <Link to="/login">Entrar como acudiente</Link></p>}
-        {pestana === 3 && <p>Días lectivos, festivos y jornadas pedagógicas del año. <Link to="/calendario">Ver calendario</Link></p>}
-        {pestana === 4 && <p>Bloques de clase por salón y por docente, día 1 al 5 del ciclo. <Link to="/horario">Ver horario</Link></p>}
-      </div>
 
       <main className="portal-cuerpo">
         <section id="novedades" className="portal-novedades" data-revelar>
