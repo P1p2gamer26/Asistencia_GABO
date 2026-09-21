@@ -115,4 +115,22 @@ class ConsultasAvanzadasTest extends AbstractIntegrationTest {
             assertThat(hoja.getRow(1).getCell(0).getStringCellValue()).isEqualTo("2026-06-02");
         }
     }
+
+    @Test
+    void el_excel_completo_trae_una_fila_por_marca_con_todo_el_contexto() throws Exception {
+        byte[] libro = mvc.perform(get("/api/reports/excel")
+                        .param("tipo", "completo").param("from", "2026-06-01").param("to", "2026-06-03")
+                        .header("Authorization", coord()))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsByteArray();
+        try (var wb = new XSSFWorkbook(new ByteArrayInputStream(libro))) {
+            var hoja = wb.getSheetAt(0);
+            assertThat(hoja.getRow(0).getCell(9).getStringCellValue()).isEqualTo("Estado (texto)");
+            assertThat(hoja.getRow(0).getCell(11).getStringCellValue()).isEqualTo("Registrado por");
+            assertThat(hoja.getLastRowNum()).isEqualTo(2);
+            assertThat(hoja.getRow(1).getCell(6).getStringCellValue()).isEqualTo(ALUMNO);
+            assertThat(hoja.getRow(2).getCell(9).getStringCellValue()).isEqualTo("Falta");
+            assertThat(hoja.getRow(2).getCell(11).getStringCellValue()).isNotEmpty();
+        }
+    }
 }
