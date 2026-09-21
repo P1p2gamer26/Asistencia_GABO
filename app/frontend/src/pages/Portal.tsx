@@ -119,6 +119,7 @@ export default function Portal() {
           <a href="#videos">Videos</a>
           <a href="#manual">Manual de uso</a>
           <a href="#agenda">Agenda</a>
+          <Link to="/calendario">Calendario</Link>
         </nav>
         <Link to="/login" className="portal-nav-cta">Ingresar al sistema</Link>
       </header>
