@@ -445,4 +445,84 @@ public interface ReportRepository extends Repository<Student, Long> {
             ORDER BY orden_curso(g.grade), g.grade
             """, nativeQuery = true)
     List<CursoPeriodoRow> cursosDelPeriodo(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    // ---- Consultas avanzadas: estudiante puntual y quien tomo la lista ----
+
+    interface EstudianteBusquedaRow {
+        Long getId(); String getDocumentId(); String getFullName(); String getGrade();
+    }
+
+    /** Busqueda por trozo de nombre (sin importar mayusculas ni acentos) o por prefijo de documento. */
+    @Query(value = """
+            SELECT s.id AS id, s.document_id AS documentId,
+                   trim(regexp_replace(concat_ws(' ', s.first_name, s.middle_name,
+                        s.last_name, s.second_surname), '\\s+', ' ', 'g')) AS fullName,
+                   s.grade AS grade
+            FROM students s
+            WHERE s.active
+              AND (translate(lower(concat_ws(' ', s.first_name, s.middle_name, s.last_name, s.second_surname)),
+                             'áéíóúüñ', 'aeiouun')
+                     LIKE '%' || translate(lower(:q), 'áéíóúüñ', 'aeiouun') || '%'
+                   OR s.document_id LIKE :q || '%')
+            ORDER BY s.last_name, s.first_name
+            LIMIT 20
+            """, nativeQuery = true)
+    List<EstudianteBusquedaRow> buscarEstudiantes(@Param("q") String q);
+
+    interface MarcaEstudianteRow {
+        LocalDate getClassDate(); Short getBlockNo(); String getSubject(); String getStatus();
+        String getComment(); String getRecordedByName(); java.time.Instant getRecordedAt();
+    }
+
+    /** Todas las marcas de un estudiante en el rango, con quien las registro. */
+    @Query(value = """
+            SELECT a.class_date AS classDate, sb.block_no AS blockNo, su.name AS subject,
+                   a.status AS status, a.comment AS comment,
+                   ru.full_name AS recordedByName, a.recorded_at AS recordedAt
+            FROM attendance a
+            JOIN schedule_blocks sb ON sb.id = a.schedule_block_id
+            LEFT JOIN subjects su ON su.id = sb.subject_id
+            LEFT JOIN users ru ON ru.id = a.recorded_by
+            WHERE a.student_id = :studentId
+              AND a.class_date BETWEEN :from AND :to
+              AND a.deleted_at IS NULL
+            ORDER BY a.class_date DESC, sb.block_no
+            """, nativeQuery = true)
+    List<MarcaEstudianteRow> marcasDeEstudiante(@Param("studentId") Long studentId,
+                                                @Param("from") LocalDate from,
+                                                @Param("to") LocalDate to);
+
+    interface TomaRow {
+        LocalDate getClassDate(); String getGrade(); Short getBlockNo(); String getSubject();
+        String getTeacherName(); String getRecordedByName(); java.time.Instant getLastRecordedAt();
+        Long getTotal(); Long getAbsent(); Long getEvasion();
+    }
+
+    /**
+     * Una fila por bloque+fecha con quien tomo la lista. `teacherName` es el docente
+     * asignado al bloque; `recordedByName` quien registro de verdad: cuando difieren,
+     * alguien mas paso la lista por el titular.
+     */
+    @Query(value = """
+            SELECT a.class_date AS classDate, sb.grade AS grade, sb.block_no AS blockNo,
+                   su.name AS subject, tu.full_name AS teacherName,
+                   min(ru.full_name) AS recordedByName, max(a.recorded_at) AS lastRecordedAt,
+                   count(*) AS total,
+                   count(*) FILTER (WHERE a.status = 'F') AS absent,
+                   count(*) FILTER (WHERE a.status = 'E') AS evasion
+            FROM attendance a
+            JOIN schedule_blocks sb ON sb.id = a.schedule_block_id
+            LEFT JOIN subjects su ON su.id = sb.subject_id
+            LEFT JOIN users tu ON tu.id = sb.teacher_id
+            LEFT JOIN users ru ON ru.id = a.recorded_by
+            WHERE a.deleted_at IS NULL
+              AND a.class_date BETWEEN :from AND :to
+              AND (:grade IS NULL OR sb.grade = :grade)
+              AND (:teacherId IS NULL OR sb.teacher_id = :teacherId OR a.recorded_by = :teacherId)
+            GROUP BY a.class_date, sb.grade, sb.block_no, su.name, tu.full_name
+            ORDER BY a.class_date DESC, orden_curso(sb.grade), sb.grade, sb.block_no
+            LIMIT 500
+            """, nativeQuery = true)
+    List<TomaRow> tomas(@Param("grade") String grade, @Param("teacherId") Long teacherId,
+                        @Param("from") LocalDate from, @Param("to") LocalDate to);
 }
