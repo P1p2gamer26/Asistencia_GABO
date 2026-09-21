@@ -149,4 +149,49 @@ describe('Consultas', () => {
     // correcta para analizar el colegio entero.
     expect(screen.getByRole('button', { name: /excel/i })).not.toBeDisabled();
   });
+
+  it('por estudiante: busca, elige y muestra las marcas con quien las registro', async () => {
+    const f = vi.fn(async (url: string) => {
+      const u = String(url);
+      if (u.includes('/estudiantes?q=')) return respuesta([{ id: 7, documentId: '777', fullName: 'CARLA MORA', grade: '702' }]);
+      if (u.includes('/estudiante/7')) return respuesta({
+        id: 7, documentId: '777', fullName: 'CARLA MORA', grade: '702',
+        present: 1, late: 0, absent: 1, evasion: 0,
+        marcas: [{ classDate: '2026-06-02', blockNo: 3, subject: 'Ciencias', status: 'F',
+                   comment: null, recordedByName: 'Coordinacion', recordedAt: '2026-06-02T12:00:00Z' }],
+      });
+      return respuesta(FILAS);
+    });
+    vi.stubGlobal('fetch', f);
+    render(<Consultas />);
+
+    await userEvent.click(screen.getByRole('button', { name: /por estudiante/i }));
+    await userEvent.type(screen.getByLabelText(/estudiante/i), 'carla');
+    await userEvent.click(await screen.findByRole('button', { name: /CARLA MORA/ }));
+
+    await waitFor(() => expect(screen.getByText('Coordinacion')).toBeInTheDocument());
+    expect(screen.getByText('Ciencias')).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: /F Falta/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /excel del estudiante/i })).toBeInTheDocument();
+  });
+
+  it('tomas de asistencia: lista quien tomo cada lista y resalta cuando no fue el titular', async () => {
+    const f = vi.fn(async (url: string) => {
+      const u = String(url);
+      if (u.includes('/docentes')) return respuesta([{ id: 3, fullName: 'Francisco Palacios' }]);
+      if (u.includes('/tomas?')) return respuesta([{
+        classDate: '2026-06-02', grade: '601', blockNo: 1, subject: 'Matematicas',
+        teacherName: 'Francisco Palacios', recordedByName: 'Coordinacion',
+        lastRecordedAt: '2026-06-02T12:00:00Z', total: 38, absent: 2, evasion: 0,
+      }]);
+      return respuesta(FILAS);
+    });
+    vi.stubGlobal('fetch', f);
+    render(<Consultas />);
+
+    await userEvent.click(screen.getByRole('button', { name: /tomas de asistencia/i }));
+    await waitFor(() => expect(screen.getByText('Matematicas')).toBeInTheDocument());
+    expect(screen.getByText('Coordinacion')).toHaveClass('distinto');
+    expect(screen.getByRole('option', { name: 'Francisco Palacios' })).toBeInTheDocument();
+  });
 });

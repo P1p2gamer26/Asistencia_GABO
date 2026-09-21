@@ -392,7 +392,11 @@ tbody tr:hover { background: #fbfaf4; }
 .contenido { min-width: 0; }   /* sin esto, una tabla ancha desborda la rejilla */
 
 .menu { background: var(--superficie); border-right: 1px solid var(--rejilla);
-        padding: 16px 12px; display: flex; flex-direction: column; gap: 16px; }
+        padding: 16px 12px; display: flex; flex-direction: column; gap: 16px;
+        /* Pegado al viewport y de su alto exacto: "Cerrar sesion" siempre esta a la
+           vista, sin bajar hasta el final de una tabla larga. */
+        position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+.menu ul { flex: 1; }
 .menu-marca { display: flex; gap: 10px; align-items: center; }
 .menu-marca strong { display: block; font-size: .95rem; }
 .menu-marca small { color: var(--tinta-suave); font-size: .78rem; }
@@ -402,7 +406,7 @@ tbody tr:hover { background: #fbfaf4; }
           color: var(--tinta); font-size: .92rem; }
 .menu a:hover { background: var(--fondo); }
 .menu a.activo { background: var(--verde); color: #fff; font-weight: 700; }
-.menu > button { margin-top: auto; }
+.menu > button { margin-top: 0; }
 /* La barra superior, el fondo del cajon y la X solo existen en movil. */
 .barra-movil, .menu-fondo, .menu-cerrar { display: none; }
 
@@ -740,3 +744,32 @@ body::before {
   .portal-noticia { grid-template-columns: 1fr; }
   .portal-noticia img { aspect-ratio: 16 / 7; }
 }
+
+/* --- Consultas: modos y ficha de estudiante ---------------------------- */
+.segmentado { display: inline-flex; margin-bottom: var(--e4); border: 1px solid var(--eje);
+              border-radius: var(--radio-s); overflow: hidden; }
+.segmentado button { min-height: 40px; padding: 6px 16px; border: 0; border-radius: 0;
+                     background: var(--superficie); color: var(--verde-oscuro); font-weight: 600; }
+.segmentado button + button { border-left: 1px solid var(--eje); }
+.segmentado button[aria-pressed='true'] { background: var(--verde); color: #fff; }
+.resultados-busqueda { list-style: none; padding: 0; margin: var(--e2) 0; display: grid; gap: 4px; }
+.resultados-busqueda button { width: 100%; min-height: 40px; text-align: left; padding: 8px 12px; }
+.resultados-busqueda small { color: var(--tinta-suave); font-weight: 400; margin-left: 6px; }
+.ficha-estudiante { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--e3);
+                    align-items: center; margin: var(--e4) 0 var(--e3); }
+.ficha-estudiante h2 { margin: 0; }
+.totales { display: flex; gap: var(--e3); margin: 0; }
+.totales div { text-align: center; min-width: 4rem; }
+.totales dt { font-size: .75rem; color: var(--tinta-suave); }
+.totales dd { margin: 0; font-family: var(--ui); font-weight: 700; font-size: 1.3rem; }
+td.distinto { color: var(--margen); font-weight: 600; }
+tr.estado-F td, tr.estado-E td { color: var(--estado-f); }
+
+/* --- Tablero: filtros y secciones plegables ---------------------------- */
+.filtros-desplegable, .seccion-desplegable { margin-top: var(--e4); }
+.filtros-desplegable summary, .seccion-desplegable summary {
+  cursor: pointer; font-family: var(--ui); font-weight: 600; color: var(--verde-oscuro); padding: 8px 0; }
+.filtros-desplegable .filtros-tablero { margin-top: var(--e2); }
+.filtros-tablero select { width: auto; flex: 1 1 12rem; min-height: 40px; padding: 6px 12px; }
+.filtros-tablero label { font-size: .85rem; font-weight: 600; color: var(--tinta-suave); }
+.filtros-tablero input[type='date'] { flex: 0 1 11rem; }

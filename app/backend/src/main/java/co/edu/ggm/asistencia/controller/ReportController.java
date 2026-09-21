@@ -5,6 +5,8 @@ import co.edu.ggm.asistencia.model.SchoolDay;
 import co.edu.ggm.asistencia.repository.CalendarRepository;
 import co.edu.ggm.asistencia.repository.ReportRepository;
 import co.edu.ggm.asistencia.repository.StudentRepository;
+import co.edu.ggm.asistencia.repository.UserRepository;
+import co.edu.ggm.asistencia.model.Role;
 import co.edu.ggm.asistencia.service.CalendarService;
 import co.edu.ggm.asistencia.service.DashboardService;
 import co.edu.ggm.asistencia.service.ExcelReportService;
@@ -41,15 +43,81 @@ public class ReportController {
     private final TodayService todayService;
     private final NovedadesService novedadesService;
     private final CalendarService calendarioService;
+    private final UserRepository users;
 
     public ReportController(ReportRepository repo, ExcelReportService excel,
                             DashboardService dashboardService, CalendarRepository calendar,
                             StudentRepository students, TodayService todayService,
-                            NovedadesService novedadesService, CalendarService calendarioService) {
+                            NovedadesService novedadesService, CalendarService calendarioService,
+                            UserRepository users) {
         this.repo = repo; this.excel = excel;
         this.dashboardService = dashboardService; this.calendar = calendar;
         this.students = students; this.todayService = todayService;
         this.novedadesService = novedadesService; this.calendarioService = calendarioService;
+        this.users = users;
+    }
+
+    // ---- Consultas avanzadas ----
+
+    public record EstudianteBusqueda(Long id, String documentId, String fullName, String grade) {}
+
+    @GetMapping("/estudiantes")
+    public List<EstudianteBusqueda> buscarEstudiantes(@RequestParam String q) {
+        String texto = q.trim();
+        if (texto.length() < 2) return List.of();
+        return repo.buscarEstudiantes(texto).stream()
+                .map(r -> new EstudianteBusqueda(r.getId(), r.getDocumentId(), r.getFullName(), r.getGrade()))
+                .toList();
+    }
+
+    public record MarcaEstudiante(LocalDate classDate, short blockNo, String subject, String status,
+                                  String comment, String recordedByName, java.time.Instant recordedAt) {}
+    public record DetalleEstudiante(Long id, String documentId, String fullName, String grade,
+                                    long present, long late, long absent, long evasion,
+                                    List<MarcaEstudiante> marcas) {}
+
+    @GetMapping("/estudiante/{id}")
+    public DetalleEstudiante detalleEstudiante(
+            @PathVariable Long id,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        var s = students.findById(id).orElseThrow(() ->
+                new ResponseStatusException(HttpStatus.NOT_FOUND, "Estudiante no encontrado"));
+        var marcas = repo.marcasDeEstudiante(id, from, to).stream()
+                .map(m -> new MarcaEstudiante(m.getClassDate(), m.getBlockNo() == null ? 0 : m.getBlockNo(),
+                        m.getSubject(), m.getStatus(), m.getComment(), m.getRecordedByName(), m.getRecordedAt()))
+                .toList();
+        long p = marcas.stream().filter(m -> "P".equals(m.status())).count();
+        long t = marcas.stream().filter(m -> "T".equals(m.status())).count();
+        long f = marcas.stream().filter(m -> "F".equals(m.status())).count();
+        long e = marcas.stream().filter(m -> "E".equals(m.status())).count();
+        return new DetalleEstudiante(s.getId(), s.getDocumentId(), s.fullName(), s.getGrade(), p, t, f, e, marcas);
+    }
+
+    public record Toma(LocalDate classDate, String grade, short blockNo, String subject, String teacherName,
+                       String recordedByName, java.time.Instant lastRecordedAt, long total, long absent, long evasion) {}
+
+    @GetMapping("/tomas")
+    public List<Toma> tomas(
+            @RequestParam(required = false) String grade,
+            @RequestParam(required = false) Long teacherId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return repo.tomas(grade, teacherId, from, to).stream()
+                .map(r -> new Toma(r.getClassDate(), r.getGrade(), r.getBlockNo() == null ? 0 : r.getBlockNo(),
+                        r.getSubject(), r.getTeacherName(), r.getRecordedByName(), r.getLastRecordedAt(),
+                        r.getTotal(), r.getAbsent(), r.getEvasion()))
+                .toList();
+    }
+
+    public record DocenteItem(Long id, String fullName) {}
+
+    @GetMapping("/docentes")
+    public List<DocenteItem> docentes() {
+        return users.findByRoleOrderByFullName(Role.DOCENTE).stream()
+                .filter(u -> u.isActive())
+                .map(u -> new DocenteItem(u.getId(), u.getFullName()))
+                .toList();
     }
 
     @GetMapping("/summary")
@@ -78,6 +146,7 @@ public class ReportController {
             @RequestParam(required = false) String grade,
             @RequestParam(required = false, defaultValue = "resumen") String tipo,
             @RequestParam(required = false) Long studentId,
+            @RequestParam(required = false) Long teacherId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
 
@@ -101,6 +170,10 @@ public class ReportController {
                 libro = excel.buildIndividual(s.getDocumentId(), s.fullName(), s.getGrade(),
                         students.recentAttendance(studentId, from, to), from, to);
                 nombre = "informe_%s_%s_%s.xlsx".formatted(s.getDocumentId(), from, to);
+            }
+            case "tomas" -> {
+                libro = excel.buildTomas(repo.tomas(grade, teacherId, from, to), from, to);
+                nombre = "tomas_%s_%s_%s.xlsx".formatted(curso, from, to);
             }
             case "inasistencias" -> {
                 libro = excel.buildInasistencias(repo.absences(grade, from, to), from, to);

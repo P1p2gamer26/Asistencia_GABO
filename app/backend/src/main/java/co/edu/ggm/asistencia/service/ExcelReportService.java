@@ -10,6 +10,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -169,6 +171,39 @@ public class ExcelReportService {
                 }
                 r.createCell(colPorcentaje).setCellValue(lectivos.isEmpty() ? 0
                         : Math.round(asistidos * 1000.0 / lectivos.size()) / 10.0);
+            }
+            wb.write(out);
+            wb.dispose();
+            return out.toByteArray();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private static final DateTimeFormatter HORA_BOGOTA =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.of("America/Bogota"));
+
+    /** Quien tomo cada lista: una fila por bloque y fecha, para auditar la jornada. */
+    public byte[] buildTomas(List<ReportRepository.TomaRow> filas, LocalDate from, LocalDate to) {
+        String[] cabeceras = {"Fecha", "Curso", "Bloque", "Materia", "Docente asignado", "Registro por",
+                              "Hora de registro", "Marcas", "Faltas", "Evasiones"};
+        try (var wb = new SXSSFWorkbook(100); var out = new ByteArrayOutputStream()) {
+            var hoja = wb.createSheet("Tomas " + from + " a " + to);
+            Row cabecera = hoja.createRow(0);
+            for (int i = 0; i < cabeceras.length; i++) cabecera.createCell(i).setCellValue(cabeceras[i]);
+            int n = 1;
+            for (var f : filas) {
+                Row r = hoja.createRow(n++);
+                r.createCell(0).setCellValue(f.getClassDate().toString());
+                r.createCell(1).setCellValue(f.getGrade());
+                r.createCell(2).setCellValue(f.getBlockNo());
+                r.createCell(3).setCellValue(f.getSubject() == null ? "" : f.getSubject());
+                r.createCell(4).setCellValue(f.getTeacherName() == null ? "" : f.getTeacherName());
+                r.createCell(5).setCellValue(f.getRecordedByName() == null ? "" : f.getRecordedByName());
+                r.createCell(6).setCellValue(f.getLastRecordedAt() == null ? "" : HORA_BOGOTA.format(f.getLastRecordedAt()));
+                r.createCell(7).setCellValue(f.getTotal());
+                r.createCell(8).setCellValue(f.getAbsent());
+                r.createCell(9).setCellValue(f.getEvasion());
             }
             wb.write(out);
             wb.dispose();
