@@ -4,13 +4,20 @@ import type { AdminUser, Role } from '../../api/contract';
 
 const ROLES: Role[] = ['ADMIN', 'COORDINADOR', 'DOCENTE', 'ACUDIENTE'];
 
-export default function PanelUsuarios() {
+type PanelUsuariosProps = {
+  onAsignarHorario?: (docente: AdminUser) => void;
+};
+
+export default function PanelUsuarios({ onAsignarHorario }: PanelUsuariosProps) {
   const [usuarios, setUsuarios] = useState<AdminUser[]>([]);
   const [filtro, setFiltro] = useState<Role | ''>('');
   const [busqueda, setBusqueda] = useState('');
   const [nuevo, setNuevo] = useState({ email: '', fullName: '', role: 'DOCENTE' as Role });
-  const [aviso, setAviso] = useState('');
+const [aviso, setAviso] = useState('');
   const [error, setError] = useState('');
+  const [docenteCreado, setDocenteCreado] = useState<AdminUser | null>(null);
+  const [editandoId, setEditandoId] = useState<number | null>(null);
+  const [edicion, setEdicion] = useState({ fullName: '', role: 'DOCENTE' as Role });
 
   async function cargar() {
     setError('');
@@ -27,10 +34,11 @@ export default function PanelUsuarios() {
 
   async function crear(e: React.FormEvent) {
     e.preventDefault();
-    setError(''); setAviso('');
+    setError(''); setAviso(''); setDocenteCreado(null);
     try {
       const u = await api.post<AdminUser>('/api/admin/users', nuevo);
-      setAviso(`Creado ${u.email}. Contrasena temporal: cambiar123`);
+      if (u.role === 'DOCENTE') setDocenteCreado(u);
+      else setAviso(`Creado ${u.email}. Contrasena temporal: cambiar123`);
       setNuevo({ email: '', fullName: '', role: 'DOCENTE' });
       await cargar();
     } catch {
@@ -60,6 +68,24 @@ export default function PanelUsuarios() {
     }
   }
 
+  function iniciarEdicion(u: AdminUser) {
+    setEditandoId(u.id);
+    setEdicion({ fullName: u.fullName, role: u.role });
+  }
+
+  async function guardarEdicion(u: AdminUser) {
+    setError(''); setAviso('');
+    try {
+      await api.put(`/api/admin/users/${u.id}`,
+        { fullName: edicion.fullName, role: edicion.role, active: u.active });
+      setAviso(`Guardado: ${edicion.fullName} (${edicion.role}).`);
+      setEditandoId(null);
+      await cargar();
+    } catch {
+      setError('No se pudo guardar el perfil.');
+    }
+  }
+
   return (
     <section>
       <form className="filtros" onSubmit={crear}>
@@ -78,6 +104,21 @@ export default function PanelUsuarios() {
       </form>
 
       {aviso && <p className="banner pendiente" role="status">{aviso}</p>}
+      {docenteCreado && (
+        <section className="card" role="region" aria-label="Siguientes pasos">
+          <h2>Docente creado: {docenteCreado.fullName} ({docenteCreado.email})</h2>
+          <p>Contrasena temporal: cambiar123. El sistema le pide cambiarla en el primer ingreso.</p>
+          <ol>
+            <li>Asignarle sus bloques en la pestana Horario (curso, dia de ciclo 1-5, bloque, materia, aula). Sin bloques el docente entra pero no ve clases para tomar asistencia.</li>
+            <li>Comprobar que el calendario escolar tenga los dias lectivos del periodo (pestana Calendario); el horario se aplica solo sobre dias lectivos y el dia de ciclo vigente.</li>
+            <li>Entregarle el correo y la clave temporal.</li>
+          </ol>
+          <div className="leyenda">
+            <button type="button" onClick={() => onAsignarHorario?.(docenteCreado)}>Asignar horario ahora</button>
+            <button type="button" className="secundario" onClick={() => setDocenteCreado(null)}>Saltar por ahora</button>
+          </div>
+        </section>
+      )}
       {error && <p role="alert" className="error">{error}</p>}
 
       <div className="leyenda" style={{ marginTop: 16 }}>
@@ -104,11 +145,45 @@ export default function PanelUsuarios() {
           <tbody>
             {usuarios.map((u) => (
               <tr key={u.id}>
+                {editandoId === u.id ? (
+                  <>
+                    <td>
+                      <input aria-label={`Editar nombre de ${u.fullName}`} value={edicion.fullName}
+                             onChange={(e) => setEdicion({ ...edicion, fullName: e.target.value })} />
+                    </td>
+                    <td>{u.email}</td>
+                    <td>
+                      <select aria-label={`Editar rol de ${u.fullName}`} value={edicion.role}
+                              onChange={(e) => setEdicion({ ...edicion, role: e.target.value as Role })}>
+                        {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                    </td>
+                    <td>{u.active ? 'Activo' : 'Inactivo'}</td>
+                    <td>
+                      <button type="button" className="secundario"
+                              style={{ minHeight: 32, padding: '4px 10px', marginRight: 6 }}
+                              onClick={() => void guardarEdicion(u)}>
+                        Guardar
+                      </button>
+                      <button type="button" className="secundario"
+                              style={{ minHeight: 32, padding: '4px 10px' }}
+                              onClick={() => setEditandoId(null)}>
+                        Cancelar
+                      </button>
+                    </td>
+                  </>
+                ) : (
+                  <>
                 <td>{u.fullName}</td>
                 <td>{u.email}</td>
                 <td>{u.role}</td>
                 <td>{u.active ? 'Activo' : 'Inactivo'}</td>
                 <td>
+                  <button type="button" className="secundario"
+                          style={{ minHeight: 32, padding: '4px 10px', marginRight: 6 }}
+                          onClick={() => iniciarEdicion(u)}>
+                    Editar
+                  </button>
                   <button type="button" className="secundario"
                           style={{ minHeight: 32, padding: '4px 10px', marginRight: 6 }}
                           onClick={() => void alternarActivo(u)}>
@@ -120,6 +195,8 @@ export default function PanelUsuarios() {
                     Restablecer clave
                   </button>
                 </td>
+                  </>
+                )}
               </tr>
             ))}
           </tbody>
