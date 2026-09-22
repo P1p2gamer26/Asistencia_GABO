@@ -31,13 +31,6 @@ describe('Menu', () => {
     expect(screen.queryByRole('link', { name: /tablero/i })).not.toBeInTheDocument();
   });
 
-  it('coordinacion ve el tablero pero no administracion', () => {
-    sesion('COORDINADOR');
-    pintar();
-    expect(screen.getByRole('link', { name: /tablero/i })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /administracion/i })).not.toBeInTheDocument();
-  });
-
   it('el administrador lo ve todo', () => {
     sesion('ADMIN');
     pintar();

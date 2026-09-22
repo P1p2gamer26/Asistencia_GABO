@@ -107,7 +107,7 @@ describe('Horario: navegacion por salon y por docente', () => {
   });
 
   it('pedir el horario por salon muestra el desplegable con los cursos', async () => {
-    pintarComo('COORDINADOR');
+    pintarComo('ADMIN');
     await waitFor(() => expect(screen.getByText(/Ciencias/)).toBeInTheDocument());
     await userEvent.selectOptions(screen.getByLabelText(/ver el horario de/i), 'salon');
     const salon = screen.getByLabelText(/salon/i);
@@ -116,14 +116,14 @@ describe('Horario: navegacion por salon y por docente', () => {
   });
 
   it('coordinacion puede pedir el horario de otro curso desde el desplegable', async () => {
-    pintarComo('COORDINADOR');
+    pintarComo('ADMIN');
     await userEvent.selectOptions(await screen.findByLabelText(/ver el horario de/i), 'salon');
     await userEvent.selectOptions(await screen.findByLabelText(/salon/i), '6A');
     expect(await screen.findByText(/Horario del curso 6A/i)).toBeInTheDocument();
   });
 
   it('coordinacion puede pedir el horario de un docente por el selector', async () => {
-    pintarComo('COORDINADOR');
+    pintarComo('ADMIN');
     await waitFor(() =>
       expect(screen.getByLabelText(/ver el horario de/i)).toBeInTheDocument());
     await userEvent.selectOptions(screen.getByLabelText(/ver el horario de/i), 'docente');
@@ -134,7 +134,7 @@ describe('Horario: navegacion por salon y por docente', () => {
   });
 
   it('elegir docente oculta el desplegable de salones y viceversa', async () => {
-    pintarComo('COORDINADOR');
+    pintarComo('ADMIN');
     await userEvent.selectOptions(await screen.findByLabelText(/ver el horario de/i), 'salon');
     expect(screen.getByLabelText(/salon/i)).toBeInTheDocument();
     await userEvent.selectOptions(screen.getByLabelText(/ver el horario de/i), 'docente');

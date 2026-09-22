@@ -75,7 +75,7 @@ describe('Calendario', () => {
 
   it('coordinacion si puede cambiar el tipo de un dia', async () => {
     localStorage.setItem('ggm.session', JSON.stringify({
-      token: 't', refreshToken: 'r', role: 'COORDINADOR',
+      token: 't', refreshToken: 'r', role: 'ADMIN',
       fullName: 'Coordinacion', userId: 2, mustChangePassword: false,
     }));
     const puts: unknown[] = [];
@@ -131,7 +131,7 @@ describe('Calendario', () => {
 
   it('muestra el dia de ciclo y coordinacion lo puede fijar solo para ese dia', async () => {
     localStorage.setItem('ggm.session', JSON.stringify({
-      token: 't', refreshToken: 'r', role: 'COORDINADOR',
+      token: 't', refreshToken: 'r', role: 'ADMIN',
       fullName: 'Coord', userId: 1, mustChangePassword: false,
     }));
     const fetchMock = vi.fn(async () => respuesta(DIAS));

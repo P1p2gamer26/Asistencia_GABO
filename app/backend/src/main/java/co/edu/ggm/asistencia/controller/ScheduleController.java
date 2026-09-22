@@ -85,7 +85,7 @@ public class ScheduleController {
     }
 
     private static void exigirCoordinacion(String mensaje) {
-        if (!tieneRol("ROLE_COORDINADOR") && !tieneRol("ROLE_ADMIN")) {
+        if (!tieneRol("ROLE_ADMIN")) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, mensaje);
         }
     }

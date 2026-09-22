@@ -45,7 +45,7 @@ class ConsultasAvanzadasTest extends AbstractIntegrationTest {
             """, ALUMNO);
     }
 
-    private String coord() { return tokenDe("coord@ggm.edu.co", "COORDINADOR"); }
+    private String coord() { return tokenDe("coord@ggm.edu.co", "ADMIN"); }
 
     @Test
     void busca_por_trozo_de_nombre_sin_acentos_ni_mayusculas() throws Exception {

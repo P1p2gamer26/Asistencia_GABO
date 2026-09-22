@@ -1,4 +1,4 @@
-export type Role = 'ADMIN' | 'COORDINADOR' | 'DOCENTE' | 'ACUDIENTE';
+export type Role = 'ADMIN' | 'DOCENTE' | 'ACUDIENTE';
 export type Status = 'P' | 'T' | 'F' | 'E';
 export type DayType = 'LECTIVO' | 'FESTIVO' | 'VACACIONES' | 'INSTITUCIONAL' | 'SUSPENDIDO';
 

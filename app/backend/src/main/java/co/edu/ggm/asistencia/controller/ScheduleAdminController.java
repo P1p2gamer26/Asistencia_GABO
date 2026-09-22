@@ -21,7 +21,7 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/admin/schedule")
-@PreAuthorize("hasAnyRole('COORDINADOR', 'ADMIN')")
+@PreAuthorize("hasRole('ADMIN')")
 public class ScheduleAdminController {
 
     private final ScheduleAdminService service;

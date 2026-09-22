@@ -86,9 +86,9 @@ class AdminUserTest extends AbstractIntegrationTest {
     void el_listado_filtra_por_rol() throws Exception {
         mvc.perform(post("/api/admin/users").header("Authorization", admin())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(crear("coordi@admintest.co", "COORDINADOR"))).andExpect(status().isOk());
+                .content(crear("coordi@admintest.co", "ADMIN"))).andExpect(status().isOk());
 
-        mvc.perform(get("/api/admin/users").param("role", "COORDINADOR")
+        mvc.perform(get("/api/admin/users").param("role", "ADMIN")
                         .header("Authorization", admin()))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$[?(@.email=='coordi@admintest.co')]").exists())
@@ -114,9 +114,9 @@ class AdminUserTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void un_coordinador_no_puede_administrar_usuarios() throws Exception {
+    void un_docente_no_puede_administrar_usuarios() throws Exception {
         mvc.perform(get("/api/admin/users")
-                        .header("Authorization", tokenDe("coord@ggm.edu.co", "COORDINADOR")))
+                        .header("Authorization", tokenDe("fpalacios@ggm.edu.co", "DOCENTE")))
            .andExpect(status().isForbidden());
     }
 }

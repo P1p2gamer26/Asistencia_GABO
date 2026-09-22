@@ -124,12 +124,12 @@ describe('PanelUsuarios', () => {
     const nombre = within(fila).getByLabelText(/editar nombre/i);
     await userEvent.clear(nombre);
     await userEvent.type(nombre, 'Francisco Palacios Suárez');
-    await userEvent.selectOptions(within(fila).getByLabelText(/editar rol/i), 'COORDINADOR');
+    await userEvent.selectOptions(within(fila).getByLabelText(/editar rol/i), 'ADMIN');
     await userEvent.click(within(fila).getByRole('button', { name: /guardar/i }));
 
     await waitFor(() => expect(puts).toHaveLength(1));
     expect(puts[0]).toMatchObject({
-      fullName: 'Francisco Palacios Suárez', role: 'COORDINADOR', active: true,
+      fullName: 'Francisco Palacios Suárez', role: 'ADMIN', active: true,
     });
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/guardado/i));
   });

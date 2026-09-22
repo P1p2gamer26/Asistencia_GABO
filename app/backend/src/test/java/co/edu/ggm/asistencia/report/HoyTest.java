@@ -193,7 +193,7 @@ class HoyTest extends AbstractIntegrationTest {
     @Test
     void coordinacion_si_puede() throws Exception {
         mvc.perform(get("/api/reports/today")
-                        .header("Authorization", tokenDe("coord@ggm.edu.co", "COORDINADOR")))
+                        .header("Authorization", tokenDe("coord@ggm.edu.co", "ADMIN")))
            .andExpect(status().isOk());
     }
 

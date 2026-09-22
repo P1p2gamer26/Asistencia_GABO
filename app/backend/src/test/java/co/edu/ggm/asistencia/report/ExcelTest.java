@@ -48,7 +48,7 @@ class ExcelTest extends AbstractIntegrationTest {
 
     private byte[] descargar(String... params) throws Exception {
         var peticion = get("/api/reports/excel")
-                .header("Authorization", tokenDe("coord@ggm.edu.co", "COORDINADOR"))
+                .header("Authorization", tokenDe("coord@ggm.edu.co", "ADMIN"))
                 .param("from", "2026-06-01").param("to", "2026-06-03");
         for (int i = 0; i < params.length; i += 2) peticion = peticion.param(params[i], params[i + 1]);
         return mvc.perform(peticion).andExpect(status().isOk())
@@ -159,7 +159,7 @@ class ExcelTest extends AbstractIntegrationTest {
     @Test
     void el_informe_individual_exige_studentId() throws Exception {
         mvc.perform(get("/api/reports/excel")
-                        .header("Authorization", tokenDe("coord@ggm.edu.co", "COORDINADOR"))
+                        .header("Authorization", tokenDe("coord@ggm.edu.co", "ADMIN"))
                         .param("tipo", "individual")
                         .param("from", "2026-06-01").param("to", "2026-06-03"))
            .andExpect(status().isBadRequest());

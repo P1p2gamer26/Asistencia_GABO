@@ -105,7 +105,7 @@ class RecientesTest extends AbstractIntegrationTest {
     @Test
     void coordinacion_ve_las_tomas_de_todos_los_bloques() throws Exception {
         mvc.perform(get("/api/attendance/recientes").param("limite", "50")
-                        .header("Authorization", tokenDe("propio@rca.co", "COORDINADOR")))
+                        .header("Authorization", tokenDe("propio@rca.co", "ADMIN")))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$[?(@.blockId == " + bloquePropio + ")]").exists())
            .andExpect(jsonPath("$[?(@.blockId == " + bloqueAjeno + ")]").exists());
@@ -126,7 +126,7 @@ class RecientesTest extends AbstractIntegrationTest {
     void el_limite_nunca_pasa_de_cincuenta_aunque_se_pida_mas() throws Exception {
         // Un limite absurdo no debe poder arrastrar la base entera al panel lateral.
         mvc.perform(get("/api/attendance/recientes").param("limite", "100000")
-                        .header("Authorization", tokenDe("propio@rca.co", "COORDINADOR")))
+                        .header("Authorization", tokenDe("propio@rca.co", "ADMIN")))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.length()")
                    .value(org.hamcrest.Matchers.lessThanOrEqualTo(50)));

@@ -19,7 +19,7 @@ function respuesta(datos: unknown) {
 
 function pintar() {
   localStorage.setItem('ggm.session', JSON.stringify({
-    token: 't', refreshToken: 'r', role: 'COORDINADOR', fullName: 'Coord Persona',
+    token: 't', refreshToken: 'r', role: 'ADMIN', fullName: 'Coord Persona',
     userId: 9, mustChangePassword: false,
   }));
   return render(
