@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import type { AdminUser, Role } from '../../api/contract';
 
-const ROLES: Role[] = ['ADMIN', 'COORDINADOR', 'DOCENTE', 'ACUDIENTE'];
+const ROLES: Role[] = ['ADMIN', 'DOCENTE', 'ACUDIENTE'];
 
 type PanelUsuariosProps = {
   onAsignarHorario?: (docente: AdminUser) => void;

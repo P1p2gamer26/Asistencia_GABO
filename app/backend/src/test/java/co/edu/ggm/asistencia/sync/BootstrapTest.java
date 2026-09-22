@@ -62,7 +62,7 @@ class BootstrapTest extends AbstractIntegrationTest {
     void el_coordinador_recibe_bloques_de_mas_de_un_curso() throws Exception {
         sembrarSegundoDocenteConOtroCurso();
 
-        String json = mvc.perform(get("/api/sync/bootstrap").header("Authorization", tokenDe("coord@ggm.edu.co", "COORDINADOR")))
+        String json = mvc.perform(get("/api/sync/bootstrap").header("Authorization", tokenDe("coord@ggm.edu.co", "ADMIN")))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();

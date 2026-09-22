@@ -23,7 +23,7 @@ export default function Horario() {
   const [cargando, setCargando] = useState(true);
   const [hoy, setHoy] = useState<number | null>(null);
 
-  const puedeVerCursos = ['COORDINADOR', 'ADMIN'].includes(getSession()?.role ?? '');
+  const puedeVerCursos = getSession()?.role === 'ADMIN';
   useEffect(() => {
     void db.schoolDays.get(new Date().toLocaleDateString('en-CA'))
       .then((dia) => setHoy(dia?.cycleDay ?? null));

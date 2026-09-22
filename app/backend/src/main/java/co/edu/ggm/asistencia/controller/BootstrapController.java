@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api")
-@PreAuthorize("hasAnyRole('DOCENTE','COORDINADOR','ADMIN')")
+@PreAuthorize("hasAnyRole('DOCENTE','ADMIN')")
 public class BootstrapController {
 
     private final ScheduleRepository schedules;
@@ -45,7 +45,7 @@ public class BootstrapController {
         // asistencia por cualquiera de ellos, no solo los que tengan asignados a su
         // propio nombre (que normalmente son cero). El docente sigue viendo solo lo
         // suyo: es la unica via que impide que un docente vea datos de otro curso.
-        boolean vecTodoElColegio = tieneRol("ROLE_COORDINADOR") || tieneRol("ROLE_ADMIN");
+        boolean vecTodoElColegio = tieneRol("ROLE_ADMIN");
 
         List<ScheduleBlock> myBlocks = vecTodoElColegio
                 ? schedules.findAllByOrderByWeekdayAscBlockNoAsc()

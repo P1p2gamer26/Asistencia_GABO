@@ -65,7 +65,7 @@ class CalendarTest extends AbstractIntegrationTest {
         mvc.perform(put("/api/calendar/school-days/2026-09-15")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"dayType\":\"SUSPENDIDO\",\"description\":\"Paro de transporte\"}")
-                        .header("Authorization", token("coord@ggm.edu.co", "COORDINADOR")))
+                        .header("Authorization", token("coord@ggm.edu.co", "ADMIN")))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.dayType").value("SUSPENDIDO"));
 

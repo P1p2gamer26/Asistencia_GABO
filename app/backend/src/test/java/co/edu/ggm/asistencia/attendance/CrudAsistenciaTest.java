@@ -194,7 +194,7 @@ class CrudAsistenciaTest extends AbstractIntegrationTest {
         preparar();
         UUID id = marcar(bloqueAjeno, otroDocenteId);
         mvc.perform(put("/api/attendance/" + id)
-                        .header("Authorization", tokenDe("coord@ggm.edu.co", "COORDINADOR"))
+                        .header("Authorization", tokenDe("coord@ggm.edu.co", "ADMIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"status\":\"T\"}"))
            .andExpect(status().isOk());

@@ -77,7 +77,7 @@ class HorarioTest extends AbstractIntegrationTest {
     void coordinacion_puede_pedir_el_horario_de_un_curso_con_el_nombre_del_docente()
             throws Exception {
         mvc.perform(get("/api/schedule/week").param("grade", "888")
-                        .header("Authorization", tokenDe("coord@ggm.edu.co", "COORDINADOR")))
+                        .header("Authorization", tokenDe("coord@ggm.edu.co", "ADMIN")))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$[0].teacherName").value("Pepito Perez"))
            .andExpect(jsonPath("$[0].room").value("AulaHorarioTest"));
@@ -88,7 +88,7 @@ class HorarioTest extends AbstractIntegrationTest {
         // Desde /horario un admin o coordinador elige un docente y pide su semana:
         // el /api/schedule/week sin `grade` y con `teacherId` debe devolver solo sus bloques.
         mvc.perform(get("/api/schedule/week").param("teacherId", docenteId.toString())
-                        .header("Authorization", tokenDe("coord@ggm.edu.co", "COORDINADOR")))
+                        .header("Authorization", tokenDe("coord@ggm.edu.co", "ADMIN")))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$[0].grade").value("888"))
            .andExpect(jsonPath("$[0].subject").value("CienciasHorario"))
@@ -117,7 +117,7 @@ class HorarioTest extends AbstractIntegrationTest {
     @Test
     void coordinacion_ve_el_salon_de_prueba_y_cuenta_los_bloques_sin_aula() throws Exception {
         mvc.perform(get("/api/schedule/rooms")
-                        .header("Authorization", tokenDe("coord@ggm.edu.co", "COORDINADOR")))
+                        .header("Authorization", tokenDe("coord@ggm.edu.co", "ADMIN")))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.rooms").value(org.hamcrest.Matchers.hasItem("AulaHorarioTest")))
            .andExpect(jsonPath("$.withoutRoom").value(org.hamcrest.Matchers.greaterThanOrEqualTo(1)));
@@ -133,7 +133,7 @@ class HorarioTest extends AbstractIntegrationTest {
     @Test
     void coordinacion_ve_la_lista_de_cursos_con_el_grado_de_prueba() throws Exception {
         mvc.perform(get("/api/schedule/grades")
-                        .header("Authorization", tokenDe("coord@ggm.edu.co", "COORDINADOR")))
+                        .header("Authorization", tokenDe("coord@ggm.edu.co", "ADMIN")))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$[?(@=='888')]").exists());
     }
@@ -148,7 +148,7 @@ class HorarioTest extends AbstractIntegrationTest {
     @Test
     void coordinacion_puede_ver_el_detalle_de_un_salon() throws Exception {
         mvc.perform(get("/api/schedule/week").param("room", "AulaHorarioTest")
-                        .header("Authorization", tokenDe("coord@ggm.edu.co", "COORDINADOR")))
+                        .header("Authorization", tokenDe("coord@ggm.edu.co", "ADMIN")))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$[0].grade").value("888"))
            .andExpect(jsonPath("$[0].subject").value("CienciasHorario"))

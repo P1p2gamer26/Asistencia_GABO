@@ -30,7 +30,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/reports")
-@PreAuthorize("hasAnyRole('DOCENTE','COORDINADOR','ADMIN')")
+@PreAuthorize("hasAnyRole('DOCENTE','ADMIN')")
 public class ReportController {
 
     private static final ZoneId BOGOTA = ZoneId.of("America/Bogota");
@@ -272,7 +272,7 @@ public class ReportController {
     }
 
     @GetMapping("/dashboard")
-    @PreAuthorize("hasAnyRole('COORDINADOR','ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public DashboardService.Dashboard dashboard(
             @RequestParam(required = false) String grade,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
@@ -281,13 +281,13 @@ public class ReportController {
     }
 
     @GetMapping("/today")
-    @PreAuthorize("hasAnyRole('COORDINADOR','ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public TodayService.ResumenDeHoy today() {
         return todayService.resumen(LocalDate.now(TodayService.BOGOTA));
     }
 
     @GetMapping("/novedades")
-    @PreAuthorize("hasAnyRole('COORDINADOR','ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public NovedadesService.Reporte novedades(
             @RequestParam(required = false, defaultValue = "7") int dias,
             @RequestParam(required = false, defaultValue = "10") int limite) {

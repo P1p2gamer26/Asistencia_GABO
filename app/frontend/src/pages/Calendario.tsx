@@ -42,7 +42,7 @@ export default function Calendario({ hoy = new Date() }: { hoy?: Date }) {
   const [cargando, setCargando] = useState(true);
 
   const sesion = getSession();
-  const puedeEditar = ['COORDINADOR', 'ADMIN'].includes(sesion?.role ?? '');
+  const puedeEditar = sesion?.role === 'ADMIN';
 
   const primero = new Date(anio, mes, 1);
   const ultimo = new Date(anio, mes + 1, 0);

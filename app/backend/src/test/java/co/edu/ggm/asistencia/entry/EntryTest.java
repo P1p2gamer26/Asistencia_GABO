@@ -25,7 +25,7 @@ class EntryTest extends AbstractIntegrationTest {
 
     private String token() {
         var u = users.findByEmailAndActiveTrue("coord@ggm.edu.co").orElseThrow();
-        return "Bearer " + jwt.issueAccess(u.getId(), "COORDINADOR");
+        return "Bearer " + jwt.issueAccess(u.getId(), "ADMIN");
     }
 
     private String lote(String uuid, String documento) {

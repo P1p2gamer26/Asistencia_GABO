@@ -28,7 +28,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/attendance")
-@PreAuthorize("hasAnyRole('DOCENTE','COORDINADOR','ADMIN')")
+@PreAuthorize("hasAnyRole('DOCENTE','ADMIN')")
 public class AttendanceController {
 
     private static final Logger log = LoggerFactory.getLogger(AttendanceController.class);
@@ -58,7 +58,7 @@ public class AttendanceController {
      */
     private void exigirPermiso(co.edu.ggm.asistencia.model.Attendance a) {
         String role = currentRole();
-        if ("ADMIN".equals(role) || "COORDINADOR".equals(role)) return;
+        if ("ADMIN".equals(role)) return;
         Long userId = JwtService.currentUserId();
         ScheduleBlock bloque = blocks.findById(a.getScheduleBlockId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Bloque inexistente"));
@@ -139,7 +139,7 @@ public class AttendanceController {
     @GetMapping("/recientes")
     public List<SesionDto> recientes(@RequestParam(defaultValue = "15") int limite) {
         String role = currentRole();
-        Long teacherId = ("ADMIN".equals(role) || "COORDINADOR".equals(role))
+        Long teacherId = ("ADMIN".equals(role))
                 ? null : JwtService.currentUserId();
         return repo.ultimasSesiones(teacherId, Math.min(Math.max(limite, 1), 50)).stream()
                 .map(r -> new SesionDto(r.getBlockId(), r.getGrade(), r.getBlockNo(), r.getSubject(),

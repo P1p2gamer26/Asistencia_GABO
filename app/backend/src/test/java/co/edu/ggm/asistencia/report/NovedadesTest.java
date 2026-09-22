@@ -257,7 +257,7 @@ class NovedadesTest extends AbstractIntegrationTest {
     @Test
     void coordinacion_si_puede_y_el_contrato_trae_curso_y_evasiones() throws Exception {
         mvc.perform(get("/api/reports/novedades").param("dias", "365").param("limite", "10")
-                        .header("Authorization", tokenDe("coord@ggm.edu.co", "COORDINADOR")))
+                        .header("Authorization", tokenDe("coord@ggm.edu.co", "ADMIN")))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.evasiones").exists())
            .andExpect(jsonPath("$.ausencias").exists())

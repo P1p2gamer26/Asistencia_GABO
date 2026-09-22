@@ -18,7 +18,7 @@ function respuesta(datos: unknown) {
 describe('Consultas', () => {
   beforeEach(() => {
     localStorage.setItem('ggm.session', JSON.stringify({
-      token: 't', refreshToken: 'r', role: 'COORDINADOR',
+      token: 't', refreshToken: 'r', role: 'ADMIN',
       fullName: 'Coordinacion', userId: 2, mustChangePassword: false,
     }));
   });

@@ -42,7 +42,7 @@ public class CalendarController {
     }
 
     @PutMapping("/school-days/{date}")
-    @PreAuthorize("hasAnyRole('ADMIN','COORDINADOR')")
+    @PreAuthorize("hasRole('ADMIN')")
     public DayDto update(@PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
                          @Valid @RequestBody UpdateRequest req) {
         var d = service.update(date, req.dayType(), req.description(), JwtService.currentUserId());
@@ -51,7 +51,7 @@ public class CalendarController {
     }
 
     @PutMapping("/school-days/{date}/cycle-day")
-    @PreAuthorize("hasAnyRole('ADMIN','COORDINADOR')")
+    @PreAuthorize("hasRole('ADMIN')")
     public DayDto fijarCiclo(@PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
                              @RequestBody CycleRequest req) {
         service.fijarDiaCiclo(date, req.cycleDay(), req.cascada(), JwtService.currentUserId());
@@ -59,7 +59,7 @@ public class CalendarController {
     }
 
     @PutMapping("/school-days")
-    @PreAuthorize("hasAnyRole('ADMIN','COORDINADOR')")
+    @PreAuthorize("hasRole('ADMIN')")
     public Map<String, Integer> updateRange(@Valid @RequestBody RangeRequest req) {
         if (req.to().isBefore(req.from())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El rango esta al reves");

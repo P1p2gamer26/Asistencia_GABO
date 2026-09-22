@@ -64,7 +64,7 @@ class HorarioAdminTest extends AbstractIntegrationTest {
     @Test
     void coordinador_crea_un_bloque_y_queda_su_autoria() throws Exception {
         mvc.perform(post("/api/admin/schedule")
-                        .header("Authorization", tokenDe("coord@ggm.edu.co", "COORDINADOR"))
+                        .header("Authorization", tokenDe("coord@ggm.edu.co", "ADMIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(cuerpo("889", 1, 1, "07:00", "07:50", docenteId, "AulaHorarioAdmin1")))
            .andExpect(status().isCreated())
@@ -98,7 +98,7 @@ class HorarioAdminTest extends AbstractIntegrationTest {
     void editar_actualiza_quien_modifico_sin_perder_quien_creo() throws Exception {
         Long id = crearBloque("889", 1, 4, "07:00", "07:50", docenteId, "AulaHorarioAdmin4");
         mvc.perform(put("/api/admin/schedule/" + id)
-                        .header("Authorization", tokenDe("coord@ggm.edu.co", "COORDINADOR"))
+                        .header("Authorization", tokenDe("coord@ggm.edu.co", "ADMIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(cuerpo("889", 1, 4, "07:00", "07:55", docenteId, "AulaHorarioAdmin4")))
            .andExpect(status().isOk())
@@ -127,12 +127,12 @@ class HorarioAdminTest extends AbstractIntegrationTest {
                 """, studentId, id, docenteId);
 
         mvc.perform(delete("/api/admin/schedule/" + id)
-                        .header("Authorization", tokenDe("coord@ggm.edu.co", "COORDINADOR")))
+                        .header("Authorization", tokenDe("coord@ggm.edu.co", "ADMIN")))
            .andExpect(status().isConflict())
            .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("1")));
 
         mvc.perform(get("/api/admin/schedule").param("grade", "889Z")
-                        .header("Authorization", tokenDe("coord@ggm.edu.co", "COORDINADOR")))
+                        .header("Authorization", tokenDe("coord@ggm.edu.co", "ADMIN")))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$[?(@.id==" + id + ")]").exists());
     }
@@ -141,7 +141,7 @@ class HorarioAdminTest extends AbstractIntegrationTest {
     void crear_un_bloque_que_choca_con_el_mismo_docente_se_rechaza_y_dice_con_cual() throws Exception {
         crearBloque("889", 2, 1, "07:00", "07:50", docenteId, "AulaHorarioAdmin6");
         mvc.perform(post("/api/admin/schedule")
-                        .header("Authorization", tokenDe("coord@ggm.edu.co", "COORDINADOR"))
+                        .header("Authorization", tokenDe("coord@ggm.edu.co", "ADMIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(cuerpo("889B", 2, 1, "07:00", "07:50", docenteId, "AulaHorarioAdmin7")))
            .andExpect(status().isConflict())
@@ -152,7 +152,7 @@ class HorarioAdminTest extends AbstractIntegrationTest {
     void crear_un_bloque_que_choca_de_aula_se_rechaza_y_dice_con_cual() throws Exception {
         crearBloque("889", 3, 1, "07:00", "07:50", docenteId, "AulaHorarioAdmin8");
         mvc.perform(post("/api/admin/schedule")
-                        .header("Authorization", tokenDe("coord@ggm.edu.co", "COORDINADOR"))
+                        .header("Authorization", tokenDe("coord@ggm.edu.co", "ADMIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(cuerpo("889B", 3, 1, "07:00", "07:50", otroDocenteId, "AulaHorarioAdmin8")))
            .andExpect(status().isConflict())
@@ -168,7 +168,7 @@ class HorarioAdminTest extends AbstractIntegrationTest {
                 """, materiaId, docenteId);
 
         mvc.perform(get("/api/admin/schedule").param("grade", "889")
-                        .header("Authorization", tokenDe("coord@ggm.edu.co", "COORDINADOR")))
+                        .header("Authorization", tokenDe("coord@ggm.edu.co", "ADMIN")))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$[?(@.weekday==4 && @.createdBy)]").doesNotExist());
     }
@@ -176,7 +176,7 @@ class HorarioAdminTest extends AbstractIntegrationTest {
     private Long crearBloque(String grade, int weekday, int blockNo, String start, String end,
                              Long teacherId, String room) throws Exception {
         String respuesta = mvc.perform(post("/api/admin/schedule")
-                        .header("Authorization", tokenDe("coord@ggm.edu.co", "COORDINADOR"))
+                        .header("Authorization", tokenDe("coord@ggm.edu.co", "ADMIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(cuerpo(grade, weekday, blockNo, start, end, teacherId, room)))
                 .andExpect(status().isCreated())

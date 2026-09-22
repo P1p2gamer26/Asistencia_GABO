@@ -24,7 +24,7 @@ class DashboardTest extends AbstractIntegrationTest {
 
     private String tokenCoord() {
         var u = users.findByEmailAndActiveTrue("coord@ggm.edu.co").orElseThrow();
-        return "Bearer " + jwt.issueAccess(u.getId(), "COORDINADOR");
+        return "Bearer " + jwt.issueAccess(u.getId(), "ADMIN");
     }
 
     @BeforeEach

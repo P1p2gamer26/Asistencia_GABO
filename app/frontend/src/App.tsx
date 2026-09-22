@@ -19,7 +19,7 @@ import InicioDocente from './pages/InicioDocente';
 import Portal from './pages/Portal';
 import Layout from './components/Layout';
 
-const PERSONAL = ['DOCENTE', 'COORDINADOR', 'ADMIN'];
+const PERSONAL = ['DOCENTE', 'ADMIN'];
 
 /** Con la contrasena temporal no se puede hacer nada mas que cambiarla. */
 function useDesvioPorClave(session: ReturnType<typeof getSession>) {
@@ -44,7 +44,7 @@ function Inicio() {
   if (session.role === 'ACUDIENTE') return <Layout><Padre /></Layout>;
   // Coordinacion y administracion entran preguntando "como va hoy"; el docente entra
   // a tomar la lista, asi que su inicio sigue siendo el de siempre.
-  if (session.role === 'ADMIN' || session.role === 'COORDINADOR') return <Layout><InicioAdmin /></Layout>;
+  if (session.role === 'ADMIN') return <Layout><InicioAdmin /></Layout>;
   // El docente llega preguntando donde tiene clase hoy y que ya marco.
   if (session.role === 'DOCENTE') return <Layout><InicioDocente /></Layout>;
   return <Navigate to="/login" replace />;
@@ -74,7 +74,7 @@ export default function App() {
       <Route path="/consultas"
              element={<SoloRoles roles={PERSONAL}><Consultas /></SoloRoles>} />
       <Route path="/dashboard"
-             element={<SoloRoles roles={['COORDINADOR', 'ADMIN']}><Dashboard /></SoloRoles>} />
+             element={<SoloRoles roles={['ADMIN']}><Dashboard /></SoloRoles>} />
       <Route path="/admin" element={<SoloRoles roles={['ADMIN']}><Admin /></SoloRoles>} />
       {/* Calendario publico en solo lectura: sin sesion se ve sin el menu lateral. */}
       <Route path="/calendario" element={getSession() ? <Protegida><Calendario /></Protegida> : <Calendario />} />
