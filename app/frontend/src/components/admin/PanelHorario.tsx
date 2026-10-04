@@ -10,14 +10,22 @@ const VACIO = {
   subjectId: '', teacherId: '', room: '',
 };
 
-export default function PanelHorario() {
+type PanelHorarioProps = {
+  docenteInicial?: AdminUser;
+};
+
+export default function PanelHorario({ docenteInicial }: PanelHorarioProps) {
   const [bloques, setBloques] = useState<ScheduleBlockAdmin[]>([]);
   const [materias, setMaterias] = useState<Materia[]>([]);
   const [docentes, setDocentes] = useState<AdminUser[]>([]);
   const [filtroGrado, setFiltroGrado] = useState('');
-  const [filtroDocente, setFiltroDocente] = useState('');
+  const [filtroDocente, setFiltroDocente] = useState(() =>
+    docenteInicial ? String(docenteInicial.id) : '');
   const [editandoId, setEditandoId] = useState<number | null>(null);
-  const [form, setForm] = useState(VACIO);
+  const [form, setForm] = useState(() => ({
+    ...VACIO,
+    teacherId: docenteInicial ? String(docenteInicial.id) : '',
+  }));
   const [error, setError] = useState('');
   const [aviso, setAviso] = useState('');
 
@@ -154,11 +162,11 @@ export default function PanelHorario() {
         <label htmlFor="ha">Aula (opcional)</label>
         <input id="ha" value={form.room}
                onChange={(e) => setForm({ ...form, room: e.target.value })} />
-        <button type="submit" style={{ gridColumn: '1 / -1' }}>
+        <button type="submit" className="ocupa-todo">
           {editandoId != null ? 'Guardar cambios' : 'Crear bloque'}
         </button>
         {editandoId != null && (
-          <button type="button" className="secundario" style={{ gridColumn: '1 / -1' }}
+          <button type="button" className="secundario ocupa-todo"
                   onClick={cancelar}>
             Cancelar edicion
           </button>
@@ -168,7 +176,7 @@ export default function PanelHorario() {
       {aviso && <p className="banner pendiente" role="status">{aviso}</p>}
       {error && <p role="alert" className="error">{error}</p>}
 
-      <div className="leyenda" style={{ marginTop: 16 }}>
+      <div className="leyenda mt-4">
         <input aria-label="Filtrar por curso" placeholder="Filtrar por curso"
                value={filtroGrado} onChange={(e) => setFiltroGrado(e.target.value)} />
         <select aria-label="Filtrar por docente" value={filtroDocente}
@@ -199,13 +207,11 @@ export default function PanelHorario() {
                 <td>{b.createdByName ? `${b.createdByName} (${b.createdAt?.slice(0, 10)})` : 'Sin registro'}</td>
                 <td>{b.updatedByName ? `${b.updatedByName} (${b.updatedAt?.slice(0, 10)})` : 'Sin registro'}</td>
                 <td>
-                  <button type="button" className="secundario"
-                          style={{ minHeight: 32, padding: '4px 10px', marginRight: 6 }}
+                  <button type="button" className="secundario chico"
                           onClick={() => iniciarEdicion(b)}>
                     Editar
                   </button>
-                  <button type="button" className="secundario"
-                          style={{ minHeight: 32, padding: '4px 10px' }}
+                  <button type="button" className="secundario chico"
                           onClick={() => void borrar(b)}>
                     Borrar
                   </button>

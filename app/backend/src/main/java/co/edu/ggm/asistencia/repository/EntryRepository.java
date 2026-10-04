@@ -5,6 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -19,10 +21,12 @@ public interface EntryRepository extends JpaRepository<EntryLog, UUID> {
     Optional<EntryLog> findByStudentIdAndEntryDate(Long studentId, LocalDate entryDate);
 
     @Modifying
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     @Query(value = """
             INSERT INTO entry_log (id, student_id, entry_date, scanned_at, recorded_by)
             VALUES (:id, :studentId, :entryDate, :scannedAt, :recordedBy)
-            ON CONFLICT ON CONSTRAINT entry_unique_day DO NOTHING
+            ON CONFLICT ON CONSTRAINT entry_unique_day DO UPDATE
+                SET scanned_at = LEAST(entry_log.scanned_at, EXCLUDED.scanned_at)
             """, nativeQuery = true)
     void upsert(@Param("id") UUID id,
                 @Param("studentId") Long studentId,

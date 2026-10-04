@@ -30,6 +30,10 @@ function setSession(s: Session) {
 
 /** Error de red: la peticion no llego. Distinto de un error del servidor. */
 export class OfflineError extends Error {}
+/** Respuesta HTTP que llego al servidor; conserva el estado para aislar lotes 400. */
+export class HttpError extends Error {
+  constructor(message: string, public readonly status: number) { super(message); }
+}
 
 async function request<T>(path: string, init: RequestInit, retry = true): Promise<T> {
   const session = getSession();
@@ -59,7 +63,7 @@ async function request<T>(path: string, init: RequestInit, retry = true): Promis
     // "Error 409" y quien edita no sabria con que choca.
     let detail: string | undefined;
     try { detail = ((await res.json()) as { detail?: string }).detail; } catch { /* sin cuerpo JSON */ }
-    throw new Error(detail ?? `Error ${res.status}`);
+    throw new HttpError(detail ?? `Error ${res.status}`, res.status);
   }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
@@ -81,15 +85,19 @@ const SIN_RESPALDO = ['/api/attendance?', '/api/attendance/detalle'];
 
 export const api = {
   async login(email: string, password: string): Promise<Session> {
-    const res = await fetch(apiUrl('/api/auth/login'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
-    if (!res.ok) throw new Error('Correo o contrasena incorrectos');
-    const session = (await res.json()) as Session;
-    setSession(session);
-    return session;
+    try {
+      const res = await fetch(apiUrl('/api/auth/login'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      if (!res.ok) throw new Error('Correo o contrasena incorrectos');
+      const session = (await res.json()) as Session;
+      setSession(session);
+      return session;
+    } catch {
+      throw new Error('Sin conexion: se necesita internet para iniciar sesion');
+    }
   },
   /**
    * GET con respaldo local: si el servidor no se alcanza, devuelve la ultima
@@ -110,11 +118,11 @@ export const api = {
       // navegador con el almacenamiento bloqueado), guardar el respaldo falla y esa
       // promesa suelta se convertiria en un rechazo no capturado. Guardar la copia es
       // una comodidad; nunca puede afectar a la peticion que sí funciono.
-      if (conRespaldo) void guardarLectura(path, datos).catch(() => {});
+      if (conRespaldo) void guardarLectura(path, datos, getSession()?.userId).catch(() => {});
       return datos;
     } catch (e) {
       if (!conRespaldo || !(e instanceof OfflineError)) throw e;
-      const guardado = await ultimaLectura<T>(path).catch(() => null);
+      const guardado = await ultimaLectura<T>(path, getSession()?.userId).catch(() => null);
       if (!guardado) throw e;   // sin respaldo, la pantalla debe decir que no hay datos
       return guardado.datos;
     }

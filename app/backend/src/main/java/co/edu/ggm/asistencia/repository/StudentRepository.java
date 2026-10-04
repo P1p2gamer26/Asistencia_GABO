@@ -59,7 +59,7 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
             FROM attendance a
             JOIN schedule_blocks b ON b.id = a.schedule_block_id
             JOIN subjects sub ON sub.id = b.subject_id
-            WHERE a.student_id = :studentId AND a.class_date BETWEEN :from AND :to
+            WHERE a.student_id = :studentId AND a.class_date BETWEEN :from AND :to AND a.deleted_at IS NULL
             ORDER BY a.class_date DESC
             """, nativeQuery = true)
     List<RecentMark> recentAttendance(@Param("studentId") Long studentId,
@@ -69,7 +69,7 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     @Query(value = """
             SELECT count(DISTINCT a.class_date)
             FROM attendance a
-            WHERE a.student_id = :studentId AND a.class_date BETWEEN :from AND :to
+            WHERE a.student_id = :studentId AND a.class_date BETWEEN :from AND :to AND a.deleted_at IS NULL
             """, nativeQuery = true)
     int countRecordedDays(@Param("studentId") Long studentId,
                           @Param("from") java.time.LocalDate from,

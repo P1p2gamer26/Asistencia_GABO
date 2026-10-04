@@ -66,7 +66,7 @@ public interface ScheduleRepository extends JpaRepository<ScheduleBlock, Long> {
                      WHERE st.grade = b.grade AND st.active) AS estudiantes,
                    (SELECT count(*) FROM attendance a
                      JOIN students st2 ON st2.id = a.student_id AND st2.active
-                     WHERE a.schedule_block_id = b.id AND a.class_date = :fecha) AS marcados
+                     WHERE a.schedule_block_id = b.id AND a.class_date = :fecha AND a.deleted_at IS NULL) AS marcados
               FROM schedule_blocks b
               JOIN subjects s ON s.id = b.subject_id
              WHERE b.teacher_id = :teacherId AND b.weekday = :weekday

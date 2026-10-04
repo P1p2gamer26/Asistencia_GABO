@@ -75,7 +75,7 @@ public class AttendanceController {
      * Deja holgura para un docente que estuvo una semana sin senal, y ataja el caso
      * de un almacen local corrupto, donde cada registro abre su propia transaccion.
      */
-    public record SyncRequest(@NotEmpty @Size(max = 500) List<RecordDto> records) {}
+    public record SyncRequest(@NotEmpty @Size(max = 500) List<@Valid RecordDto> records) {}
     public record Rejection(UUID id, String reason) {}
     public record SyncResult(int accepted, List<Rejection> rejected) {}
     public record SavedDto(UUID id, Long studentId, String status, String comment) {}
@@ -96,13 +96,19 @@ public class AttendanceController {
         List<Rejection> rejected = new ArrayList<>();
         int accepted = 0;
         for (RecordDto r : req.records()) {
+            if (r == null) {
+                rejected.add(new Rejection(null, "No se pudo guardar"));
+                continue;
+            }
             try {
                 sync.save(r.id(), r.studentId(), r.scheduleBlockId(), r.classDate(),
-                        r.status(), r.comment(), userId, r.recordedAt());
+                        r.status(), r.comment(), userId, "ADMIN".equals(currentRole()), r.recordedAt());
                 accepted++;
-            } catch (RuntimeException e) {
-                log.warn("Registro rechazado {}: {}", r.id(), e.getMessage());
+            } catch (SyncService.SyncRejectedException e) {
                 rejected.add(new Rejection(r.id(), e.getMessage()));
+            } catch (RuntimeException e) {
+                log.warn("No se pudo guardar el registro {}", r.id(), e);
+                rejected.add(new Rejection(r.id(), "No se pudo guardar"));
             }
         }
         return new SyncResult(accepted, rejected);

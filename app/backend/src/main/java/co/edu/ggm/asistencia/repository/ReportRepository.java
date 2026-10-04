@@ -42,7 +42,7 @@ public interface ReportRepository extends Repository<Student, Long> {
                    round(100.0 * count(*) FILTER (WHERE a.status IN ('P','T'))
                          / NULLIF(count(a.status), 0), 1) AS attendanceRate
             FROM students s
-            LEFT JOIN attendance a ON a.student_id = s.id AND a.class_date BETWEEN :from AND :to
+            LEFT JOIN attendance a ON a.student_id = s.id AND a.class_date BETWEEN :from AND :to AND a.deleted_at IS NULL
             WHERE s.active AND (:grade IS NULL OR s.grade = :grade)
             GROUP BY s.id, s.document_id, s.first_name, s.middle_name,
                      s.last_name, s.second_surname, s.grade
@@ -70,7 +70,7 @@ public interface ReportRepository extends Repository<Student, Long> {
                    a.class_date AS classDate,
                    a.status AS status
             FROM students s
-            LEFT JOIN attendance a ON a.student_id = s.id AND a.class_date BETWEEN :from AND :to
+            LEFT JOIN attendance a ON a.student_id = s.id AND a.class_date BETWEEN :from AND :to AND a.deleted_at IS NULL
             WHERE s.active AND (:grade IS NULL OR s.grade = :grade)
             ORDER BY orden_curso(s.grade), s.grade, s.last_name, s.first_name, a.class_date
             """, nativeQuery = true)
@@ -99,6 +99,7 @@ public interface ReportRepository extends Repository<Student, Long> {
             JOIN students s ON s.id = a.student_id
             WHERE a.class_date BETWEEN :from AND :to
               AND a.status IN ('F','E')
+              AND a.deleted_at IS NULL
               AND s.active
               AND (:grade IS NULL OR s.grade = :grade)
             GROUP BY s.id, s.document_id, s.first_name, s.middle_name,
@@ -128,7 +129,7 @@ public interface ReportRepository extends Repository<Student, Long> {
               -- cuando no tenga ninguno: antes bastaba un registro para darlo por
               -- completo y nadie avisaba de los que faltaban.
               AND (SELECT count(*) FROM attendance a
-                    WHERE a.schedule_block_id = b.id AND a.class_date = :day)
+                    WHERE a.schedule_block_id = b.id AND a.class_date = :day AND a.deleted_at IS NULL)
                   < (SELECT count(*) FROM students s
                       WHERE s.grade = b.grade AND s.active)
             ORDER BY b.block_no
@@ -160,7 +161,7 @@ public interface ReportRepository extends Repository<Student, Long> {
             WHERE c.calendar_date IN (:dias)
               AND EXISTS (SELECT 1 FROM students s WHERE s.grade = b.grade AND s.active)
               AND (SELECT count(*) FROM attendance a
-                    WHERE a.schedule_block_id = b.id AND a.class_date = c.calendar_date)
+                    WHERE a.schedule_block_id = b.id AND a.class_date = c.calendar_date AND a.deleted_at IS NULL)
                   < (SELECT count(*) FROM students s WHERE s.grade = b.grade AND s.active)
             ORDER BY c.calendar_date DESC, b.block_no ASC
             """, nativeQuery = true)
@@ -184,6 +185,7 @@ public interface ReportRepository extends Repository<Student, Long> {
             FROM attendance a
             JOIN students s ON s.id = a.student_id
             WHERE a.class_date BETWEEN :from AND :to
+              AND a.deleted_at IS NULL
               AND (:grade IS NULL OR s.grade = :grade)
             GROUP BY s.grade
             ORDER BY orden_curso(s.grade), s.grade
@@ -207,6 +209,7 @@ public interface ReportRepository extends Repository<Student, Long> {
                    count(*) FILTER (WHERE a.status = 'E') AS evasion
             FROM attendance a
             WHERE a.class_date BETWEEN :from AND :to
+              AND a.deleted_at IS NULL
             GROUP BY a.class_date
             ORDER BY a.class_date
             """, nativeQuery = true)
@@ -217,13 +220,14 @@ public interface ReportRepository extends Repository<Student, Long> {
         double getAttendanceRate();
     }
 
-    @Query(value = """
+@Query(value = """
             SELECT a.class_date AS classDate,
                    round(100.0 * count(*) FILTER (WHERE a.status IN ('P','T')) / count(*), 1)
-                     AS attendanceRate
+                      AS attendanceRate
             FROM attendance a
             JOIN students s ON s.id = a.student_id
             WHERE a.class_date BETWEEN :from AND :to
+              AND a.deleted_at IS NULL
               AND (:grade IS NULL OR s.grade = :grade)
             GROUP BY a.class_date
             ORDER BY a.class_date
@@ -240,13 +244,13 @@ public interface ReportRepository extends Repository<Student, Long> {
 
     @Query(value = """
             SELECT count(DISTINCT a.student_id) FROM attendance a
-            WHERE a.class_date = :day AND a.status = 'F'
+            WHERE a.class_date = :day AND a.status = 'F' AND a.deleted_at IS NULL
             """, nativeQuery = true)
     int countAbsentOn(@Param("day") LocalDate day);
 
     @Query(value = """
             SELECT count(*) FROM attendance a
-            WHERE a.status = 'E' AND a.class_date BETWEEN :from AND :to
+            WHERE a.status = 'E' AND a.class_date BETWEEN :from AND :to AND a.deleted_at IS NULL
             """, nativeQuery = true)
     int countEvasions(@Param("from") LocalDate from, @Param("to") LocalDate to);
 
@@ -254,7 +258,7 @@ public interface ReportRepository extends Repository<Student, Long> {
             SELECT count(*) FROM schedule_blocks b
             WHERE b.weekday = :weekday
               AND NOT EXISTS (SELECT 1 FROM attendance a
-                              WHERE a.schedule_block_id = b.id AND a.class_date = :day)
+                              WHERE a.schedule_block_id = b.id AND a.class_date = :day AND a.deleted_at IS NULL)
             """, nativeQuery = true)
     int countBlocksPending(@Param("weekday") int weekday, @Param("day") LocalDate day);
 
@@ -272,7 +276,7 @@ public interface ReportRepository extends Repository<Student, Long> {
             SELECT count(*) FROM schedule_blocks b
             WHERE b.weekday = :weekday
               AND (SELECT count(*) FROM attendance a
-                    WHERE a.schedule_block_id = b.id AND a.class_date = :day)
+                    WHERE a.schedule_block_id = b.id AND a.class_date = :day AND a.deleted_at IS NULL)
                   >= (SELECT count(*) FROM students s WHERE s.grade = b.grade AND s.active)
               AND EXISTS (SELECT 1 FROM students s WHERE s.grade = b.grade AND s.active)
             """, nativeQuery = true)
@@ -297,7 +301,7 @@ public interface ReportRepository extends Repository<Student, Long> {
                    count(DISTINCT student_id) FILTER (WHERE status = 'T') AS tarde,
                    count(DISTINCT student_id) FILTER (WHERE status = 'F') AS ausentes,
                    count(*) FILTER (WHERE status = 'E') AS evasiones
-            FROM attendance WHERE class_date = :day
+            FROM attendance WHERE class_date = :day AND deleted_at IS NULL
             """, nativeQuery = true)
     DayCounts countsOfDay(@Param("day") LocalDate day);
 
@@ -325,7 +329,7 @@ public interface ReportRepository extends Repository<Student, Long> {
             JOIN students s ON s.id = a.student_id
             JOIN schedule_blocks b ON b.id = a.schedule_block_id
             JOIN subjects sub ON sub.id = b.subject_id
-            WHERE a.status = :status AND a.class_date BETWEEN :from AND :to
+            WHERE a.status = :status AND a.class_date BETWEEN :from AND :to AND a.deleted_at IS NULL
             ORDER BY a.class_date DESC
             LIMIT :limite
             """, nativeQuery = true)
@@ -360,7 +364,7 @@ public interface ReportRepository extends Repository<Student, Long> {
                        AND b.weekday = dia_ciclo(a.class_date)) AS totalBloques
             FROM attendance a
             JOIN students s ON s.id = a.student_id
-            WHERE a.status = 'F' AND a.class_date BETWEEN :from AND :to
+            WHERE a.status = 'F' AND a.class_date BETWEEN :from AND :to AND a.deleted_at IS NULL
             GROUP BY s.id, fullName, s.grade, a.class_date
             -- Fecha primero; dentro de la misma fecha, el mas grave (mas bloques
             -- faltados) antes que el leve -- si no, el orden entre empates de
@@ -375,7 +379,7 @@ public interface ReportRepository extends Repository<Student, Long> {
                                                  @Param("limite") int limite);
 
     @Query(value = """
-            SELECT count(*) FROM attendance a WHERE a.class_date BETWEEN :from AND :to
+            SELECT count(*) FROM attendance a WHERE a.class_date BETWEEN :from AND :to AND a.deleted_at IS NULL
             """, nativeQuery = true)
     int countAttendanceRecords(@Param("from") LocalDate from, @Param("to") LocalDate to);
 
@@ -397,6 +401,7 @@ public interface ReportRepository extends Repository<Student, Long> {
                    count(DISTINCT a.class_date)            AS diasRegistrados
               FROM attendance a
              WHERE a.student_id IN (:ids)
+               AND a.deleted_at IS NULL
              GROUP BY a.student_id
             """, nativeQuery = true)
     List<ConteoRow> conteosPorEstudiante(@Param("ids") List<Long> ids);
@@ -426,6 +431,7 @@ public interface ReportRepository extends Repository<Student, Long> {
             FROM school_calendar c
             JOIN attendance a ON a.class_date = c.calendar_date
             WHERE c.day_type <> 'LECTIVO' AND c.calendar_date BETWEEN :from AND :to
+              AND a.deleted_at IS NULL
             GROUP BY c.calendar_date, c.day_type
             ORDER BY c.calendar_date
             """, nativeQuery = true)
@@ -440,7 +446,7 @@ public interface ReportRepository extends Repository<Student, Long> {
                    count(*) FILTER (WHERE a.status = 'E') AS evasion
             FROM (SELECT DISTINCT grade FROM students WHERE active) g
             LEFT JOIN students s ON s.grade = g.grade AND s.active
-            LEFT JOIN attendance a ON a.student_id = s.id AND a.class_date BETWEEN :from AND :to
+            LEFT JOIN attendance a ON a.student_id = s.id AND a.class_date BETWEEN :from AND :to AND a.deleted_at IS NULL
             GROUP BY g.grade
             ORDER BY orden_curso(g.grade), g.grade
             """, nativeQuery = true)

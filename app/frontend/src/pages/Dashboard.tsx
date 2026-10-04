@@ -6,12 +6,19 @@ import Kpi from '../components/charts/Kpi';
 import BarrasPorCurso from '../components/charts/BarrasPorCurso';
 import LineaTendencia from '../components/charts/LineaTendencia';
 
-const hoyISO = () => new Date().toLocaleDateString('en-CA');
-const haceDias = (n: number) => {
-  const d = new Date();
+const hoyISO = (hoy = new Date()) => hoy.toLocaleDateString('en-CA');
+const haceDias = (n: number, hoy = new Date()) => {
+  const d = new Date(hoy);
   d.setDate(d.getDate() - n);
   return d.toLocaleDateString('en-CA');
 };
+
+/** La misma ruta que pide la pantalla con un rango de `dias`: se precarga para verla sin red. */
+export function rutaDashboard(dias: number, grade?: string, hoy = new Date()): string {
+  const desde = haceDias(dias, hoy);
+  const hasta = hoyISO(hoy);
+  return `/api/reports/dashboard?from=${desde}&to=${hasta}` + (grade ? `&grade=${encodeURIComponent(grade)}` : '');
+}
 
 const RANGOS = [
   { etiqueta: 'Ultimos 7 dias', dias: 7 },
@@ -94,9 +101,9 @@ export default function Dashboard() {
             <Kpi valor={datos.kpi.absentToday} etiqueta="Ausentes hoy"
                  alerta={datos.kpi.absentToday > 0} />
             <Kpi valor={datos.kpi.evasionsWeek} etiqueta="Evasiones esta semana"
-                 alerta={datos.kpi.evasionsWeek > 0} />
+                 alerta={datos.kpi.evasionsWeek > 0 && 'evasion'} />
             <Kpi valor={datos.kpi.blocksPending} etiqueta="Bloques sin marcar hoy"
-                 alerta={datos.kpi.blocksPending > 0} />
+                 alerta={datos.kpi.blocksPending > 0 && 'pendiente'} />
             <Kpi valor={datos.kpi.schoolDays} etiqueta="Dias lectivos del periodo" />
           </div>
 

@@ -1,6 +1,8 @@
-import { api, apiUrl, OfflineError } from '../api/client';
-import type { Bootstrap, Status } from '../api/contract';
+import { api, apiUrl, HttpError, OfflineError } from '../api/client';
+import type { Bootstrap, Status, Role } from '../api/contract';
 import { db, isSchoolDay } from '../db/local';
+import { rutaMes } from '../pages/Calendario';
+import { rutaDashboard } from '../pages/Dashboard';
 
 type Mark = {
   studentId: number;
@@ -38,6 +40,9 @@ export async function markAttendance(mark: Mark): Promise<void> {
     error: undefined,
   });
 
+  // Notificar a la barra de estado y demas interesados que la cola cambio
+  window.dispatchEvent(new Event('cola-cambio'));
+
   // Con internet, lo marcado sube solo en un par de segundos; sin internet esto no
   // hace nada visible y la marca se queda a salvo en la cola.
   sincronizarPronto();
@@ -65,6 +70,17 @@ export async function flushOutbox(): Promise<ResultadoCola> {
   if (records.length === 0) return { sent: 0, pending: 0, alcanzable: true, conError: 0 };
 
   let sent = 0;
+  const aplicar = async (lote: typeof records, result: { accepted: number; rejected: { id: string; reason: string }[] }) => {
+    const rechazados = new Map(result.rejected.map((r) => [r.id, r.reason]));
+    await db.transaction('rw', db.outbox, async () => {
+      for (const r of lote) {
+        const motivo = rechazados.get(r.id);
+        if (motivo) await db.outbox.update(r.key, { error: motivo });
+        else await db.outbox.delete(r.key);
+      }
+    });
+    sent += result.accepted;
+  };
   for (let desde = 0; desde < records.length; desde += LOTE) {
     const lote = records.slice(desde, desde + LOTE);
     let result: { accepted: number; rejected: { id: string; reason: string }[] };
@@ -77,7 +93,25 @@ export async function flushOutbox(): Promise<ResultadoCola> {
       // senal fiable: navigator.onLine dice true con WiFi sin internet, que es
       // exactamente lo que pasa en el colegio.
       if (e instanceof OfflineError) {
-        return { sent, pending: await pendingCount(), alcanzable: false, conError: 0 };
+        return { sent, pending: await db.outbox.count(), alcanzable: false, conError: 0 };
+      }
+      // Un 400 de contrato puede deberse a una sola fila vieja/corrupta. Aislarla
+      // evita que bloquee las marcas sanas que venian detras en el mismo lote.
+      if (e instanceof HttpError && e.status === 400 && lote.length > 1) {
+        for (const r of lote) {
+          try {
+            const uno = await api.post<{ accepted: number; rejected: { id: string; reason: string }[] }>(
+              '/api/attendance/sync', { records: [((({ key, error, ...value }) => value)(r))] });
+            await aplicar([r], uno);
+          } catch (individual) {
+            if (individual instanceof OfflineError) {
+              return { sent, pending: await db.outbox.count(), alcanzable: false, conError: 0 };
+            }
+            const motivo = individual instanceof Error ? individual.message : 'El servidor no acepto el lote';
+            await db.outbox.update(r.key, { error: motivo });
+          }
+        }
+        continue;
       }
       // El servidor contesta pero rechazo el lote entero (401, 400, 500...). Antes
       // esto se reenviaba aqui arriba, la franja se quedaba en "subiendo N marcas ..."
@@ -88,15 +122,7 @@ export async function flushOutbox(): Promise<ResultadoCola> {
       break;
     }
 
-    const rechazados = new Map(result.rejected.map((r) => [r.id, r.reason]));
-    await db.transaction('rw', db.outbox, async () => {
-      for (const r of lote) {
-        const motivo = rechazados.get(r.id);
-        if (motivo) await db.outbox.update(r.key, { error: motivo });
-        else await db.outbox.delete(r.key);
-      }
-    });
-    sent += result.accepted;
+    await aplicar(lote, result);
   }
 
   const quedan = await db.outbox.toArray();
@@ -154,44 +180,60 @@ export async function flushEntries(): Promise<{
     return { sent: 0, pending: 0, alcanzable: true, conError: 0, nombres: {} };
   }
 
-  // El contrato es `entries` (no `records` como en asistencia) y la respuesta trae
-  // `names`: la porteria escanea un carne y necesita ver de quien es al confirmarlo.
-  let result: {
-    accepted: number;
-    rejected: { id: string; reason: string }[];
-    names: Record<string, string>;
-  };
-  try {
-    result = await api.post('/api/entry/sync', {
-      entries: cola.map(({ error, name, ...e }) => e),
+  let sent = 0;
+  const nombres: Record<string, string> = {};
+  const aplicar = async (lote: typeof cola, result: { accepted: number; rejected: { id: string; reason: string }[]; names: Record<string, string> }) => {
+    const rechazados = new Map(result.rejected.map((r) => [r.id, r.reason]));
+    await db.transaction('rw', db.entryOutbox, async () => {
+      for (const e of lote) {
+        const motivo = rechazados.get(e.id);
+        if (motivo) await db.entryOutbox.update(e.id, { error: motivo });
+        else await db.entryOutbox.delete(e.id);
+      }
     });
-  } catch (e) {
-    if (e instanceof OfflineError) {
-      return { sent: 0, pending: cola.length, alcanzable: false, conError: 0, nombres: {} };
+    sent += result.accepted;
+    Object.assign(nombres, result.names ?? {});
+  };
+  for (let desde = 0; desde < cola.length; desde += LOTE) {
+    const lote = cola.slice(desde, desde + LOTE);
+    try {
+      const result = await api.post<{ accepted: number; rejected: { id: string; reason: string }[]; names: Record<string, string> }>('/api/entry/sync', {
+        entries: lote.map(({ error, name, ...e }) => e),
+      });
+      await aplicar(lote, result);
+    } catch (e) {
+      if (e instanceof OfflineError) {
+        return { sent, pending: await db.entryOutbox.count(), alcanzable: false, conError: 0, nombres };
+      }
+      if (e instanceof HttpError && e.status === 400 && lote.length > 1) {
+        for (const entry of lote) {
+          try {
+            const result = await api.post<{ accepted: number; rejected: { id: string; reason: string }[]; names: Record<string, string> }>('/api/entry/sync', {
+              entries: [((({ error, name, ...value }) => value)(entry))],
+            });
+            await aplicar([entry], result);
+          } catch (individual) {
+            if (individual instanceof OfflineError) {
+              return { sent, pending: await db.entryOutbox.count(), alcanzable: false, conError: 0, nombres };
+            }
+            const motivo = individual instanceof Error ? individual.message : 'El servidor no acepto el lote';
+            await db.entryOutbox.update(entry.id, { error: motivo });
+          }
+        }
+        continue;
+      }
+      const motivo = e instanceof Error ? e.message : 'El servidor no acepto el lote';
+      await db.entryOutbox.bulkPut(lote.map((entry) => ({ ...entry, error: motivo })));
     }
-    // Igual que en asistencia: el servidor contesta pero rechazo todo el lote. Los
-    // ingresos no se pierden y quedan marcados para que la franja diga la verdad.
-    const motivo = e instanceof Error ? e.message : 'El servidor no acepto el lote';
-    await db.entryOutbox.bulkPut(cola.map((e) => ({ ...e, error: motivo })));
-    return { sent: 0, pending: cola.length, alcanzable: true, conError: cola.length, nombres: {} };
   }
-
-  const rechazados = new Map(result.rejected.map((r) => [r.id, r.reason]));
-  await db.transaction('rw', db.entryOutbox, async () => {
-    for (const e of cola) {
-      const motivo = rechazados.get(e.id);
-      if (motivo) await db.entryOutbox.update(e.id, { error: motivo });
-      else await db.entryOutbox.delete(e.id);
-    }
-  });
 
   const quedan = await db.entryOutbox.toArray();
   return {
-    sent: result.accepted,
+    sent,
     pending: quedan.length,
     alcanzable: true,
     conError: quedan.filter((e) => e.error).length,
-    nombres: result.names ?? {},
+    nombres,
   };
 }
 
@@ -311,7 +353,7 @@ export function startAutoSync(onChange?: (pending: number, alcanzable: boolean, 
    */
   const revisarEstado = async () => {
     if (!vivo) return;
-    const hay = (await db.outbox.count()) + (await db.entryOutbox.count());
+    const hay = await pendingCount();
     if (hay > 0) return;   // hay algo que subir: el propio envio dira si se alcanza
     const ok = await comprobarConexion();
     if (vivo) avisar(0, ok);
@@ -339,4 +381,32 @@ export function startAutoSync(onChange?: (pending: number, alcanzable: boolean, 
     window.removeEventListener('offline', alCaerse);
     document.removeEventListener('visibilitychange', alVerse);
   };
+}
+
+export async function precalentarLecturas(role: Role, hoy = new Date()): Promise<void> {
+  const calendario = rutaMes(hoy.getFullYear(), hoy.getMonth());
+  // El acudiente no tiene acceso a las rutas del personal: pedirlas solo daria 403.
+  if (role === 'ACUDIENTE') {
+    await Promise.allSettled(['/api/guardian/children', calendario].map((r) => api.get(r)));
+    return;
+  }
+  const rutasComunes = [
+    '/api/schedule/my-day',
+    '/api/reports/pending-recent',
+    '/api/schedule/week',
+    '/api/attendance/recientes',
+    '/api/entry/dia',
+    calendario,
+  ];
+
+  const rutasAdmin = [
+    '/api/reports/today',
+    '/api/reports/novedades?dias=7&limite=5',
+    '/api/schedule/grades',
+    '/api/admin/users?role=DOCENTE',
+    rutaDashboard(30, undefined, hoy),
+  ];
+
+  const rutas = role === 'ADMIN' ? [...rutasComunes, ...rutasAdmin] : rutasComunes;
+  await Promise.allSettled(rutas.map((r) => api.get(r)));
 }

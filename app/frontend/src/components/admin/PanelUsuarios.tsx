@@ -100,7 +100,7 @@ const [aviso, setAviso] = useState('');
                 onChange={(e) => setNuevo({ ...nuevo, role: e.target.value as Role })}>
           {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
         </select>
-        <button type="submit" style={{ gridColumn: '1 / -1' }}>Crear usuario</button>
+        <button type="submit" className="ocupa-todo">Crear usuario</button>
       </form>
 
       {aviso && <p className="banner pendiente" role="status">{aviso}</p>}
@@ -121,7 +121,7 @@ const [aviso, setAviso] = useState('');
       )}
       {error && <p role="alert" className="error">{error}</p>}
 
-      <div className="leyenda" style={{ marginTop: 16 }}>
+      <div className="leyenda mt-4">
         <select aria-label="Filtrar por rol" value={filtro}
                 onChange={(e) => setFiltro(e.target.value as Role | '')}>
           <option value="">Todos los roles</option>
@@ -134,12 +134,11 @@ const [aviso, setAviso] = useState('');
 
       {/* Caja con scroll propio: con 1200 acudientes la lista empujaba todo (y "Cerrar
           sesion") hasta el fondo de la pagina. */}
-      <div className="tabla-scroll" style={{ maxHeight: '55vh', overflowY: 'auto' }}>
+      <div className="tabla-scroll tabla-alta">
         <table>
           <thead>
             <tr>{['Nombre', 'Correo', 'Rol', 'Estado', 'Acciones'].map((h) => (
-              <th key={h} style={{ position: 'sticky', top: 0, background: 'var(--superficie)',
-                                   boxShadow: 'inset 0 -1px 0 var(--rejilla)' }}>{h}</th>
+              <th key={h}>{h}</th>
             ))}</tr>
           </thead>
           <tbody>
@@ -160,13 +159,11 @@ const [aviso, setAviso] = useState('');
                     </td>
                     <td>{u.active ? 'Activo' : 'Inactivo'}</td>
                     <td>
-                      <button type="button" className="secundario"
-                              style={{ minHeight: 32, padding: '4px 10px', marginRight: 6 }}
+                      <button type="button" className="secundario chico"
                               onClick={() => void guardarEdicion(u)}>
                         Guardar
                       </button>
-                      <button type="button" className="secundario"
-                              style={{ minHeight: 32, padding: '4px 10px' }}
+                      <button type="button" className="secundario chico"
                               onClick={() => setEditandoId(null)}>
                         Cancelar
                       </button>
@@ -179,18 +176,15 @@ const [aviso, setAviso] = useState('');
                 <td>{u.role}</td>
                 <td>{u.active ? 'Activo' : 'Inactivo'}</td>
                 <td>
-                  <button type="button" className="secundario"
-                          style={{ minHeight: 32, padding: '4px 10px', marginRight: 6 }}
+                  <button type="button" className="secundario chico"
                           onClick={() => iniciarEdicion(u)}>
                     Editar
                   </button>
-                  <button type="button" className="secundario"
-                          style={{ minHeight: 32, padding: '4px 10px', marginRight: 6 }}
+                  <button type="button" className="secundario chico"
                           onClick={() => void alternarActivo(u)}>
                     {u.active ? 'Desactivar' : 'Activar'}
                   </button>
-                  <button type="button" className="secundario"
-                          style={{ minHeight: 32, padding: '4px 10px' }}
+                  <button type="button" className="secundario chico"
                           onClick={() => void resetear(u)}>
                     Restablecer clave
                   </button>

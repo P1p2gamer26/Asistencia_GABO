@@ -160,10 +160,10 @@ export default function InicioAdmin() {
         <>
           <div className="kpis">
             <Kpi valor={`${hoy.bloquesMarcados} de ${hoy.bloquesEsperados}`}
-                 etiqueta="Bloques con asistencia tomada" alerta={faltan > 0} />
+                 etiqueta="Bloques con asistencia tomada" alerta={faltan > 0 && 'pendiente'} />
             <Kpi valor={hoy.ausentes} etiqueta="Ausentes hoy" alerta={hoy.ausentes > 0} />
             <Kpi valor={hoy.tarde} etiqueta="Llegadas tarde hoy" />
-            <Kpi valor={hoy.evasiones} etiqueta="Evasiones hoy" alerta={hoy.evasiones > 0} />
+            <Kpi valor={hoy.evasiones} etiqueta="Evasiones hoy" alerta={hoy.evasiones > 0 && 'evasion'} />
             <Kpi valor={hoy.ingresos} etiqueta="Ingresos por porteria" />
           </div>
 
@@ -187,7 +187,7 @@ export default function InicioAdmin() {
             <Kpi valor={hoy.mesPresentes} etiqueta="Presentes (mes)" />
             <Kpi valor={hoy.mesTarde} etiqueta="Llegadas tarde (mes)" />
             <Kpi valor={hoy.mesAusentes} etiqueta="Ausentes (mes)" alerta={hoy.mesAusentes > 0} />
-            <Kpi valor={hoy.mesEvasiones} etiqueta="Evasiones (mes)" alerta={hoy.mesEvasiones > 0} />
+            <Kpi valor={hoy.mesEvasiones} etiqueta="Evasiones (mes)" alerta={hoy.mesEvasiones > 0 && 'evasion'} />
           </div>
           <p className="meta">{hoy.mesDiasLectivos} dias lectivos transcurridos</p>
 

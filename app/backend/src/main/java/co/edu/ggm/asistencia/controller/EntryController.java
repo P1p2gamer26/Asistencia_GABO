@@ -7,6 +7,9 @@ import co.edu.ggm.asistencia.repository.StudentRepository;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +44,7 @@ import java.util.stream.Collectors;
 public class EntryController {
 
     private static final ZoneId BOGOTA = ZoneId.of("America/Bogota");
+    private static final Logger log = LoggerFactory.getLogger(EntryController.class);
 
     private final EntryRepository entries;
     private final StudentRepository students;
@@ -49,13 +53,13 @@ public class EntryController {
         this.entries = entries; this.students = students;
     }
 
-    public record EntryDto(@NotNull UUID id, @NotNull String documentId, @NotNull Instant scannedAt) {}
-    public record EntryRequest(@NotEmpty List<EntryDto> entries) {}
+    // Se valida dentro del bucle para que una cola antigua o corrupta no descarte el lote entero.
+    public record EntryDto(UUID id, String documentId, Instant scannedAt) {}
+    public record EntryRequest(@NotEmpty @Size(max = 500) List<@Valid EntryDto> entries) {}
     public record Rejection(UUID id, String reason) {}
     public record EntryResult(int accepted, List<Rejection> rejected, Map<String, String> names) {}
 
     @PostMapping("/sync")
-    @Transactional
     public EntryResult sync(@Valid @RequestBody EntryRequest req) {
         Long userId = JwtService.currentUserId();
         List<Rejection> rejected = new ArrayList<>();
@@ -63,6 +67,11 @@ public class EntryController {
         int accepted = 0;
 
         for (EntryDto e : req.entries()) {
+            if (e == null || e.id() == null || e.scannedAt() == null) {
+                rejected.add(new Rejection(e == null ? null : e.id(), "Registro incompleto"));
+                continue;
+            }
+            try {
             // El QR del carnet trae el texto completo, no solo el numero. Se extrae
             // aqui y no solo en el navegador porque la cola offline puede llevar
             // semanas de escaneos hechos con la version anterior.
@@ -78,10 +87,17 @@ public class EntryController {
             }
             // La fecha del ingreso es el dia calendario en Bogota, no en UTC:
             // un escaneo de las 18:30 hora local caeria al dia siguiente si se usara UTC.
-            LocalDate fecha = e.scannedAt().atZone(BOGOTA).toLocalDate();
-            entries.upsert(e.id(), student.get().getId(), fecha, e.scannedAt(), userId);
+            Instant scannedAt = e.scannedAt();
+            Instant now = Instant.now();
+            if (scannedAt.isAfter(now.plusSeconds(300))) scannedAt = now;
+            LocalDate fecha = scannedAt.atZone(BOGOTA).toLocalDate();
+            entries.upsert(e.id(), student.get().getId(), fecha, scannedAt, userId);
             names.put(e.id().toString(), student.get().fullName());
             accepted++;
+            } catch (RuntimeException ex) {
+                log.warn("No se pudo guardar el ingreso {}", e.id(), ex);
+                rejected.add(new Rejection(e.id(), "No se pudo guardar"));
+            }
         }
         return new EntryResult(accepted, rejected, names);
     }
@@ -113,7 +129,12 @@ public class EntryController {
     /** Todos los ingresos de un dia (por defecto hoy), para revisarlos y corregirlos. */
     @GetMapping("/dia")
     public List<EntryDiaDto> dia(@RequestParam(required = false) String date) {
-        LocalDate d = date == null ? LocalDate.now(BOGOTA) : LocalDate.parse(date);
+        LocalDate d;
+        try {
+            d = date == null ? LocalDate.now(BOGOTA) : LocalDate.parse(date);
+        } catch (java.time.format.DateTimeParseException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Fecha invalida");
+        }
         var lista = entries.findByEntryDateOrderByScannedAtDesc(d);
         Map<Long, Student> porId = students.findAllById(
                 lista.stream().map(EntryLog::getStudentId).toList())

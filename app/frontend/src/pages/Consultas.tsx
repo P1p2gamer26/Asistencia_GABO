@@ -121,7 +121,7 @@ function PorCurso({ from, to, fechas, cursos, setError }: Comun & { cursos: stri
     try {
       await bajarExcel(`${query()}&tipo=${tipo}`, `${tipo}_${grade || 'todos'}_${from}_${to}.xlsx`);
     } catch {
-      setError('No se pudo descargar el informe.');
+      setError('No se pudo descargar el informe. Requiere conexion.');
     }
   }
 
@@ -225,7 +225,7 @@ function PorEstudiante({ from, to, fechas, setError }: Comun) {
       await bajarExcel(`tipo=individual&studentId=${elegido.id}&from=${from}&to=${to}`,
                        `informe_${elegido.documentId}_${from}_${to}.xlsx`);
     } catch {
-      setError('No se pudo descargar el informe.');
+      setError('No se pudo descargar el informe. Requiere conexion.');
     }
   }
 
@@ -322,7 +322,7 @@ function Tomas({ from, to, fechas, cursos, setError }: Comun & { cursos: string[
     try {
       await bajarExcel(`${query()}&tipo=tomas`, `tomas_${grade || 'todos'}_${from}_${to}.xlsx`);
     } catch {
-      setError('No se pudo descargar el informe.');
+      setError('No se pudo descargar el informe. Requiere conexion.');
     }
   }
 

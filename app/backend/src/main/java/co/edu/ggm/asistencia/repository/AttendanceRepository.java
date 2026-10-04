@@ -83,6 +83,8 @@ public interface AttendanceRepository extends JpaRepository<Attendance, UUID> {
                AND schedule_block_id = :blockId
                AND class_date = :classDate
                AND recorded_at <= :recordedAt
+               AND edited_at IS NULL
+               AND deleted_at IS NULL
             """, nativeQuery = true)
     int updateExisting(@Param("studentId") Long studentId,
                        @Param("blockId") Long blockId,

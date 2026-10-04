@@ -1,0 +1,2 @@
+-- Indice parcial para consultas por bloque+fecha que filtran deleted_at IS NULL
+CREATE INDEX IF NOT EXISTS idx_attendance_bloque_fecha ON attendance (schedule_block_id, class_date) WHERE deleted_at IS NULL;
