@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../db/local';
-import { markAttendance, flushOutbox, flushAll, pendingCount, startAutoSync, downloadBootstrap, estadoDeDatos, cancelarSincronizacionPronto } from './engine';
+import { markAttendance, flushOutbox, flushAll, flushEntries, pendingCount, startAutoSync, downloadBootstrap, estadoDeDatos, cancelarSincronizacionPronto } from './engine';
 
 const base = { studentId: 1, scheduleBlockId: 7, classDate: '2026-07-13' } as const;
 
@@ -274,5 +274,25 @@ describe('motor de sincronizacion', () => {
     expect(tamanos).toEqual([400, 5]);
     expect(res.sent).toBe(405);
     expect(res.pending).toBe(0);
+  });
+
+  it('un 400 de lote aisla el ingreso malo y deja pasar los demas', async () => {
+    await db.entryOutbox.bulkPut([
+      { id: 'malo', documentId: 'bad', scannedAt: '2026-07-13T06:40:00Z' },
+      { id: 'bueno', documentId: 'ok', scannedAt: '2026-07-13T06:41:00Z' },
+    ]);
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, init?: RequestInit) => {
+      const entries = (JSON.parse(String(init?.body)) as { entries: { id: string }[] }).entries;
+      if (entries.length > 1) return new Response('{}', { status: 400 });
+      if (entries[0].id === 'malo') return new Response('{}', { status: 400 });
+      return new Response(JSON.stringify({ accepted: 1, rejected: [], names: { bueno: 'Ana' } }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }));
+
+    const result = await flushEntries();
+    expect(result.sent).toBe(1);
+    expect(result.nombres.bueno).toBe('Ana');
+    expect(await db.entryOutbox.get('bueno')).toBeUndefined();
+    expect((await db.entryOutbox.get('malo'))?.error).toContain('Error 400');
   });
 });

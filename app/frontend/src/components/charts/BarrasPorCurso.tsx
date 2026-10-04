@@ -69,7 +69,7 @@ export default function BarrasPorCurso({ datos }: { datos: GradeBreakdown[] }) {
                       {ancho > 34 && (
                         <text x={ANCHO_ETIQUETA + s.x + ancho / 2} y={y + ALTO_BARRA - 5}
                               fontSize={11} textAnchor="middle"
-                              fill={s.estado === 'T' ? '#0b0b0b' : '#ffffff'}
+                              fill={s.estado === 'T' ? 'var(--tinta)' : '#ffffff'}
                               style={{ pointerEvents: 'none' }}>
                           {s.estado}
                         </text>
@@ -88,8 +88,7 @@ export default function BarrasPorCurso({ datos }: { datos: GradeBreakdown[] }) {
         {ESTADOS.map((e) => (
           <span key={e.valor}><i style={{ background: e.color }} />{e.valor} · {e.etiqueta}</span>
         ))}
-        <button type="button" className="secundario" style={{ minHeight: 32, padding: '4px 10px' }}
-                onClick={() => setTabla(!tabla)}>
+        <button type="button" className="secundario chico" onClick={() => setTabla(!tabla)}>
           {tabla ? 'Ver grafica' : 'Ver tabla'}
         </button>
       </div>

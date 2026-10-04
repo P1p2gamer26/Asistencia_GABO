@@ -8,17 +8,19 @@ import { db } from '../db/local';
  * "informacion vieja" y "informacion falsa". El service worker nunca cachea /api:
  * una respuesta de asistencia servida como si fuera de ahora seria mentir.
  */
-const clave = (path: string) => `lectura:${path}`;
+// Con el usuario en la clave: en un celular compartido, quien entra despues sin senal
+// no ve lo que consulto el anterior.
+const clave = (path: string, usuario?: number) => `lectura:${usuario ?? 'anon'}:${path}`;
 
-export async function guardarLectura(path: string, datos: unknown): Promise<void> {
+export async function guardarLectura(path: string, datos: unknown, usuario?: number): Promise<void> {
   await db.meta.put({
-    key: clave(path),
+    key: clave(path, usuario),
     value: JSON.stringify({ cuando: new Date().toISOString(), datos }),
   });
 }
 
-export async function ultimaLectura<T>(path: string): Promise<{ datos: T; cuando: string } | null> {
-  const fila = await db.meta.get(clave(path));
+export async function ultimaLectura<T>(path: string, usuario?: number): Promise<{ datos: T; cuando: string } | null> {
+  const fila = await db.meta.get(clave(path, usuario));
   if (!fila?.value) return null;
   try {
     return JSON.parse(fila.value) as { datos: T; cuando: string };

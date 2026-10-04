@@ -35,8 +35,7 @@ export default function SelectorFecha({ valor, onChange, max }: Props) {
                onChange={(e) => onChange(e.target.value)} />
         <div className="leyenda">
           {recientes.map((d) => (
-            <button key={d} type="button" className="secundario"
-                    style={{ minHeight: 32, padding: '4px 10px' }}
+            <button key={d} type="button" className="secundario chico"
                     onClick={() => onChange(d)}>
               {new Date(`${d}T00:00`).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}
             </button>
@@ -44,7 +43,7 @@ export default function SelectorFecha({ valor, onChange, max }: Props) {
         </div>
       </div>
       {consultado && !lectivo && (
-        <p role="alert" className="banner no-lectivo" style={{ gridColumn: '1 / -1' }}>
+        <p role="alert" className="banner no-lectivo ocupa-todo">
           {dia
             ? `El ${new Date(`${valor}T00:00`).toLocaleDateString('es-CO')} es ${ETIQUETA_TIPO[dia.dayType] ?? 'no lectivo'}`
               + (dia.description ? ` (${dia.description}).` : '.') + ' No se toma asistencia.'

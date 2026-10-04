@@ -18,7 +18,14 @@ export function useSincronizacion() {
     // Snapshot inmediato del conteo; el auto-sync recien montado lo lleva al estado
     // real (incluido si el servidor rechazo marcas) con su primer intento.
     void pendingCount().then(setPendientes);
-    return startAutoSync((p, a, c) => { setPendientes(p); setAlcanzable(a); setConError(c); });
+    const cleanup = startAutoSync((p, a, c) => { setPendientes(p); setAlcanzable(a); setConError(c); });
+    // Refrescar el conteo cuando cambie la cola local (marcas nuevas offline)
+    const onColaCambio = () => void pendingCount().then(setPendientes);
+    window.addEventListener('cola-cambio', onColaCambio);
+    return () => {
+      cleanup();
+      window.removeEventListener('cola-cambio', onColaCambio);
+    };
   }, []);
 
   const sincronizarAhora = useCallback(async () => {

@@ -139,7 +139,7 @@ export default function PanelEstudiantes() {
 
   return (
     <section>
-      <div className="alta-carnet" style={{ display: 'grid', gap: 8, marginBottom: 12 }}>
+      <div className="alta-carnet pila mb-4">
         {!escaneando ? (
           <button type="button" className="secundario"
                   onClick={() => { setScanMsg(''); setEscaneando(true); }}>
@@ -177,7 +177,7 @@ export default function PanelEstudiantes() {
         <label htmlFor="ec">Curso</label>
         <input id="ec" required placeholder="6A" value={nuevo.grade}
                onChange={(e) => setNuevo({ ...nuevo, grade: e.target.value })} />
-        <button type="submit" style={{ gridColumn: '1 / -1' }}>Crear estudiante</button>
+        <button type="submit" className="ocupa-todo">Crear estudiante</button>
       </form>
 
       {aviso && <p className="banner pendiente" role="status">{aviso}</p>}
@@ -201,7 +201,7 @@ export default function PanelEstudiantes() {
 
       <p className="meta">{estudiantes.length} estudiantes</p>
 
-      <ul className="registros-lista" style={{ maxHeight: '55vh', overflowY: 'auto' }}>
+      <ul className="registros-lista tabla-alta">
         {estudiantes.map((s) => (
           <li key={s.id}>
             {editando?.id === s.id ? (

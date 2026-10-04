@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, getSession } from '../api/client';
+import { db } from '../db/local';
 
 type Bloque = {
   id: number; blockNo: number; grade: string; subject: string; room?: string;
@@ -25,19 +26,68 @@ function estado(b: Bloque) {
   return { texto: `${b.marcados} de ${b.estudiantes}`, clase: 'listo' };
 }
 
+/** Marcas de ese bloque y fecha que siguen en la cola del telefono, sin subir. */
+async function enCola(blockId: number, fecha: string): Promise<number> {
+  try {
+    return await db.outbox.where('scheduleBlockId').equals(blockId)
+      .and((r) => r.classDate === fecha).count();
+  } catch {
+    return 0;   // sin almacenamiento local
+  }
+}
+
 export default function InicioDocente() {
   const [dia, setDia] = useState<Dia | null>(null);
   const [error, setError] = useState('');
+  const [usandoLocal, setUsandoLocal] = useState(false);
   const [pendientes, setPendientes] = useState<ListasPendientes | null>(null);
   const [errorPendientes, setErrorPendientes] = useState('');
 
   useEffect(() => {
+    let montado = true;
+    const hoy = new Date().toLocaleDateString('en-CA');
     api.get<Dia>('/api/schedule/my-day')
-       .then(setDia)
-       .catch(() => setError('No se pudo consultar el dia. Requiere conexion.'));
+       .then(async (d) => {
+         if (navigator.onLine) {
+           if (montado) { setDia(d); setUsandoLocal(false); }
+           return;
+         }
+         // Sin red, la respuesta es la copia guardada: puede ser de otro dia (entonces se
+         // arma con lo local) y no sabe lo marcado despues en este telefono.
+         if (d.fecha !== hoy) throw new Error('copia de otro dia');
+         const bloques = await Promise.all(d.bloques.map(async (b) =>
+           ({ ...b, marcados: Math.max(b.marcados, await enCola(b.id, hoy)) })));
+         if (montado) { setDia({ ...d, bloques }); setUsandoLocal(true); }
+       })
+       .catch(async () => {
+         if (!montado) return;
+         const diaLocal = await Promise.resolve().then(() => db.schoolDays.get(hoy)).catch(() => undefined);
+         if (!diaLocal) {
+           setError('No se pudo consultar el dia. Requiere conexion.');
+           return;
+         }
+         if (diaLocal.dayType !== 'LECTIVO') {
+           setDia({ lectivo: false, fecha: hoy, motivo: diaLocal.description ?? null, bloques: [] });
+           setUsandoLocal(true);
+           return;
+         }
+         const bloques = await db.blocks.where('weekday').equals(diaLocal.cycleDay ?? 0).toArray();
+         const conConteo = await Promise.all(bloques
+           .sort((a, b) => a.blockNo - b.blockNo)
+           .map(async (b) => ({
+             id: b.id, blockNo: b.blockNo, grade: b.grade, subject: b.subject, room: b.room,
+             startTime: b.startTime, endTime: '',
+             marcados: await enCola(b.id, hoy),
+             estudiantes: await db.students.where('grade').equals(b.grade).count(),
+           })));
+         if (!montado) return;
+         setDia({ lectivo: true, fecha: hoy, motivo: null, bloques: conConteo });
+         setUsandoLocal(true);
+       });
     api.get<ListasPendientes>('/api/reports/pending-recent')
        .then(setPendientes)
        .catch(() => setErrorPendientes('No se pudieron consultar las listas pendientes.'));
+    return () => { montado = false; };
   }, []);
 
   return (
@@ -45,7 +95,8 @@ export default function InicioDocente() {
       <h1>Hola, {getSession()?.fullName}</h1>
 
       {error && <p role="alert" className="error">{error}</p>}
-      {!dia && !error && <p className="meta">Cargando...</p>}
+      {usandoLocal && <p className="meta">Sin conexion: se muestra lo guardado en este equipo.</p>}
+      {!dia && !error && !usandoLocal && <p className="meta">Cargando...</p>}
 
       {dia && !dia.lectivo && (
         <p className="aviso-no-lectivo">

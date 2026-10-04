@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { clearSession, getSession } from '../api/client';
-import { downloadBootstrap } from '../sync/engine';
+import { downloadBootstrap, precalentarLecturas } from '../sync/engine';
 import Escudo from './Escudo';
 import Version from './Version';
 import type { Role } from '../api/contract';
@@ -21,9 +21,22 @@ const DESTINOS: Destino[] = [
   { a: '/admin',       texto: 'Administracion', roles: ['ADMIN'] },
 ];
 
+let ultimaPrecarga = 0;
+
 export default function Menu() {
   const [abierto, setAbierto] = useState(false);
   const sesion = getSession();
+
+  // Escape key closes drawer when open
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && abierto) {
+        setAbierto(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [abierto]);
 
   // Si falla, no se avisa aqui: la franja de estado ya dice si la copia local sirve o
   // no, que es lo que el docente necesita saber. Tragarse el error sin mas dejaba la
@@ -32,6 +45,13 @@ export default function Menu() {
     void downloadBootstrap().catch(() => {
       // Sin conexion es lo normal al abrir en el salon; lo anormal lo dice BarraOffline.
     });
+    // Con red, deja guardadas las pantallas de consulta para poder abrirlas sin senal.
+    // Menu se monta de nuevo en cada pantalla: sin el limite, cada navegacion pediria todo otra vez.
+    const rol = getSession()?.role;
+    if (navigator.onLine && rol && Date.now() - ultimaPrecarga > 10 * 60_000) {
+      ultimaPrecarga = Date.now();
+      void precalentarLecturas(rol).catch(() => {});
+    }
   }, []);
 
   if (!sesion) return null;
@@ -45,7 +65,7 @@ export default function Menu() {
       <header className="barra-movil">
         <button type="button" className="hamburguesa" aria-label="Abrir menu"
                 aria-expanded={abierto} aria-controls="menu-lateral"
-                onClick={() => setAbierto(true)}>
+                onClick={() => setAbierto(!abierto)}>
           <span aria-hidden="true">☰</span>
         </button>
         <span className="barra-marca">

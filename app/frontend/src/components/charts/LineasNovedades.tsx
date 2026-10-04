@@ -10,7 +10,7 @@ const PAD = { arriba: 14, derecha: 14, abajo: 26, izquierda: 30 };
 const SERIES = [
   { clave: 'absent',  etiqueta: 'Faltaron',  color: '#c8503c' },
   { clave: 'evasion', etiqueta: 'Evasiones', color: '#7a5ea8' },
-  { clave: 'late',    etiqueta: 'Tarde',     color: '#d29b16' },
+  { clave: 'late',    etiqueta: 'Tarde',     color: '#e07b24' },
 ] as const;
 
 const dia = (iso: string) => new Date(`${iso}T00:00`).getDate();

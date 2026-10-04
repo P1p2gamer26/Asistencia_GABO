@@ -26,9 +26,11 @@ export default function BarraOffline() {
     // telefono, que es cuando Menu ya tuvo ocasion de llamar downloadBootstrap.
     document.addEventListener('visibilitychange', consultar);
     window.addEventListener('datos-descargados', consultar);
+    window.addEventListener('cola-cambio', consultar);
     return () => {
       document.removeEventListener('visibilitychange', consultar);
       window.removeEventListener('datos-descargados', consultar);
+      window.removeEventListener('cola-cambio', consultar);
     };
   }, [pendientes]);
 

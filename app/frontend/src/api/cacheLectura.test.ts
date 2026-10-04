@@ -60,4 +60,10 @@ describe('api.get con respaldo local', () => {
     vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('network'); }));
     await expect(api.get('/api/attendance?blockId=7&date=2026-08-26')).rejects.toBeInstanceOf(OfflineError);
   });
+
+  it('lo guardado por un usuario no lo ve otro en el mismo equipo', async () => {
+    await guardarLectura('/api/schedule/my-day', { de: 'docente 3' }, 3);
+    expect(await ultimaLectura('/api/schedule/my-day', 4)).toBeNull();
+    expect((await ultimaLectura<{ de: string }>('/api/schedule/my-day', 3))?.datos.de).toBe('docente 3');
+  });
 });
