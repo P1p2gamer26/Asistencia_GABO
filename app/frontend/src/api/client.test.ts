@@ -1,5 +1,7 @@
+import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api, apiUrl, getSession, clearSession } from './client';
+import { guardarCredencial } from './credencialLocal';
 
 describe('cliente http', () => {
   beforeEach(() => {
@@ -37,6 +39,27 @@ describe('cliente http', () => {
     expect(data.ok).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(getSession()?.token).toBe('nuevo');
+  });
+});
+
+describe('login offline', () => {
+  beforeEach(async () => {
+    localStorage.clear();
+    clearSession();
+    await import('../db/local').then(({ db }) => db.meta.clear());
+  });
+
+  it('con fetch que lanza TypeError y credencial guardada, devuelve la session y la deja en localStorage', async () => {
+    const session = { token: 't', refreshToken: 'r', role: 'DOCENTE', fullName: 'Fran', userId: 3, mustChangePassword: false };
+    await guardarCredencial('fpalacios@ggm.edu.co', 'cambiar123', session, 1000);
+
+    vi.stubGlobal('fetch', vi.fn(() => { throw new TypeError('Failed to fetch'); }));
+
+    const result = await api.login('fpalacios@ggm.edu.co', 'cambiar123');
+
+    expect(result.userId).toBe(3);
+    expect(getSession()?.userId).toBe(3);
+    expect(localStorage.getItem('ggm.session')).toContain('"userId":3');
   });
 });
 
