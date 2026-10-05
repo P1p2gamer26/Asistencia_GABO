@@ -846,3 +846,11 @@ select { max-width: 100%; text-overflow: ellipsis; }
   .grafica svg { min-width: 560px; }
   .cabecera-grafica svg, .lineas-novedades svg { min-width: 0; }
 }
+.cambios-pendientes {
+  background: var(--oro-claro);
+  border-radius: var(--radio);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.error-texto { color: #a5231b; }

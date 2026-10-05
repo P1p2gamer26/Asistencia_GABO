@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { api } from '../../api/client';
+import { api, AVISO_ENCOLADO } from '../../api/client';
 import type { StudentAdmin } from '../../api/contract';
 import { ordenCurso } from '../../lib/ordenCurso';
 import { abrirCamara, scanOnce } from '../../scan/scanner';
@@ -96,10 +96,16 @@ export default function PanelEstudiantes() {
     e.preventDefault();
     setError(''); setAviso('');
     try {
-      const s = await api.post<StudentAdmin>('/api/admin/students', nuevo);
-      setAviso(`Creado ${s.fullName} en ${s.grade}.`);
-      setNuevo({ ...VACIO });
-      await cargar();
+      const r = await api.cambiar<StudentAdmin>('POST', '/api/admin/students', nuevo, `Crear estudiante ${nuevo.documentId}`);
+      if (r.encolado) {
+        setAviso(AVISO_ENCOLADO);
+        setNuevo({ ...VACIO });
+      } else {
+        const s = r.datos;
+        setAviso(`Creado ${s.fullName} en ${s.grade}.`);
+        setNuevo({ ...VACIO });
+        await cargar();
+      }
     } catch {
       setError('No se pudo crear. ¿Ya existe ese numero de documento?');
     }
@@ -108,12 +114,18 @@ export default function PanelEstudiantes() {
   async function guardar(s: StudentAdmin) {
     setError(''); setAviso('');
     try {
-      await api.put(`/api/admin/students/${s.id}`, {
+      const r = await api.cambiar('PUT', `/api/admin/students/${s.id}`, {
         firstName: s.firstName, middleName: s.middleName, lastName: s.lastName,
         secondSurname: s.secondSurname, grade: s.grade, active: s.active,
-      });
-      setEditando(null);
-      await cargar();
+      }, `Editar estudiante ${s.documentId}`);
+      if (r.encolado) {
+        setAviso(AVISO_ENCOLADO);
+        setEstudiantes((prev) => prev.map((x) => x.id === s.id ? { ...s } : x));
+        setEditando(null);
+      } else {
+        setEditando(null);
+        await cargar();
+      }
     } catch {
       setError('No se pudo guardar.');
     }
@@ -127,11 +139,16 @@ export default function PanelEstudiantes() {
       + 'se conserva. Si no tiene ningun registro, se borra definitivamente.')) return;
     setError(''); setAviso('');
     try {
-      const r = await api.delete<{ borradoDefinitivo: boolean }>(`/api/admin/students/${s.id}`);
-      setAviso(r.borradoDefinitivo
-        ? `${s.fullName} se borro definitivamente: no tenia ningun registro.`
-        : `${s.fullName} quedo inactivo. Su historial de asistencia se conserva.`);
-      await cargar();
+      const r = await api.cambiar<{ borradoDefinitivo: boolean }>('DELETE', `/api/admin/students/${s.id}`, undefined, `Dar de baja estudiante ${s.documentId}`);
+      if (r.encolado) {
+        setAviso(AVISO_ENCOLADO);
+        setEstudiantes((prev) => prev.filter((x) => x.id !== s.id));
+      } else {
+        setAviso(r.datos.borradoDefinitivo
+          ? `${s.fullName} se borro definitivamente: no tenia ningun registro.`
+          : `${s.fullName} quedo inactivo. Su historial de asistencia se conserva.`);
+        await cargar();
+      }
     } catch {
       setError('No se pudo dar de baja.');
     }

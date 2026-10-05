@@ -1,8 +1,13 @@
 import type { Session } from './contract';
 import { guardarLectura, ultimaLectura } from './cacheLectura';
+import { db, type CambioPendiente } from '../db/local';
 export type { Session };
 
 const KEY = 'ggm.session';
+
+// Sin red el cambio se guarda en el equipo y se aplica solo despues: para quien lo hace
+// es igual que con conexion, asi que se confirma igual.
+export const AVISO_ENCOLADO = 'Guardado.';
 
 /**
  * En desarrollo y en la imagen Docker el backend sirve el frontend, asi que la ruta
@@ -132,4 +137,23 @@ export const api = {
   put: <T>(path: string, body: unknown) =>
     request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  async cambiar<T>(
+    metodo: CambioPendiente['metodo'], ruta: string, cuerpo: unknown, descripcion: string,
+  ): Promise<{ encolado: false; datos: T } | { encolado: true }> {
+    try {
+      const datos = await request<T>(ruta, {
+        method: metodo,
+        ...(metodo === 'DELETE' ? {} : { body: JSON.stringify(cuerpo) }),
+      });
+      return { encolado: false, datos };
+    } catch (e) {
+      if (!(e instanceof OfflineError)) throw e;
+      await db.cambios.add({
+        id: crypto.randomUUID(), metodo, ruta, cuerpo, descripcion,
+        creadoEn: new Date().toISOString(),
+      });
+      window.dispatchEvent(new Event('cola-cambio'));
+      return { encolado: true };
+    }
+  },
 };

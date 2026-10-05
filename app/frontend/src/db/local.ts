@@ -17,12 +17,24 @@ export type OutboxEntry = {
   id: string; documentId: string; scannedAt: string; name?: string; error?: string;
 };
 
+/** Cambio administrativo que no pudo llegar al servidor y se conserva en este equipo. */
+export type CambioPendiente = {
+  id: string;
+  metodo: 'POST' | 'PUT' | 'DELETE';
+  ruta: string;
+  cuerpo?: unknown;
+  descripcion: string;
+  creadoEn: string;
+  error?: string;
+};
+
 class LocalDb extends Dexie {
   blocks!: Table<Block, number>;
   students!: Table<StudentDto, number>;
   schoolDays!: Table<SchoolDay, string>;
   outbox!: Table<OutboxRecord, string>;
   entryOutbox!: Table<OutboxEntry, string>;
+  cambios!: Table<CambioPendiente, string>;
   meta!: Table<{ key: string; value: string }, string>;
 
   constructor() {
@@ -59,6 +71,18 @@ class LocalDb extends Dexie {
       outbox: 'key, classDate, error, scheduleBlockId',
       entryOutbox: 'id, scannedAt, error',
       meta: 'key',
+    });
+
+    // Version 3: la cola administrativa se agrega sin alterar las tablas que ya
+    // contienen trabajo pendiente de asistencia y porteria.
+    this.version(3).stores({
+      blocks: 'id, grade, weekday',
+      students: 'id, grade, documentId',
+      schoolDays: 'calendarDate, dayType',
+      outbox: 'key, classDate, error, scheduleBlockId',
+      entryOutbox: 'id, scannedAt, error',
+      meta: 'key',
+      cambios: 'id, creadoEn, error',
     });
   }
 }

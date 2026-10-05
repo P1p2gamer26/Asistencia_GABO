@@ -22,7 +22,6 @@ export default function Horario() {
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(true);
   const [hoy, setHoy] = useState<number | null>(null);
-  const [usandoLocal, setUsandoLocal] = useState(false);
 
   const puedeVerCursos = getSession()?.role === 'ADMIN';
   useEffect(() => {
@@ -53,13 +52,12 @@ export default function Horario() {
     let vigente = true;
     setCargando(true);
     setError('');
-    setUsandoLocal(false);
     const params = por === 'docente' && docente
       ? `?teacherId=${encodeURIComponent(docente)}`
       : por === 'salon' && curso ? `?grade=${encodeURIComponent(curso)}` : '';
     const sinFiltros = params === '';
     api.get<Bloque[]>(`/api/schedule/week${params}`)
-       .then((b) => { if (vigente) { setBloques(b); setUsandoLocal(false); } })
+       .then((b) => { if (vigente) { setBloques(b); } })
        .catch(async () => {
          if (!vigente) return;
          if (!sinFiltros) {
@@ -85,7 +83,6 @@ export default function Horario() {
            teacherName: '',
          }));
          setBloques(mapeados);
-         setUsandoLocal(true);
        })
        .finally(() => { if (vigente) setCargando(false); });
     return () => { vigente = false; };
@@ -142,7 +139,6 @@ export default function Horario() {
       )}
 
       {error && <p role="alert" className="error">{error}</p>}
-      {usandoLocal && <p className="meta">Sin conexion: se muestra lo guardado en este equipo.</p>}
       {cargando && <p className="meta">Cargando...</p>}
 
       {!cargando && !error && bloques.length === 0 && (

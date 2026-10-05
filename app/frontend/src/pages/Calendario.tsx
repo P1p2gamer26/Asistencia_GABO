@@ -46,7 +46,6 @@ export default function Calendario({ hoy = new Date() }: { hoy?: Date }) {
   const [dias, setDias] = useState<Record<string, SchoolDay>>({});
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(true);
-  const [usandoLocal, setUsandoLocal] = useState(false);
 
   const sesion = getSession();
   const puedeEditar = sesion?.role === 'ADMIN';
@@ -57,7 +56,6 @@ export default function Calendario({ hoy = new Date() }: { hoy?: Date }) {
   async function cargar() {
     setCargando(true);
     setError('');
-    setUsandoLocal(false);
     try {
       const lista = await api.get<SchoolDay[]>(rutaMes(anio, mes));
       setDias(Object.fromEntries(lista.map((d) => [d.calendarDate, d])));
@@ -71,7 +69,6 @@ export default function Calendario({ hoy = new Date() }: { hoy?: Date }) {
       } catch { /* sin almacenamiento local: se queda el aviso de error */ }
       if (lista.length > 0) {
         setDias(Object.fromEntries(lista.map((d) => [d.calendarDate, d])));
-        setUsandoLocal(true);
       } else {
         setError('No se pudo cargar el calendario. Requiere conexion.');
       }
@@ -88,23 +85,40 @@ export default function Calendario({ hoy = new Date() }: { hoy?: Date }) {
 
   async function fijarCiclo(fecha: string, cascada: boolean) {
     const v = cicloElegido[fecha] ?? '';
-    setError('');
-    try {
-      await api.put(`/api/calendar/school-days/${fecha}/cycle-day`,
-        { cycleDay: v === '' ? null : Number(v), cascada });
-      setCicloElegido((c) => { const { [fecha]: _, ...resto } = c; return resto; });
-      await cargar();
+    setError('');    try {
+      const r = await api.cambiar('PUT', `/api/calendar/school-days/${fecha}/cycle-day`,
+        { cycleDay: v === '' ? null : Number(v), cascada },
+        `Fijar dia de ciclo ${fecha} ${cascada ? 'en cascada' : 'solo este dia'}`);
+      if (r.encolado) {
+        setDias((d) => {
+          const actual = d[fecha];
+          if (!actual) return d;
+          return { ...d, [fecha]: { ...actual, cycleDay: v === '' ? null : Number(v), cycleDayFixed: 1 } };
+        });
+        setCicloElegido((c) => { const { [fecha]: _, ...resto } = c; return resto; });
+      } else {
+        setCicloElegido((c) => { const { [fecha]: _, ...resto } = c; return resto; });
+        await cargar();
+      }
     } catch {
       setError('No se pudo fijar el dia de ciclo.');
     }
   }
 
   async function cambiar(fecha: string, tipo: DayType) {
-    setError('');
-    try {
-      await api.put(`/api/calendar/school-days/${fecha}`,
-        { dayType: tipo, description: dias[fecha]?.description ?? null });
-      await cargar();
+    setError('');    try {
+      const r = await api.cambiar('PUT', `/api/calendar/school-days/${fecha}`,
+        { dayType: tipo, description: dias[fecha]?.description ?? null },
+        `Cambiar tipo de dia ${fecha} a ${tipo}`);
+      if (r.encolado) {
+        setDias((d) => {
+          const actual = d[fecha];
+          if (!actual) return d;
+          return { ...d, [fecha]: { ...actual, dayType: tipo } };
+        });
+      } else {
+        await cargar();
+      }
     } catch {
       setError('No se pudo actualizar ese dia.');
     }
@@ -141,7 +155,6 @@ export default function Calendario({ hoy = new Date() }: { hoy?: Date }) {
         {cargando ? 'Cargando...' : !error ? `${lectivos} dias de clase este mes.` : null}
         {puedeEditar && ' Puede cambiar el tipo de cualquier dia y fijar el dia de ciclo (D1 a D5).'}
       </p>
-      {usandoLocal && <p className="meta">Sin conexion: se muestra lo guardado en este equipo.</p>}
       {error && <p role="alert" className="error">{error}</p>}
 
       <div className="calendario" role="grid" aria-label={`Calendario de ${MESES[mes]} de ${anio}`}>
