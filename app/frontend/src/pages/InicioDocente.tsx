@@ -39,7 +39,6 @@ async function enCola(blockId: number, fecha: string): Promise<number> {
 export default function InicioDocente() {
   const [dia, setDia] = useState<Dia | null>(null);
   const [error, setError] = useState('');
-  const [usandoLocal, setUsandoLocal] = useState(false);
   const [pendientes, setPendientes] = useState<ListasPendientes | null>(null);
   const [errorPendientes, setErrorPendientes] = useState('');
 
@@ -49,7 +48,7 @@ export default function InicioDocente() {
     api.get<Dia>('/api/schedule/my-day')
        .then(async (d) => {
          if (navigator.onLine) {
-           if (montado) { setDia(d); setUsandoLocal(false); }
+           if (montado) { setDia(d); }
            return;
          }
          // Sin red, la respuesta es la copia guardada: puede ser de otro dia (entonces se
@@ -57,7 +56,7 @@ export default function InicioDocente() {
          if (d.fecha !== hoy) throw new Error('copia de otro dia');
          const bloques = await Promise.all(d.bloques.map(async (b) =>
            ({ ...b, marcados: Math.max(b.marcados, await enCola(b.id, hoy)) })));
-         if (montado) { setDia({ ...d, bloques }); setUsandoLocal(true); }
+         if (montado) { setDia({ ...d, bloques }); }
        })
        .catch(async () => {
          if (!montado) return;
@@ -68,7 +67,6 @@ export default function InicioDocente() {
          }
          if (diaLocal.dayType !== 'LECTIVO') {
            setDia({ lectivo: false, fecha: hoy, motivo: diaLocal.description ?? null, bloques: [] });
-           setUsandoLocal(true);
            return;
          }
          const bloques = await db.blocks.where('weekday').equals(diaLocal.cycleDay ?? 0).toArray();
@@ -82,7 +80,6 @@ export default function InicioDocente() {
            })));
          if (!montado) return;
          setDia({ lectivo: true, fecha: hoy, motivo: null, bloques: conConteo });
-         setUsandoLocal(true);
        });
     api.get<ListasPendientes>('/api/reports/pending-recent')
        .then(setPendientes)
@@ -95,8 +92,7 @@ export default function InicioDocente() {
       <h1>Hola, {getSession()?.fullName}</h1>
 
       {error && <p role="alert" className="error">{error}</p>}
-      {usandoLocal && <p className="meta">Sin conexion: se muestra lo guardado en este equipo.</p>}
-      {!dia && !error && !usandoLocal && <p className="meta">Cargando...</p>}
+      {!dia && !error && <p className="meta">Cargando...</p>}
 
       {dia && !dia.lectivo && (
         <p className="aviso-no-lectivo">

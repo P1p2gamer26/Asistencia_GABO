@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api } from '../../api/client';
+import { api, AVISO_ENCOLADO } from '../../api/client';
 import type { AdminUser, Role } from '../../api/contract';
 
 const ROLES: Role[] = ['ADMIN', 'DOCENTE', 'ACUDIENTE'];
@@ -36,11 +36,17 @@ const [aviso, setAviso] = useState('');
     e.preventDefault();
     setError(''); setAviso(''); setDocenteCreado(null);
     try {
-      const u = await api.post<AdminUser>('/api/admin/users', nuevo);
-      if (u.role === 'DOCENTE') setDocenteCreado(u);
-      else setAviso(`Creado ${u.email}. Contrasena temporal: cambiar123`);
-      setNuevo({ email: '', fullName: '', role: 'DOCENTE' });
-      await cargar();
+      const r = await api.cambiar<AdminUser>('POST', '/api/admin/users', nuevo, `Crear usuario ${nuevo.email}`);
+      if (r.encolado) {
+        setAviso(AVISO_ENCOLADO);
+        setNuevo({ email: '', fullName: '', role: 'DOCENTE' });
+      } else {
+        const u = r.datos;
+        if (u.role === 'DOCENTE') setDocenteCreado(u);
+        else setAviso(`Creado ${u.email}. Contrasena temporal: cambiar123`);
+        setNuevo({ email: '', fullName: '', role: 'DOCENTE' });
+        await cargar();
+      }
     } catch {
       setError('No se pudo crear. ¿Ya existe ese correo?');
     }
@@ -49,9 +55,15 @@ const [aviso, setAviso] = useState('');
   async function alternarActivo(u: AdminUser) {
     setError(''); setAviso('');
     try {
-      await api.put(`/api/admin/users/${u.id}`,
-        { fullName: u.fullName, role: u.role, active: !u.active });
-      await cargar();
+      const r = await api.cambiar('PUT', `/api/admin/users/${u.id}`,
+        { fullName: u.fullName, role: u.role, active: !u.active },
+        `${u.active ? 'Desactivar' : 'Activar'} usuario ${u.email}`);
+      if (r.encolado) {
+        setAviso(AVISO_ENCOLADO);
+        setUsuarios((prev) => prev.map((x) => x.id === u.id ? { ...x, active: !u.active } : x));
+      } else {
+        await cargar();
+      }
     } catch {
       setError('No se pudo actualizar.');
     }
@@ -76,11 +88,18 @@ const [aviso, setAviso] = useState('');
   async function guardarEdicion(u: AdminUser) {
     setError(''); setAviso('');
     try {
-      await api.put(`/api/admin/users/${u.id}`,
-        { fullName: edicion.fullName, role: edicion.role, active: u.active });
-      setAviso(`Guardado: ${edicion.fullName} (${edicion.role}).`);
-      setEditandoId(null);
-      await cargar();
+      const r = await api.cambiar('PUT', `/api/admin/users/${u.id}`,
+        { fullName: edicion.fullName, role: edicion.role, active: u.active },
+        `Editar usuario ${u.email}`);
+      if (r.encolado) {
+        setAviso(AVISO_ENCOLADO);
+        setUsuarios((prev) => prev.map((x) => x.id === u.id ? { ...x, fullName: edicion.fullName, role: edicion.role } : x));
+        setEditandoId(null);
+      } else {
+        setAviso(`Guardado: ${edicion.fullName} (${edicion.role}).`);
+        setEditandoId(null);
+        await cargar();
+      }
     } catch {
       setError('No se pudo guardar el perfil.');
     }

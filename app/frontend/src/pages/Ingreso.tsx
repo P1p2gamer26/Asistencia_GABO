@@ -53,9 +53,14 @@ export default function Ingreso() {
   async function borrarIngreso(id: string) {
     if (!confirm('Borrar este ingreso?')) return;
     try {
-      await api.delete(`/api/entry/${id}`);
-      setFicha((f) => (f && f.entryId === id ? { ...f, entryId: undefined, scannedAt: undefined } : f));
-      await cargarDia();
+      const r = await api.cambiar<unknown>('DELETE', `/api/entry/${id}`, undefined, `Borrar ingreso de ${entradas.find((x) => x.id === id)?.fullName ?? 'un estudiante'}`);
+      if (r.encolado) {
+        setEntradas((prev) => prev.filter((x) => x.id !== id));
+        setFicha((f) => (f && f.entryId === id ? { ...f, entryId: undefined, scannedAt: undefined } : f));
+      } else {
+        setFicha((f) => (f && f.entryId === id ? { ...f, entryId: undefined, scannedAt: undefined } : f));
+        await cargarDia();
+      }
     } catch { setError('No se pudo borrar el ingreso.'); }
   }
   async function guardarHora(en: EntradaDia) {
@@ -64,9 +69,14 @@ export default function Ingreso() {
     const base = new Date(en.scannedAt);
     base.setHours(hh, mm, 0, 0);
     try {
-      await api.put(`/api/entry/${en.id}`, { scannedAt: base.toISOString() });
-      setEditId(null);
-      await cargarDia();
+      const r = await api.cambiar<EntradaDia>('PUT', `/api/entry/${en.id}`, { scannedAt: base.toISOString() }, `Cambiar hora de ingreso de ${en.fullName}`);
+      if (r.encolado) {
+        setEntradas((prev) => prev.map((x) => (x.id === en.id ? { ...x, scannedAt: base.toISOString() } : x)));
+        setEditId(null);
+      } else {
+        setEditId(null);
+        await cargarDia();
+      }
     } catch { setError('No se pudo cambiar la hora.'); }
   }
 

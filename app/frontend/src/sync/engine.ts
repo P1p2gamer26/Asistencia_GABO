@@ -237,14 +237,46 @@ export async function flushEntries(): Promise<{
   };
 }
 
-/** Las dos colas de una pasada. Es lo que llama el sincronizador automatico. */
+/** Aplica uno a uno los cambios administrativos, en el mismo orden en que se guardaron. */
+export async function flushCambios(): Promise<ResultadoCola> {
+  const cola = await db.cambios.orderBy('creadoEn').toArray();
+  let sent = 0;
+  for (const cambio of cola) {
+    if (cambio.error) continue;
+    try {
+      if (cambio.metodo === 'POST') await api.post(cambio.ruta, cambio.cuerpo);
+      else if (cambio.metodo === 'PUT') await api.put(cambio.ruta, cambio.cuerpo);
+      else await api.delete(cambio.ruta);
+      await db.cambios.delete(cambio.id);
+      sent++;
+    } catch (e) {
+      if (e instanceof OfflineError) {
+        const quedan = await db.cambios.toArray();
+        return {
+          sent, pending: quedan.length, alcanzable: false,
+          conError: quedan.filter((c) => c.error).length,
+        };
+      }
+      const error = e instanceof Error ? e.message : 'El servidor no acepto el cambio';
+      await db.cambios.update(cambio.id, { error });
+    }
+  }
+  const quedan = await db.cambios.toArray();
+  return {
+    sent, pending: quedan.length, alcanzable: true,
+    conError: quedan.filter((c) => c.error).length,
+  };
+}
+
+/** Las tres colas de una pasada. Es lo que llama el sincronizador automatico. */
 export async function flushAll(): Promise<{ pending: number; alcanzable: boolean; conError: number }> {
   const marcas = await flushOutbox();
   const ingresos = await flushEntries();
+  const cambios = await flushCambios();
   return {
-    pending: marcas.pending + ingresos.pending,
-    alcanzable: marcas.alcanzable && ingresos.alcanzable,
-    conError: marcas.conError + ingresos.conError,
+    pending: marcas.pending + ingresos.pending + cambios.pending,
+    alcanzable: marcas.alcanzable && ingresos.alcanzable && cambios.alcanzable,
+    conError: marcas.conError + ingresos.conError + cambios.conError,
   };
 }
 
@@ -305,6 +337,17 @@ export function sincronizarPronto(esperaMs = 2000): void {
   prontoTimer = window.setTimeout(() => {
     void flushAll().then((r) => avisar(r.pending, r.alcanzable, r.conError)).catch(() => {});
   }, esperaMs);
+}
+
+export async function reintentarCambio(id: string): Promise<void> {
+  await db.cambios.update(id, { error: undefined });
+  window.dispatchEvent(new Event('cola-cambio'));
+  sincronizarPronto(0);
+}
+
+export async function descartarCambio(id: string): Promise<void> {
+  await db.cambios.delete(id);
+  window.dispatchEvent(new Event('cola-cambio'));
 }
 
 /**

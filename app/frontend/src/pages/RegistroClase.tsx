@@ -20,7 +20,6 @@ export default function RegistroClase() {
   const [registros, setRegistros] = useState<AttendanceDetalle[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
-  const [online, setOnline] = useState(navigator.onLine);
   const [editando, setEditando] = useState<string | null>(null);
   const [edStatus, setEdStatus] = useState<Status>('P');
   const [edComment, setEdComment] = useState('');
@@ -40,21 +39,16 @@ export default function RegistroClase() {
 
   useEffect(() => { void cargar(); }, [cargar]);
 
-  useEffect(() => {
-    const cambio = () => setOnline(navigator.onLine);
-    window.addEventListener('online', cambio);
-    window.addEventListener('offline', cambio);
-    return () => {
-      window.removeEventListener('online', cambio);
-      window.removeEventListener('offline', cambio);
-    };
-  }, []);
-
   async function guardarEdicion(id: string) {
     try {
-      await api.put(`/api/attendance/${id}`, { status: edStatus, comment: edComment || undefined });
-      setEditando(null);
-      await cargar();
+      const r = await api.cambiar<AttendanceDetalle>('PUT', `/api/attendance/${id}`, { status: edStatus, comment: edComment || undefined }, `Editar asistencia de ${registros.find(x => x.id === id)?.fullName ?? 'estudiante'}`);
+      if (r.encolado) {
+        setRegistros((prev) => prev.map((x) => (x.id === id ? { ...x, status: edStatus, comment: edComment || undefined, editedAt: new Date().toISOString(), editedByName: 'pendiente' } : x)));
+        setEditando(null);
+      } else {
+        setEditando(null);
+        await cargar();
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo editar');
     }
@@ -63,8 +57,12 @@ export default function RegistroClase() {
   async function borrar(r: AttendanceDetalle) {
     if (!window.confirm(`¿Borrar la asistencia de ${r.fullName}? Queda registro de quien la borro.`)) return;
     try {
-      await api.delete(`/api/attendance/${r.id}`);
-      await cargar();
+      const res = await api.cambiar<unknown>('DELETE', `/api/attendance/${r.id}`, undefined, `Borrar asistencia de ${r.fullName}`);
+      if (res.encolado) {
+        setRegistros((prev) => prev.filter((x) => x.id !== r.id));
+      } else {
+        await cargar();
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo borrar');
     }
@@ -96,12 +94,6 @@ export default function RegistroClase() {
         </p>
       )}
 
-      {!online && (
-        <p className="meta">
-          Sin conexion se puede consultar lo ya sincronizado, pero editar o borrar
-          requiere conexion: no se guardaria en una cola local.
-        </p>
-      )}
       {cargando && <p className="meta">Cargando...</p>}
       {error && <p role="alert" className="error">{error}</p>}
 
@@ -123,7 +115,7 @@ export default function RegistroClase() {
                        aria-label={`Motivo editado de ${r.fullName}`}
                        value={edComment} onChange={(e) => setEdComment(e.target.value)} />
                 <div className="registro-acciones">
-                  <button type="button" onClick={() => void guardarEdicion(r.id)} disabled={!online}>
+                  <button type="button" onClick={() => void guardarEdicion(r.id)}>
                     Guardar
                   </button>
                   <button type="button" className="secundario" onClick={() => setEditando(null)}>
@@ -150,7 +142,7 @@ export default function RegistroClase() {
                   </small>
                 )}
                 <div className="registro-acciones">
-                  <button type="button" className="secundario" disabled={!online}
+                  <button type="button" className="secundario"
                           onClick={() => {
                             setEditando(r.id);
                             setEdStatus(r.status);
@@ -158,7 +150,7 @@ export default function RegistroClase() {
                           }}>
                     Editar
                   </button>
-                  <button type="button" className="secundario" disabled={!online}
+                  <button type="button" className="secundario"
                           onClick={() => void borrar(r)}>
                     Borrar
                   </button>

@@ -4,6 +4,7 @@ import PanelEstudiantes from '../components/admin/PanelEstudiantes';
 import PanelCalendario from '../components/admin/PanelCalendario';
 import PanelCarga from '../components/admin/PanelCarga';
 import PanelHorario from '../components/admin/PanelHorario';
+import CambiosPendientes from '../components/CambiosPendientes';
 import type { AdminUser } from '../api/contract';
 
 const PESTANAS = [
@@ -26,6 +27,7 @@ export default function Admin() {
   return (
     <main className="card ancha">
       <h1>Administracion</h1>
+      <CambiosPendientes />
       <div className="pestanas mb-4" role="tablist">
         {PESTANAS.map((p) => (
           <button key={p.clave} type="button" role="tab"

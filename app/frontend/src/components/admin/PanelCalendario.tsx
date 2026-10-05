@@ -29,24 +29,30 @@ export default function PanelCalendario() {
   useEffect(() => { void cargar(); }, []);
 
   async function cambiar(dia: SchoolDay, tipo: DayType, motivo: string) {
-    setError('');
-    try {
-      await api.put(`/api/calendar/school-days/${dia.calendarDate}`,
-        { dayType: tipo, description: motivo || null });
-      await cargar();
+    setError('');    try {
+      const r = await api.cambiar('PUT', `/api/calendar/school-days/${dia.calendarDate}`,
+        { dayType: tipo, description: motivo || null },
+        `Cambiar tipo de dia ${dia.calendarDate} a ${tipo}`);
+      if (r.encolado) {
+        setDias(dias.map((d) => d.calendarDate === dia.calendarDate ? { ...d, dayType: tipo, description: motivo || undefined } : d));
+      } else {
+        await cargar();
+      }
     } catch {
       setError('No se pudo actualizar ese dia.');
     }
   }
 
   async function aplicarRango() {
-    setError('');
-    setAviso('');
-    try {
-      const res = await api.put<{ cambiados: number }>('/api/calendar/school-days',
-        { from: rDesde, to: rHasta, dayType: rTipo, description: rMotivo, soloHabiles: true });
-      setAviso(`Se cambiaron ${res.cambiados} dias.`);
-      await cargar();
+    setError(''); setAviso('');    try {
+      const r = await api.cambiar<{ cambiados: number }>('PUT', '/api/calendar/school-days',
+        { from: rDesde, to: rHasta, dayType: rTipo, description: rMotivo, soloHabiles: true },
+        `Cambiar tipo de dia en rango ${rDesde} a ${rHasta} a ${rTipo}`);
+      if (r.encolado) {
+      } else {
+        setAviso(`Se cambiaron ${r.datos.cambiados} dias.`);
+        await cargar();
+      }
     } catch {
       setError('No se pudo aplicar el rango.');
     }

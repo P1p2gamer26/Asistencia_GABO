@@ -32,5 +32,19 @@ describe('base local', () => {
     expect(delBloque).toHaveLength(1);
     expect(delBloque[0].id).toBe('a');
   });
-});
 
+  it('la version 3 conserva la asistencia pendiente al agregar cambios', async () => {
+    await db.outbox.clear();
+    await db.cambios.clear();
+    await db.outbox.put({
+      key: '3:7:2026-07-13', id: 'v2', studentId: 3, scheduleBlockId: 7,
+      classDate: '2026-07-13', status: 'P', recordedAt: '2026-07-13T12:00:00Z',
+    });
+
+    await db.close();
+    await db.open();
+
+    expect((await db.outbox.get('3:7:2026-07-13'))?.id).toBe('v2');
+    expect(db.verno).toBe(3);
+  });
+});
