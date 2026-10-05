@@ -12,3 +12,8 @@ afterEach(() => {
 
 // jsdom no implementa reproduccion de medios; el portal llama play() al montar.
 Object.defineProperty(HTMLMediaElement.prototype, 'play', { configurable: true, value: () => Promise.resolve() });
+
+if (!globalThis.crypto?.subtle) {
+  const { webcrypto } = await import('node:crypto');
+  Object.defineProperty(globalThis, 'crypto', { value: webcrypto, configurable: true });
+}

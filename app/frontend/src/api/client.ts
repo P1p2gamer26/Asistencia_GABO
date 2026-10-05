@@ -1,6 +1,7 @@
 import type { Session } from './contract';
 import { guardarLectura, ultimaLectura } from './cacheLectura';
 import { db, type CambioPendiente } from '../db/local';
+import { guardarCredencial, entrarSinRed } from './credencialLocal';
 export type { Session };
 
 const KEY = 'ggm.session';
@@ -90,19 +91,28 @@ const SIN_RESPALDO = ['/api/attendance?', '/api/attendance/detalle'];
 
 export const api = {
   async login(email: string, password: string): Promise<Session> {
+    let res: Response;
     try {
-      const res = await fetch(apiUrl('/api/auth/login'), {
+      res = await fetch(apiUrl('/api/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      if (!res.ok) throw new Error('Correo o contrasena incorrectos');
-      const session = (await res.json()) as Session;
-      setSession(session);
-      return session;
     } catch {
-      throw new Error('Sin conexion: se necesita internet para iniciar sesion');
+      const r = await entrarSinRed(email, password).catch(() => 'sin-credencial' as const);
+      if (typeof r === 'object') {
+        setSession(r);
+        return r;
+      }
+      if (r === 'incorrecta') throw new Error('Correo o contrasena incorrectos');
+      throw new Error('Sin conexion: la primera vez en este equipo se necesita internet para iniciar sesion');
     }
+
+    if (!res.ok) throw new Error('Correo o contrasena incorrectos');
+    const session = (await res.json()) as Session;
+    setSession(session);
+    void guardarCredencial(email, password, session).catch(() => {});
+    return session;
   },
   /**
    * GET con respaldo local: si el servidor no se alcanza, devuelve la ultima

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api, getSession, clearSession } from '../api/client';
+import { actualizarClaveLocal } from '../api/credencialLocal';
 
 export default function CambiarClave() {
   const [actual, setActual] = useState('');
@@ -22,6 +23,7 @@ export default function CambiarClave() {
     try {
       await api.post('/api/auth/change-password',
         { currentPassword: actual, newPassword: nueva });
+      void actualizarClaveLocal(getSession()!.userId, nueva).catch(() => {});
       setListo(true);
     } catch {
       setError('No se pudo cambiar. Revise que la contrasena actual sea correcta.');
