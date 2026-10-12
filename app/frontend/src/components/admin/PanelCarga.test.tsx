@@ -55,7 +55,8 @@ describe('PanelCarga', () => {
   it('muestra el texto explicativo actualizado con columnas en español', () => {
     const { container } = render(<PanelCarga />);
     const texto = container.textContent ?? '';
-    expect(texto).toMatch(/si activo \(o re-activa\) y\s*no lo da de baja/i);
+    expect(texto).toMatch(/columna activo de estudiantes/);
+    expect(texto).toMatch(/si activo \(o re-activa\) y no lo da de baja/);
     expect(texto).toMatch(/se lee por posicion/i);
     expect(texto).toMatch(/Archivo > Guardar como >\s*CSV UTF-8/);
   });
