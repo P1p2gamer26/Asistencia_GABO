@@ -40,8 +40,8 @@ export default function PanelCarga() {
       <p className="meta">
         Orden de carga: <strong>estudiantes primero</strong>, luego horario, y acudientes
         al final. Los dos ultimos necesitan que el estudiante ya exista.
-        Los archivos deben ser CSV codificados en UTF-8. La columna <code>activo</code>
-        de estudiantes es opcional: <code>si</code> activo (o re-activa) y
+        Los archivos deben ser CSV codificados en UTF-8. La columna <code>activo</code>{' '}
+        de estudiantes es opcional: <code>si</code> activo (o re-activa) y{' '}
         <code>no</code> lo da de baja. Si no viene, queda activo.
         Se lee por posicion: la fila de titulos puede estar en espanol o en ingles,
         pero las columnas deben ir en este orden. Desde Excel: Archivo &gt; Guardar como &gt;
