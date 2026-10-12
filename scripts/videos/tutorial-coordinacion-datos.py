@@ -1,49 +1,47 @@
 """Video para coordinación: cómo preparar y subir estudiantes, horario y acudientes, y mantener calendario y usuarios.
-Grabar: python ~/.claude/skills/video-tutorial/scripts/grabar.py scripts/videos/config-coordinacion.json scripts/videos/tutorial-coordinacion-datos.py
-Necesita el backend en 8080 (base asistencia_video) y `python -m http.server 8931` dentro de scripts/videos (hoja.html).
+Orden de grabación (las escenas de hoja de cálculo son Excel de escritorio real, no el navegador):
+  1. python scripts/videos/excel-coordinacion.py   → externo/<id>.mp4 (Excel con cursor real) y excel/*.csv (los guarda Excel)
+  2. python ~/.claude/skills/video-tutorial/scripts/producir.py scripts/videos/config-coordinacion.json scripts/videos/tutorial-coordinacion-datos.py
+     (montar.py usa externo/<id>.mp4 en lugar del tramo del navegador para esas escenas)
+Necesita el backend en 8080 (base asistencia_video).
 """
 from pathlib import Path
 
 TITULO = "Cargar los datos del colegio"
 SUBTITULO = "Estudiantes, horario, acudientes y calendario · guía para coordinación"
-HOJA = "http://127.0.0.1:8931/hoja.html"
-PLANT = Path(__file__).parent / "plantillas"
+BASE = "http://127.0.0.1:8080"
+EXCEL = Path("C:/Users/Julian/Downloads/asistencia-tutoriales/coordinacion-datos/excel")  # CSV guardados por Excel en el paso 1
 ESTUDIANTES = [
-    ["document_id", "first_name", "middle_name", "last_name", "second_surname", "grade", "active"],
-    ["1023456789", "Valentina", "Sofia", "Rojas", "Pineda", "601", "true"],
-    ["1023456790", "Samuel", "", "Cardenas", "Mora", "601", "true"],
-    ["1023456791", "Mariana", "Isabel", "Guerrero", "Lopez", "601", "true"],
-    ["1023456792", "Juan", "Esteban", "Torres", "Nino", "602", "true"],
-    ["1023456793", "Luciana", "", "Bermudez", "Salas", "602", "false"],
+    ["documento", "primer_nombre", "segundo_nombre", "primer_apellido", "segundo_apellido", "curso", "activo"],
+    ["1023456789", "Valentina", "Sofia", "Rojas", "Pineda", "601", "si"],
+    ["1023456790", "Samuel", "", "Cardenas", "Mora", "601", "si"],
+    ["1023456791", "Mariana", "Isabel", "Guerrero", "Lopez", "601", "si"],
+    ["1023456792", "Juan", "Esteban", "Torres", "Nino", "602", "si"],
+    ["1023456793", "Luciana", "", "Bermudez", "Salas", "602", "no"],
 ]
 HORARIO = [
-    ["grade", "weekday", "block_no", "start_time", "end_time", "subject", "teacher_email", "room"],
+    ["curso", "dia", "bloque", "hora_inicio", "hora_fin", "materia", "correo_docente", "aula"],
     ["601", "1", "1", "06:30", "07:30", "Matematicas", "docente01@ggm.edu.co", "Salon 12"],
     ["601", "1", "2", "07:30", "08:30", "Espanol", "docente02@ggm.edu.co", "Salon 12"],
     ["601", "1", "3", "08:30", "09:30", "Ciencias", "docente03@ggm.edu.co", "Laboratorio"],
     ["601", "1", "4", "09:45", "10:45", "Ingles", "docente04@ggm.edu.co", ""],
 ]
 ACUDIENTES = [
-    ["document_id", "guardian_name", "guardian_email", "relationship"],
+    ["documento_estudiante", "nombre_acudiente", "correo_acudiente", "parentesco"],
     ["1023456789", "Claudia Pineda", "claudia.pineda@correo.com", "Madre"],
     ["1023456790", "Jorge Cardenas", "jorge.cardenas@correo.com", "Padre"],
 ]
-COLS = "ABCDEFGH"
 
-def hoja(h, archivo, filas, tipear=1):
-    """Abre la hoja, teclea las primeras `tipear` filas celda por celda y pega el resto de golpe."""
-    h.page.goto(f"{HOJA}?archivo={archivo}", wait_until="load"); h.espera(0.6)
-    for f, fila in enumerate(filas[:tipear], start=1):
-        for j, v in enumerate(fila):
-            h.clic(f"#c{f}_{COLS[j]}", espera=0.1); h.page.keyboard.type(v, delay=28)
-    h.js(f"hoja.cargar({filas!r})", espera=0.5)
+def excel(h):
+    """La escena la pone el clip externo/<id>.mp4 grabado en Excel; aquí solo hace falta su marca de tiempo."""
+    h.espera(1.0)
 
 def fijar(h, sel, valor):
     """Campos date/time: tipear no sirve en Chromium, se fija el valor con fill."""
     h.mover(sel); h.page.locator(sel).first.fill(valor); h.espera(0.5)
 
 def pestana(h, titulo):
-    h.page.goto("http://127.0.0.1:8080/admin", wait_until="load"); h.espera(1.2)
+    h.page.goto(f"{BASE}/admin", wait_until="load"); h.espera(1.2)
     h.clic(f"button[role=tab]:has-text('{titulo}')"); h.espera(0.8)
 
 def subir(h, titulo, archivo):
@@ -53,7 +51,7 @@ def subir(h, titulo, archivo):
     h.resaltar(f"h3:has-text('{titulo}') ~ p.meta", hold=2.0)
 
 def intro(h):
-    h.page.goto("http://127.0.0.1:8080/admin", wait_until="load"); h.espera(1.2)
+    h.page.goto(f"{BASE}/admin", wait_until="load"); h.espera(1.2)
     for t in ["Usuarios", "Estudiantes", "Calendario", "Horario", "Carga de datos"]:
         h.resaltar(f"button[role=tab]:has-text('{t}')", hold=1.6)
 
@@ -63,32 +61,17 @@ def orden(h):
     for t in ["Estudiantes", "Horario", "Acudientes"]:
         h.resaltar(f"h3:has-text('{t}') + figcaption", hold=2.6)
 
-def hoja_estudiantes(h):
-    hoja(h, "estudiantes.csv", ESTUDIANTES)
-    for col, s in [("A", 2.4), ("B", 1.2), ("C", 1.2), ("D", 1.2), ("E", 1.6), ("F", 3.0), ("G", 3.4)]:
-        h.resaltar(f"#c1_{col}", hold=s)
-
-def guardar_csv(h):
-    h.page.goto(f"{HOJA}?archivo=estudiantes.csv", wait_until="load"); h.js(f"hoja.cargar({ESTUDIANTES!r})", espera=0.3)
-    h.resaltar("#c1_A", hold=2.5); h.resaltar("#c1_B", hold=1.5)
-    h.clic("#btnCsv"); h.espera(1.2); h.resaltar("#menuCsv div:first-child", hold=2.5); h.clic("#menuCsv div:first-child"); h.espera(2.0)
-
-def subir_estudiantes(h): subir(h, "Estudiantes", PLANT / "estudiantes.csv")
-
-def hoja_horario(h):
-    hoja(h, "horario.csv", HORARIO)
-    for col, s in [("A", 1.6), ("B", 4.2), ("C", 2.6), ("D", 1.4), ("E", 2.2), ("F", 2.6), ("G", 4.4), ("H", 1.8)]:
-        h.resaltar(f"#c1_{col}", hold=s)
+def subir_estudiantes(h): subir(h, "Estudiantes", EXCEL / "estudiantes.csv")
 
 def subir_horario(h):
-    malo = PLANT / "horario-con-error.csv"
-    malo.write_text(open(PLANT / "horario.csv", encoding="utf8").read() + "601,7,5,10:45,11:45,Sociales,docente05@ggm.edu.co,Salon 12\n", encoding="utf8")
+    # El CSV que guardo Excel mas una fila con el dia 7, con el mismo separador que eligio Excel.
+    bueno = (EXCEL / "horario.csv").read_text(encoding="utf-8-sig")
+    sep = ";" if ";" in bueno.splitlines()[0] else ","
+    malo = EXCEL / "horario-con-error.csv"
+    malo.write_text(bueno.rstrip("\r\n") + "\n" + sep.join(["601", "7", "5", "10:45", "11:45", "Sociales", "docente05@ggm.edu.co", "Salon 12"]) + "\n", encoding="utf-8")
     subir(h, "Horario", malo); h.resaltar("h3:has-text('Horario') ~ ul.novedades", hold=4.0)
 
-def acudientes(h):
-    hoja(h, "acudientes.csv", ACUDIENTES, tipear=0)
-    for col, s in [("A", 2.6), ("B", 1.4), ("C", 3.0), ("D", 1.4)]: h.resaltar(f"#c1_{col}", hold=s)
-    subir(h, "Acudientes", PLANT / "acudientes.csv")
+def subir_acudientes(h): subir(h, "Acudientes", EXCEL / "acudientes.csv")
 
 def estudiantes_panel(h):
     pestana(h, "Estudiantes")
@@ -124,26 +107,29 @@ ESCENAS = [
      "Hola. En este video vamos a ver cómo se cargan los datos del colegio en la aplicación de asistencia: estudiantes, horario, acudientes y calendario. Todo se hace desde la pantalla de Administración, que tiene cinco pestañas: Usuarios, Estudiantes, Calendario, Horario y Carga de datos. Empecemos por la carga masiva, que es la que más nos ahorra tiempo.",
      "run": intro},
     {"id": "orden", "capitulo": "Carga de datos", "sub": "El orden importa", "texto":
-     "En Carga de datos hay tres archivos, y el orden importa: primero los estudiantes, después el horario y al final los acudientes, porque el horario y los acudientes necesitan que el estudiante ya exista. Debajo de cada título aparece la cabecera exacta que debe llevar el archivo. Los archivos se preparan en Excel y se guardan como CSV; ahora les muestro cómo.",
+     "En Carga de datos hay tres archivos, y el orden importa: primero los estudiantes, después el horario y al final los acudientes, porque el horario y los acudientes necesitan que el estudiante ya exista. Debajo de cada título aparece el orden exacto de las columnas. Los archivos se preparan en Excel y se guardan como CSV; ahora les muestro cómo.",
      "run": orden},
-    {"id": "hoja_est", "capitulo": "Archivo de estudiantes", "sub": "Una fila por estudiante", "texto":
-     "Abrimos una hoja de cálculo. La primera fila lleva los nombres de las columnas tal cual, en minúscula y sin tildes. Documento de identidad, primer nombre, segundo nombre, primer apellido, segundo apellido. En grade va el código del curso, el mismo de los horarios oficiales: seis cero uno, diez cero dos. Y la última columna, active, es opcional: true si el estudiante está activo y false si se retiró. Segundo nombre y segundo apellido pueden ir vacíos.",
-     "run": hoja_estudiantes},
-    {"id": "guardar", "capitulo": "Guardar como CSV", "texto":
-     "Si trabajan sobre el plano de matrícula, basta con dejar solo estas columnas, con estos nombres, en este orden. Luego, en Archivo, Guardar como, eligen el formato CSV UTF-8. Si su Excel lo guarda separado por punto y coma, no hay problema: la aplicación acepta los dos.",
-     "run": guardar_csv},
-    {"id": "subir_est", "capitulo": "Subir estudiantes", "texto":
-     "Volvemos a Carga de datos, y en Estudiantes elegimos el archivo. En unos segundos la aplicación dice cuántas filas cargó. Si un estudiante ya existía, se actualiza con los datos nuevos: pueden volver a subir el plano completo cada vez que cambie, sin duplicar a nadie.",
+    {"id": "hoja_est", "capitulo": "Archivo de estudiantes", "sub": "Una fila por estudiante", "transicion": "cambio", "texto":
+     "Abrimos Excel con un libro en blanco. En la primera fila escribimos los títulos: documento, primer nombre, segundo nombre, primer apellido, segundo apellido, curso y activo. Lo que importa es el orden de las columnas. En curso va el código del curso, el mismo de los horarios oficiales: seis cero uno, seis cero dos. Y activo es opcional: sí, si el estudiante está activo, y no, si se retiró. Segundo nombre y segundo apellido pueden ir vacíos.",
+     "run": excel},
+    {"id": "guardar", "capitulo": "Guardar como CSV", "sub": "Archivo, Guardar como", "texto":
+     "Ahora lo guardamos como CSV. Vamos a Archivo, luego Guardar como, y Examinar. Le ponemos un nombre, por ejemplo estudiantes, y en Tipo elegimos CSV UTF-8, delimitado por comas. Guardar. Excel puede avisar que algunas funciones se pierden en este formato: está bien, el CSV solo guarda los datos, que es justo lo que necesita la aplicación.",
+     "run": excel},
+    {"id": "subir_est", "capitulo": "Subir estudiantes", "transicion": "cambio", "texto":
+     "Volvemos a Carga de datos, y en Estudiantes elegimos el archivo que acabamos de guardar. En unos segundos la aplicación dice cuántas filas cargó. Si un estudiante ya existía, se actualiza con los datos nuevos: pueden volver a subir el plano completo cada vez que cambie, sin duplicar a nadie.",
      "run": subir_estudiantes},
-    {"id": "hoja_hor", "capitulo": "Archivo de horario", "sub": "Una fila por bloque de clase", "texto":
-     "El horario es una fila por cada bloque de clase. Curso; weekday es el día del ciclo, del uno al cinco, o sea lunes es uno y viernes es cinco; block underscore no es el número del bloque en el día; hora de inicio y hora de fin, con dos puntos; la materia; el correo institucional del docente; y el salón, que es opcional. Si el docente todavía no tiene cuenta, la aplicación se la crea con la contraseña temporal cambiar uno dos tres. Por eso el correo tiene que quedar bien escrito.",
-     "run": hoja_horario},
-    {"id": "subir_hor", "capitulo": "Subir horario", "sub": "Qué pasa con una fila mal escrita", "texto":
+    {"id": "hoja_hor", "capitulo": "Archivo de horario", "sub": "Una fila por bloque de clase", "transicion": "cambio", "texto":
+     "El horario es una fila por cada bloque de clase. Curso; día, que es el día del ciclo, del uno al cinco; bloque, el número del bloque en el día; hora de inicio y hora de fin; la materia; el correo institucional del docente; y el aula, que es opcional. Si el docente todavía no tiene cuenta, la aplicación se la crea con la contraseña temporal cambiar uno dos tres. Por eso el correo tiene que quedar bien escrito. Se guarda como CSV igual que el anterior.",
+     "run": excel},
+    {"id": "subir_hor", "capitulo": "Subir horario", "sub": "Qué pasa con una fila mal escrita", "transicion": "cambio", "texto":
      "Subimos el archivo de horario igual que el anterior. Miren este caso: dejé a propósito una fila con el día siete. La aplicación carga las filas buenas y abajo lista las que rechazó, con el número de línea y el motivo. Se corrige esa línea en el Excel y se vuelve a subir el archivo; lo que ya estaba cargado no se duplica.",
      "run": subir_horario},
-    {"id": "acud", "capitulo": "Archivo de acudientes", "texto":
-     "Los acudientes van al final: documento del estudiante, nombre del acudiente, su correo, y el parentesco. Con ese correo el acudiente puede entrar al portal de familias y ver la asistencia de sus hijos. Se sube en el tercer recuadro.",
-     "run": acudientes},
+    {"id": "acud", "capitulo": "Archivo de acudientes", "transicion": "cambio", "texto":
+     "Los acudientes van al final: documento del estudiante, nombre del acudiente, su correo, y el parentesco. Con ese correo el acudiente puede entrar al portal de familias y ver la asistencia de sus hijos.",
+     "run": excel},
+    {"id": "acud_subir", "capitulo": "Subir acudientes", "transicion": "cambio", "texto":
+     "Se guarda como CSV, igual que los otros, y se sube en el tercer recuadro, Acudientes.",
+     "run": subir_acudientes},
     {"id": "est_panel", "capitulo": "Estudiantes", "sub": "Cambios de uno en uno", "texto":
      "Para un cambio pequeño no hace falta un archivo. En la pestaña Estudiantes buscamos por nombre o documento, pulsamos Editar, y podemos cambiarle el curso o, con la casilla de activo, retirarlo. Guardar, y listo.",
      "run": estudiantes_panel},
@@ -157,6 +143,6 @@ ESCENAS = [
      "Y en Horario se agrega o corrige un bloque suelto: curso, día del ciclo, número de bloque, horas, materia y salón; el docente ya viene seleccionado. Crear bloque. Abajo se puede filtrar por curso o por docente para revisar cómo quedó la planilla.",
      "run": horario_panel},
     {"id": "cierre", "capitulo": "Resumen", "texto":
-     "En resumen: estudiantes, horario y acudientes se preparan en Excel con las cabeceras que muestra la pantalla y se guardan como CSV; se suben en ese orden; los errores se listan por línea y se vuelve a subir. Calendario, Usuarios y Horario sirven para los ajustes del día a día. Si algo no carga, envíenme el archivo y lo revisamos. Gracias.",
+     "En resumen: estudiantes, horario y acudientes se preparan en Excel, con las columnas en el orden que muestra la pantalla, y se guardan como CSV UTF-8; se suben en ese orden; los errores se listan por línea y se vuelve a subir. Calendario, Usuarios y Horario sirven para los ajustes del día a día. Si algo no carga, envíenme el archivo y lo revisamos. Gracias.",
      "run": cierre},
 ]
