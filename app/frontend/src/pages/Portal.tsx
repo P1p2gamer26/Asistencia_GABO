@@ -34,7 +34,7 @@ const VIDEOS = [
     texto: 'Cómo tomar la lista de clase desde el celular, con o sin internet.' },
   { src: '/videos/tutorial-coordinacion.mp4', titulo: 'Tutorial para coordinación', duracion: '3:10',
     texto: 'Panorama del día, ingreso al colegio, consultas y reportes.' },
-  { src: '/videos/tutorial-carga-datos.mp4', titulo: 'Coordinación: cargar los datos', duracion: '5:27',
+  { src: '/videos/tutorial-carga-datos.mp4', titulo: 'Coordinación: cargar los datos', duracion: '4:51',
     texto: 'Cómo preparar en Excel los archivos de estudiantes, horario y acudientes, subirlos y mantener el calendario.' },
   { src: '/videos/tutorial-padres.mp4', titulo: 'Tutorial para familias', duracion: '1:30',
     texto: 'Cómo entrar como acudiente y consultar la asistencia de sus hijos.' },
