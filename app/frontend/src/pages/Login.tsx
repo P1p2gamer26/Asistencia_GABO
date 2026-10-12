@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import Escudo from '../components/Escudo';
 import BotonInstalar from '../components/BotonInstalar';
@@ -44,6 +44,7 @@ export default function Login() {
       {error && <p role="alert" className="error">{error}</p>}
       <button type="submit" disabled={busy}>{busy ? 'Entrando...' : 'Entrar'}</button>
       <BotonInstalar />
+      <p><Link to="/">« Volver al inicio</Link></p>
     </form>
   );
 }
