@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
@@ -19,6 +20,8 @@ import java.util.function.BiConsumer;
 public class ImportService {
 
     public record Resultado(int imported, List<String> errors) {}
+
+    private static final DateTimeFormatter HORA_FMT = DateTimeFormatter.ofPattern("H:mm[:ss]");
 
     private final JdbcTemplate jdbc;
     private final PasswordEncoder encoder;
@@ -40,6 +43,10 @@ public class ImportService {
             String linea, sep = ",";
             while ((linea = reader.readLine()) != null) {
                 numero++;
+                // Quitar BOM UTF-8 si Excel lo escribio al inicio de la primera linea
+                if (numero == 1 && linea.startsWith("\uFEFF")) {
+                    linea = linea.substring(1);
+                }
                 // Excel en espanol guarda el CSV con punto y coma: se acepta el que traiga la cabecera.
                 if (numero == 1) sep = linea.contains(";") ? ";" : ",";
                 if (numero == 1 || linea.isBlank()) continue;    // cabecera
@@ -69,10 +76,10 @@ public class ImportService {
                 throw new IllegalArgumentException("dia de ciclo (1 a 5) debe estar entre 1 y 5, llego " + weekday);
             }
             short blockNo = Short.parseShort(c[2].trim());
-            LocalTime inicio = LocalTime.parse(c[3].trim());
-            LocalTime fin = LocalTime.parse(c[4].trim());
+            LocalTime inicio = LocalTime.parse(c[3].trim(), HORA_FMT);
+            LocalTime fin = LocalTime.parse(c[4].trim(), HORA_FMT);
             if (!fin.isAfter(inicio)) {
-                throw new IllegalArgumentException("end_time debe ser posterior a start_time");
+                throw new IllegalArgumentException("hora_fin debe ser posterior a hora_inicio");
             }
             Long materiaId = idDeMateria(c[5].trim());
             Long docenteId = idDeDocente(c[6].trim().toLowerCase());

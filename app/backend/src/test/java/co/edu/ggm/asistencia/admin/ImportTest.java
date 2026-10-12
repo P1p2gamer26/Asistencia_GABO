@@ -119,4 +119,62 @@ class ImportTest extends AbstractIntegrationTest {
            .andExpect(jsonPath("$.imported").value(1));
         assertTrue(studentRepo.findByDocumentIdAndActiveTrue("5050505050").isPresent());
     }
+
+    @Test
+    void activo_VERDADERO_quedan_activos() throws Exception {
+        String contenido = """
+                document_id,first_name,middle_name,last_name,second_surname,grade,active
+                6060606060,VERDADERO,TEST,UNO,DOS,701,VERDADERO
+                """;
+        mvc.perform(multipart("/api/admin/import/students").file(csv(contenido))
+                        .header("Authorization", tokenAdmin()))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.imported").value(1));
+
+        assertTrue(studentRepo.findByDocumentIdAndActiveTrue("6060606060").isPresent());
+    }
+
+    @Test
+    void activo_no_quedan_inactivos() throws Exception {
+        String contenido = """
+                document_id,first_name,middle_name,last_name,second_surname,grade,active
+                7070707070,NO,TEST,UNO,DOS,701,no
+                """;
+        mvc.perform(multipart("/api/admin/import/students").file(csv(contenido))
+                        .header("Authorization", tokenAdmin()))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.imported").value(1));
+
+        assertTrue(studentRepo.findByDocumentIdAndActiveTrue("7070707070").isEmpty());
+        var inactivo = studentRepo.findByDocumentId("7070707070").orElseThrow();
+        assertFalse(inactivo.isActive());
+    }
+
+    @Test
+    void activo_valor_invalido_reporta_error_y_no_importa() throws Exception {
+        String contenido = """
+                document_id,first_name,middle_name,last_name,second_surname,grade,active
+                8080808080,INVALIDO,TEST,UNO,DOS,701,tal vez
+                """;
+        mvc.perform(multipart("/api/admin/import/students").file(csv(contenido))
+                        .header("Authorization", tokenAdmin()))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.imported").value(0))
+           .andExpect(jsonPath("$.errors.length()").value(1))
+           .andExpect(jsonPath("$.errors[0]").value(org.hamcrest.Matchers.containsString("activo debe ser si o no")));
+    }
+
+    @Test
+    void estudiantes_con_bom_y_cabecera_en_espanol_con_punto_y_coma_se_importan() throws Exception {
+        // BOM + cabecera en español + separador ';'
+        String contenido = "\uFEFFdocumento;primer_nombre;segundo_nombre;primer_apellido;segundo_apellido;curso;activo\n"
+                + "9090909090;BOM;TEST;UNO;DOS;701;si\n";
+        mvc.perform(multipart("/api/admin/import/students").file(csv(contenido))
+                        .header("Authorization", tokenAdmin()))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.imported").value(1))
+           .andExpect(jsonPath("$.errors.length()").value(0));
+
+        assertTrue(studentRepo.findByDocumentIdAndActiveTrue("9090909090").isPresent());
+    }
 }

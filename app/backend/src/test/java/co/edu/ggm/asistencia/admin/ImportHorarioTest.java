@@ -149,4 +149,37 @@ class ImportHorarioTest extends AbstractIntegrationTest {
            .andExpect(jsonPath("$.imported").value(0))
            .andExpect(jsonPath("$.errors.length()").value(1));
     }
+
+    @Test
+    void horario_con_hora_6_30_sin_cero_inicial_se_importa() throws Exception {
+        String contenido = """
+                grade,weekday,block_no,start_time,end_time,subject,teacher_email
+                706,1,1,6:30,7:20,Matematicas,hora.import@ggm.edu.co
+                """;
+        mvc.perform(multipart("/api/admin/import/schedule").file(csv(contenido))
+                        .header("Authorization", admin()))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.imported").value(1))
+           .andExpect(jsonPath("$.errors.length()").value(0));
+
+        assertThat(jdbcBase.queryForObject(
+                "SELECT start_time::text FROM schedule_blocks WHERE grade='706' AND block_no=1",
+                String.class)).isEqualTo("06:30:00");
+    }
+
+    @Test
+    void horario_con_bom_y_cabecera_en_espanol_con_punto_y_coma_se_importa() throws Exception {
+        // BOM + cabecera en español + separador ';'
+        String contenido = "\uFEFFcurso;dia;bloque;hora_inicio;hora_fin;materia;correo_docente;aula\n"
+                + "707;2;3;07:20;08:10;Historia;bom.import@ggm.edu.co;Aula 1\n";
+        mvc.perform(multipart("/api/admin/import/schedule").file(csv(contenido))
+                        .header("Authorization", admin()))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.imported").value(1))
+           .andExpect(jsonPath("$.errors.length()").value(0));
+
+        assertThat(jdbcBase.queryForObject(
+                "SELECT u.email FROM schedule_blocks b JOIN users u ON u.id = b.teacher_id WHERE b.grade='707'",
+                String.class)).isEqualTo("bom.import@ggm.edu.co");
+    }
 }

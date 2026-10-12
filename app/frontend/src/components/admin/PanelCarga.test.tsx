@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import PanelCarga from './PanelCarga';
 
 function csv(nombre = 'estudiantes.csv') {
-  return new File(['document_id,first_name\n123,ANA\n'], nombre, { type: 'text/csv' });
+  return new File(['documento,primer_nombre\n123,ANA\n'], nombre, { type: 'text/csv' });
 }
 
 describe('PanelCarga', () => {
@@ -14,12 +14,12 @@ describe('PanelCarga', () => {
     }));
   });
 
-  it('muestra las tres cargas con su cabecera esperada', () => {
+  it('muestra las tres cargas con su cabecera esperada en espanol', () => {
     render(<PanelCarga />);
     expect(screen.getByText(/Estudiantes/)).toBeInTheDocument();
     expect(screen.getByText(/Horario/)).toBeInTheDocument();
     expect(screen.getByText(/Acudientes/)).toBeInTheDocument();
-    expect(screen.getByText(/document_id,first_name/)).toBeInTheDocument();
+    expect(screen.getByText(/documento,primer_nombre/)).toBeInTheDocument();
   });
 
   it('informa cuantas filas se cargaron', async () => {
@@ -50,5 +50,13 @@ describe('PanelCarga', () => {
     await userEvent.upload(screen.getByLabelText(/archivo csv de estudiantes/i), csv());
     await waitFor(() =>
       expect(screen.getByRole('alert')).toHaveTextContent(/no se pudo cargar/i));
+  });
+
+  it('muestra el texto explicativo actualizado con columnas en español', () => {
+    const { container } = render(<PanelCarga />);
+    const texto = container.textContent ?? '';
+    expect(texto).toMatch(/si activo \(o re-activa\) y\s*no lo da de baja/i);
+    expect(texto).toMatch(/se lee por posicion/i);
+    expect(texto).toMatch(/Archivo > Guardar como >\s*CSV UTF-8/);
   });
 });

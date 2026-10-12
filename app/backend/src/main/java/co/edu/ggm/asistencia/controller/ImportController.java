@@ -56,6 +56,10 @@ public class ImportController {
             String linea, sep = ",";
             while ((linea = reader.readLine()) != null) {
                 numero++;
+                // Quitar BOM UTF-8 si Excel lo escribio al inicio de la primera linea
+                if (numero == 1 && linea.startsWith("\uFEFF")) {
+                    linea = linea.substring(1);
+                }
                 // Excel en espanol guarda el CSV con punto y coma: se acepta el que traiga la cabecera.
                 if (numero == 1) sep = linea.contains(";") ? ";" : ",";
                 if (numero == 1 || linea.isBlank()) continue;   // cabecera
@@ -69,15 +73,31 @@ public class ImportController {
                     errores.add("Linea " + numero + ": documento, primer nombre y primer apellido son obligatorios");
                     continue;
                 }
-                // La columna "active" es opcional y va al final: los archivos de 6
+                // La columna "activo" es opcional y va al final: los archivos de 6
                 // columnas siguen sirviendo (activo por defecto).
-                boolean activo = c.length < 7 || c[6].isBlank() || Boolean.parseBoolean(c[6].trim());
+                Boolean activo = c.length < 7 || c[6].isBlank() ? Boolean.TRUE : parseActivo(c[6]);
+                if (activo == null) {
+                    errores.add("Linea " + numero + ": activo debe ser si o no, llego " + c[6].trim());
+                    continue;
+                }
                 students.upsert(documento, c[1].trim(), vacioANull(c[2]), c[3].trim(),
                         vacioANull(c[4]), c[5].trim(), activo);
                 importados++;
             }
         }
         return new ImportResult(importados, errores);
+    }
+
+    /**
+     * Excel en espanol escribe TRUE como VERDADERO, y la coordinacion escribe si/no:
+     * Boolean.parseBoolean daba de baja a cualquiera de esos. null = valor no reconocido.
+     */
+    private static Boolean parseActivo(String valor) {
+        return switch (valor.trim().toLowerCase().replace("í", "i")) {
+            case "verdadero", "true", "si", "1", "activo" -> true;
+            case "falso", "false", "no", "0", "inactivo", "retirado" -> false;
+            default -> null;
+        };
     }
 
     private static String vacioANull(String s) {
