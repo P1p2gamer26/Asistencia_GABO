@@ -4,11 +4,11 @@ import type { ImportResult } from '../../api/contract';
 
 const CARGAS = [
   { clave: 'students',  titulo: 'Estudiantes',
-    cabecera: 'document_id,first_name,middle_name,last_name,second_surname,grade[,active]' },
+    cabecera: 'documento,primer_nombre,segundo_nombre,primer_apellido,segundo_apellido,curso[,activo]' },
   { clave: 'schedule',  titulo: 'Horario',
-    cabecera: 'grade,weekday (dia de ciclo 1 a 5),block_no,start_time,end_time,subject,teacher_email,room' },
+    cabecera: 'curso,dia (dia de ciclo 1 a 5),bloque,hora_inicio,hora_fin,materia,correo_docente,aula' },
   { clave: 'guardians', titulo: 'Acudientes',
-    cabecera: 'document_id,guardian_name,guardian_email,relationship' },
+    cabecera: 'documento_estudiante,nombre_acudiente,correo_acudiente,parentesco' },
 ] as const;
 
 export default function PanelCarga() {
@@ -40,9 +40,12 @@ export default function PanelCarga() {
       <p className="meta">
         Orden de carga: <strong>estudiantes primero</strong>, luego horario, y acudientes
         al final. Los dos ultimos necesitan que el estudiante ya exista.
-        Los archivos deben ser CSV codificados en UTF-8. La columna <code>active</code>
-        de estudiantes es opcional: <code>true</code> activo (o re-activa) y
-        <code>false</code> lo da de baja. Si no viene, queda activo.
+        Los archivos deben ser CSV codificados en UTF-8. La columna <code>activo</code>
+        de estudiantes es opcional: <code>si</code> activo (o re-activa) y
+        <code>no</code> lo da de baja. Si no viene, queda activo.
+        Se lee por posicion: la fila de titulos puede estar en espanol o en ingles,
+        pero las columnas deben ir en este orden. Desde Excel: Archivo &gt; Guardar como &gt;
+        CSV UTF-8 (delimitado por comas).
       </p>
 
       {CARGAS.map((c) => {
