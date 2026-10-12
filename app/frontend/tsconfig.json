@@ -13,5 +13,5 @@
     "types": ["vite/client", "vitest/globals", "vite-plugin-pwa/react"]
   },
   "include": ["src"],
-  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/test-setup.ts"]
 }
