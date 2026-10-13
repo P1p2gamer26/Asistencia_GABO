@@ -23,6 +23,93 @@ grande: el cuello de botella del colegio es la conexión, no el servidor.
 Con **1 vCPU y 1 GB de RAM** sobra para el contenedor. La base puede vivir en el mismo
 servidor o en un servicio gestionado.
 
+## Opcion actual — VM Oracle Always Free + Cloudflare Tunnel
+
+Es la que se usa hoy. Sustituye a Render free, que da 512 MB, una sola instancia y se
+duerme a los 15 minutos: el arranque en frio de Spring Boot con Flyway tarda decenas de
+segundos y la docente que abre la aplicacion delante del curso no puede esperarlos.
+
+La base corre en la misma VM, como un servicio mas del compose. Se dejo Supabase
+porque su plan gratuito pausa el proyecto tras ~7 dias sin actividad: unas vacaciones
+del colegio bastaban para tumbar el sitio hasta entrar a reactivarlo a mano. A cambio,
+las copias de seguridad dejan de ser problema de Supabase y pasan a ser nuestras.
+
+1. **VM**: Oracle Cloud, shape `VM.Standard.A1.Flex` (ARM Ampere, gratis permanente),
+   4 vCPU / 24 GB, Ubuntu 24.04. Docker queda instalado por el cloud-init del arranque.
+
+   Es normal que el primer intento falle con `Out of capacity for shape
+   VM.Standard.A1.Flex`: Bogota tiene un solo availability domain y la capacidad ARM se
+   libera a ratos. No es un error de configuracion, hay que insistir:
+   `./tools/oci-reintentar-vm.sh` lo hace solo. Con `OCPUS=1 MEM=6` se prueba una VM mas
+   pequena, que entra donde 4/24 no.
+
+2. **Codigo y secretos**: clonar el repositorio y escribir un `.env` junto a
+   `docker-compose.prod.yml` con `DB_PASSWORD`, `JWT_SECRET` y `TUNNEL_TOKEN`.
+   El resto de la conexion es fija y ya vive en el compose.
+3. **Tunel**: en el panel de Cloudflare, Zero Trust > Networks > Tunnels, crear un tunel
+   **con nombre**, apuntar el hostname publico a `http://app:8080` y copiar el token al
+   `.env`. El quick tunnel no sirve: cambia de URL en cada reinicio.
+4. **Arrancar**:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+   Se compila en la VM porque la imagen de `ghcr.io` que publica el CI es solo amd64 y
+   la VM es ARM. El primer build tarda; los siguientes usan la cache de capas.
+
+5. **Comprobar**:
+
+```bash
+curl https://<dominio>/actuator/health        # {"status":"UP"}
+bash tools/humo.sh https://<dominio>
+bash tools/carga-concurrente.sh https://<dominio>
+```
+
+   Y desde un telefono: escanear un carnet e instalar la PWA. Si eso falla, el HTTPS
+   del tunel quedo mal; sin HTTPS no hay `getUserMedia` ni instalacion.
+
+6. **Reiniciar la VM** y verificar que aplicacion y tunel vuelven solos
+   (`restart: unless-stopped` en los tres servicios).
+
+Mantener Render vivo una semana como respaldo antes de borrar el servicio.
+
+### Dejarlo desatendido
+
+Con la base dentro de la VM, estas dos cosas dejan de ser opcionales. `restart:
+unless-stopped` cubre que un contenedor se caiga o que la VM reinicie, pero no cubre
+ni que alguien borre datos ni que la VM entera se pierda.
+
+**Copias de seguridad.** `tools/backup-db.sh` vuelca la base, comprime, verifica que el
+archivo no salio truncado y rota a 30 dias. Una linea de cron en la VM:
+
+```
+0 3 * * * /opt/asistencia/tools/backup-db.sh >> /var/log/asistencia-backup.log 2>&1
+```
+
+Sin `REMOTO` la copia se queda en la propia VM, que no protege del caso que mas
+importa: perder la maquina. Para sacarla fuera, configurar `rclone` contra Cloudflare R2
+o Backblaze B2 (los dos tienen capa gratis de sobra para esto) y exportar el destino:
+
+```
+REMOTO=r2:asistencia-backups
+```
+
+**Aviso de caida.** El monitoreo tiene que vivir fuera de la VM: uno instalado dentro se
+cae con ella y el silencio se confunde con normalidad. Basta UptimeRobot (gratis)
+apuntando a `https://<dominio>/actuator/health` cada 5 minutos, con alerta por correo.
+De paso mantiene la aplicacion caliente.
+
+**Restaurar** (probarlo una vez, no el dia que haga falta):
+
+```bash
+gunzip -c asistencia-AAAAMMDD-HHMM.sql.gz | \
+  docker compose -f docker-compose.prod.yml exec -T db psql -U asistencia asistencia
+```
+
+Las opciones A, B y C de abajo son historicas: quedan como referencia de otros caminos
+que funcionan, no como la configuracion vigente.
+
 ## Opción A — Fly.io o Railway (la más rápida)
 
 Despliegan directamente desde el `Dockerfile` y dan HTTPS sin configurar nada.
@@ -120,7 +207,7 @@ settings > Change visibility). Publicarlo no expone el código fuente, pero sí 
 aplicación compilada: si el colegio prefiere no hacerlo, el `docker login` con un
 token de solo lectura es la opción correcta.
 
-## Opción C — Vercel + Supabase + Fly.io (la de esta versión)
+## Opción C — Vercel + Supabase + Fly.io (histórica)
 
 El frontend en Vercel (HTTPS y CDN gratis, que la PWA necesita para instalarse en el
 teléfono), la base en Supabase (PostgreSQL 16 gestionado, con copias de seguridad) y

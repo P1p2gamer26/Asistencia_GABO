@@ -1,0 +1,57 @@
+# Produccion: VM Oracle Always Free (ARM) + Cloudflare Tunnel.
+# La base corre aqui mismo, en la VM. Se abandono Supabase porque el plan
+# gratuito pausa el proyecto tras ~7 dias sin actividad: unas vacaciones del
+# colegio bastaban para tumbar el sitio hasta entrar a reactivarlo a mano.
+# Secretos en un .env junto a este archivo (nunca en el repo):
+#   DB_PASSWORD, JWT_SECRET, TUNNEL_TOKEN
+#
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# ponytail: se compila en la VM en vez de bajar ghcr.io/.../asistencia-ggm:latest
+# porque el CI la publica solo para amd64 y la VM es ARM. Si el build en la VM
+# empieza a molestar, anadir buildx multi-arch al workflow y volver a `image:`.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: asistencia
+      POSTGRES_USER: asistencia
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U asistencia -d asistencia"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/asistencia
+      DB_USER: asistencia
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      NOTIFY_ENABLED: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 90s          # arranque en frio de Spring Boot + Flyway
+
+  # Tunel con nombre: dominio y HTTPS estables. El quick tunnel no sirve,
+  # cambia de URL en cada reinicio. El token se saca del panel de Cloudflare
+  # y ahi mismo se apunta el hostname a http://app:8080.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN}
+    depends_on: [app]
+    restart: unless-stopped
+
+volumes:
+  pgdata:
