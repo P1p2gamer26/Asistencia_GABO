@@ -135,7 +135,8 @@ COMPLETOS = {"YAMILE": "YAMILE PACHON", "ANDERSSON": "ANDERSSON TUNJANO"}
 # exactamente una. Lo que no calce se arregla a mano aqui.
 EXCEPCIONES = {"JOHN SALAMANCA": "SALAMANCA RUBIO JHON ALVARO"}
 # Correos que la planta no trae y el colegio entrego despues (WhatsApp de coordinacion).
-CORREOS_ENTREGADOS = {"YAMILE PACHON": "aida.pachon414@educacionbogota.edu.co"}  # 13-oct-2026
+CORREOS_ENTREGADOS = {"YAMILE PACHON": "aida.pachon414@educacionbogota.edu.co",   # 13-oct-2026
+                      "LEIDY LINARES": "leidy.linares213@outlook.com"}
 
 
 def planta():
