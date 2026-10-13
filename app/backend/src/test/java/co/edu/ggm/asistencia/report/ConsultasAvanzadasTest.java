@@ -135,13 +135,23 @@ class ConsultasAvanzadasTest extends AbstractIntegrationTest {
                         .param("from", "2026-06-01").param("to", "2026-06-05")
                         .header("Authorization", coord()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(2)))
-                .andExpect(jsonPath("$[0].classDate").value("2026-06-01"))
-                .andExpect(jsonPath("$[0].status").value("P"))
-                .andExpect(jsonPath("$[0].documentId").value(ALUMNO))
-                .andExpect(jsonPath("$[0].blockNo").isNumber())
-                .andExpect(jsonPath("$[1].status").value("F"))
-                .andExpect(jsonPath("$[1].comment").value("llego con excusa"));
+                .andExpect(jsonPath("$.marcas", hasSize(2)))
+                .andExpect(jsonPath("$.marcas[0].classDate").value("2026-06-01"))
+                .andExpect(jsonPath("$.marcas[0].status").value("P"))
+                .andExpect(jsonPath("$.marcas[0].documentId").value(ALUMNO))
+                .andExpect(jsonPath("$.marcas[0].blockNo").isNumber())
+                .andExpect(jsonPath("$.marcas[1].status").value("F"))
+                .andExpect(jsonPath("$.marcas[1].comment").value("llego con excusa"))
+                // el estudiante activo sin marcas tambien viene, para ver el curso completo
+                .andExpect(jsonPath("$.estudiantes[?(@.documentId == '1010101011')]").exists())
+                .andExpect(jsonPath("$.estudiantes[?(@.documentId == '" + ALUMNO + "')]").exists())
+                // lunes a viernes
+                .andExpect(jsonPath("$.dias", hasSize(5)))
+                .andExpect(jsonPath("$.dias[0].fecha").value("2026-06-01"))
+                .andExpect(jsonPath("$.dias[0].cicloDia").isNumber())
+                // la semilla solo tiene bloque en dia de ciclo 1: algun dia lo trae
+                .andExpect(jsonPath("$.dias[?(@.cicloDia == 1)].bloques[0].blockNo").isNotEmpty())
+                .andExpect(jsonPath("$.dias[?(@.cicloDia == 1)].bloques[0].startTime").isNotEmpty());
     }
 
     @Test

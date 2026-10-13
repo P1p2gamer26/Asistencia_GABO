@@ -854,3 +854,14 @@ select { max-width: 100%; text-overflow: ellipsis; }
 }
 
 .error-texto { color: #a5231b; }
+
+/* Resumen semanal: detalle por bloque y, al imprimir, horizontal y sin menu. */
+.tabla-semana small { display: block; font-weight: 400; font-size: .7rem; color: var(--tinta-suave); }
+.tabla-semana td.sin-lista { color: var(--tinta-suave); opacity: .6; text-align: center; }
+.tabla-semana td { text-align: center; }
+.tabla-semana td:first-child { text-align: left; }
+@media print {
+  @page { size: landscape; }
+  .menu, .barra-movil, .menu-fondo, .filtros, button { display: none !important; }
+  .tabla-scroll { overflow: visible; }
+}

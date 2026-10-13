@@ -175,6 +175,34 @@ class ExcelTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void el_semanal_trae_la_rejilla_con_el_estudiante_y_la_hoja_de_comentarios() throws Exception {
+        jdbc.update("UPDATE attendance SET comment = 'llego con excusa' WHERE status = 'F'");
+        String curso = jdbc.queryForObject("SELECT grade FROM schedule_blocks ORDER BY id LIMIT 1", String.class);
+        try (var wb = new XSSFWorkbook(new ByteArrayInputStream(descargar("tipo", "semanal", "grade", curso)))) {
+            Sheet hoja = wb.getSheetAt(0);
+            assertThat(hoja.getRow(0).getCell(0).getStringCellValue()).isEqualTo("Estudiante");
+            assertThat(hoja.getRow(0).getCell(2).getStringCellValue()).startsWith("Lun 01/06");
+            assertThat(hoja.getRow(0).getCell(2).getStringCellValue()).contains("·");
+            boolean esta = false;
+            for (int i = 2; i <= hoja.getLastRowNum(); i++) {
+                esta |= "LINDA ISABELLA AREVALO FIGUEROA".equals(hoja.getRow(i).getCell(0).getStringCellValue());
+            }
+            assertThat(esta).isTrue();
+            var com = wb.getSheet("Comentarios");
+            assertThat(com.getRow(0).getCell(7).getStringCellValue()).isEqualTo("Comentario");
+            assertThat(com.getRow(1).getCell(7).getStringCellValue()).isEqualTo("llego con excusa");
+        }
+    }
+
+    @Test
+    void el_semanal_exige_curso() throws Exception {
+        mvc.perform(get("/api/reports/excel")
+                        .header("Authorization", tokenDe("coord@ggm.edu.co", "ADMIN"))
+                        .param("tipo", "semanal").param("from", "2026-06-01").param("to", "2026-06-03"))
+           .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void una_celda_vacia_no_es_una_falta() throws Exception {
         // El otro estudiante de 601 no tiene ningun registro: sus tres dias van en
         // blanco. Decir "F" seria inventarse una inasistencia que nadie marco.

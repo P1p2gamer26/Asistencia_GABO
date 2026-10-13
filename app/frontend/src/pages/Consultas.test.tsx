@@ -175,16 +175,30 @@ describe('Consultas', () => {
     expect(screen.getByRole('button', { name: /excel del estudiante/i })).toBeInTheDocument();
   });
 
-  it('resumen semanal: una fila por estudiante con P y F, dia de ciclo, totales y comentarios', async () => {
+  it('resumen semanal: todo el curso, bloques del dia de ciclo, P/F/sin lista, totales y comentarios', async () => {
     const marca = (blockNo: number, status: string, comment: string | null) => ({
       classDate: '2026-10-12', blockNo, subject: 'Ciencias', teacherName: 'Francisco Palacios',
       studentId: 1, documentId: '111', fullName: 'ANA LOPEZ', status, comment,
     });
+    const bloque = (blockNo: number) => ({
+      blockNo, subject: 'Ciencias', teacherName: 'Francisco Palacios', startTime: '07:00:00', endTime: '07:55:00' });
+    const resumen = {
+      estudiantes: [
+        { id: 1, documentId: '111', fullName: 'ANA LOPEZ' },
+        { id: 2, documentId: '222', fullName: 'BETO RUIZ' },
+      ],
+      dias: [
+        { fecha: '2026-10-12', cicloDia: 3, descripcion: null, bloques: [bloque(1), bloque(2), bloque(3)] },
+        { fecha: '2026-10-13', cicloDia: null, descripcion: 'Festivo', bloques: [] },
+        { fecha: '2026-10-14', cicloDia: null, descripcion: null, bloques: [] },
+        { fecha: '2026-10-15', cicloDia: null, descripcion: null, bloques: [] },
+        { fecha: '2026-10-16', cicloDia: null, descripcion: null, bloques: [] },
+      ],
+      marcas: [marca(1, 'P', null), marca(2, 'F', 'sin excusa')],
+    };
     const f = vi.fn(async (url: string) => {
       const u = String(url);
-      if (u.includes('/api/reports/semana')) return respuesta([marca(1, 'P', null), marca(2, 'F', 'sin excusa')]);
-      if (u.includes('/api/calendar/school-days')) return respuesta([
-        { calendarDate: '2026-10-12', dayType: 'LECTIVO', description: null, cycleDay: 3 }]);
+      if (u.includes('/api/reports/semana')) return respuesta(resumen);
       return respuesta(FILAS);
     });
     vi.stubGlobal('fetch', f);
@@ -196,14 +210,22 @@ describe('Consultas', () => {
     fireEvent.change(screen.getByLabelText(/semana/i), { target: { value: '2026-10-14' } });
 
     await waitFor(() => expect(screen.getByRole('cell', { name: /ANA LOPEZ/ })).toBeInTheDocument());
+    expect(screen.getByRole('cell', { name: /BETO RUIZ/ })).toBeInTheDocument();   // sin marcas, igual aparece
     expect(screen.getByRole('columnheader', { name: 'Lun 12/10 · Día 3' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Mar 13/10 · Festivo' })).toBeInTheDocument();
+    for (const n of [1, 2, 3]) expect(screen.getByRole('columnheader', { name: new RegExp(`^B${n}`) })).toBeInTheDocument();
     expect(screen.getByRole('cell', { name: 'P' })).toHaveClass('estado-P');
-    expect(screen.getByRole('cell', { name: 'F*' })).toHaveAttribute('title', 'sin excusa');
+    const cF = screen.getByRole('cell', { name: /^F\s*sin excusa$/ });
+    expect(cF).toHaveClass('estado-F');
+    expect(cF).toHaveAttribute('title', 'sin excusa');
+    // Bloque 3 de Ana y los 3 de Beto: sin lista.
+    expect(screen.getAllByRole('cell', { name: '·' })).toHaveLength(4);
     expect(screen.getByText(/lun 12\/10 al vie 16\/10/)).toBeInTheDocument();
     expect(screen.getByText(/Comentarios de la semana/)).toBeInTheDocument();
     expect(screen.getByText(/bloque 2 \(Ciencias, Francisco Palacios\): Falta — sin excusa/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /descargar excel/i })).toBeInTheDocument();
+    expect(f.mock.calls.some(([u]) => String(u).includes('school-days'))).toBe(false);
   });
-
   it('tomas de asistencia: lista quien tomo cada lista y resalta cuando no fue el titular', async () => {
     const f = vi.fn(async (url: string) => {
       const u = String(url);

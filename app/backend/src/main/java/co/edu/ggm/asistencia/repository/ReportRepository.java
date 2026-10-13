@@ -589,4 +589,39 @@ public interface ReportRepository extends Repository<Student, Long> {
             """, nativeQuery = true)
     List<MarcaSemanaRow> marcasSemana(@Param("grade") String grade,
                                       @Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    interface EstudianteSemanaRow { Long getId(); String getDocumentId(); String getFullName(); }
+
+    /** Activos del curso mas quien tenga marcas en el rango en ese curso aunque ya no este activo. */
+    @Query(value = """
+            SELECT s.id AS id, s.document_id AS documentId,
+                   trim(regexp_replace(concat_ws(' ', s.first_name, s.middle_name,
+                        s.last_name, s.second_surname), '\\s+', ' ', 'g')) AS fullName
+            FROM students s
+            WHERE (s.active AND s.grade = :grade)
+               OR s.id IN (SELECT a.student_id FROM attendance a
+                           JOIN schedule_blocks sb ON sb.id = a.schedule_block_id
+                           WHERE a.deleted_at IS NULL AND sb.grade = :grade
+                             AND a.class_date BETWEEN :from AND :to)
+            ORDER BY s.last_name, s.second_surname, s.first_name, s.id
+            """, nativeQuery = true)
+    List<EstudianteSemanaRow> estudiantesSemana(@Param("grade") String grade,
+                                                @Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    interface BloqueCursoRow {
+        Short getWeekday(); Short getBlockNo(); String getSubject(); String getTeacherName();
+        java.time.LocalTime getStartTime(); java.time.LocalTime getEndTime();
+    }
+
+    /** Horario completo del curso; weekday es el dia de ciclo (1..5). */
+    @Query(value = """
+            SELECT sb.weekday AS weekday, sb.block_no AS blockNo, su.name AS subject,
+                   tu.full_name AS teacherName, sb.start_time AS startTime, sb.end_time AS endTime
+            FROM schedule_blocks sb
+            LEFT JOIN subjects su ON su.id = sb.subject_id
+            LEFT JOIN users tu ON tu.id = sb.teacher_id
+            WHERE sb.grade = :grade
+            ORDER BY sb.weekday, sb.block_no
+            """, nativeQuery = true)
+    List<BloqueCursoRow> bloquesDelCurso(@Param("grade") String grade);
 }
