@@ -134,6 +134,8 @@ COMPLETOS = {"YAMILE": "YAMILE PACHON", "ANDERSSON": "ANDERSSON TUNJANO"}
 # ("JOAN C WILCHES" -> JOAN, WILCHES) estan en el nombre de la planta; tiene que calzar
 # exactamente una. Lo que no calce se arregla a mano aqui.
 EXCEPCIONES = {"JOHN SALAMANCA": "SALAMANCA RUBIO JHON ALVARO"}
+# Correos que la planta no trae y el colegio entrego despues (WhatsApp de coordinacion).
+CORREOS_ENTREGADOS = {"YAMILE PACHON": "aida.pachon414@educacionbogota.edu.co"}  # 13-oct-2026
 
 
 def planta():
@@ -156,6 +158,8 @@ def correo(nombre, filas):
                  % (completo, len(calzan), [f[0] for f in calzan]))
     if calzan[0][1]:
         return calzan[0][1], False
+    if completo in CORREOS_ENTREGADOS:
+        return CORREOS_ENTREGADOS[completo], False
     partes = completo.lower().split()
     return "%s%s@ggm.edu.co" % (partes[0][0], partes[-1]), True
 
