@@ -1,0 +1,36 @@
+# Del 5 al 12 de octubre de 2026 la CI y los deploys de Render fallaron en silencio y
+# produccion se quedo en una version vieja. Esto abre un issue (GitHub avisa por correo)
+# cuando falla la CI en main o un deploy, y lo cierra solo cuando vuelve a salir bien.
+name: avisos
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
+  deployment_status:
+
+permissions:
+  issues: write
+
+jobs:
+  aviso:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_run' || contains(fromJSON('["success","failure","error"]'), github.event.deployment_status.state)
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      TITULO: "Produccion no se esta actualizando"
+      FALLO: ${{ github.event.workflow_run.conclusion == 'failure' || github.event.deployment_status.state == 'failure' || github.event.deployment_status.state == 'error' }}
+      QUE: ${{ github.event_name == 'workflow_run' && format('CI en main ({0})', github.event.workflow_run.conclusion) || format('Deploy de Render ({0})', github.event.deployment_status.state) }}
+      SHA: ${{ github.event.workflow_run.head_sha || github.event.deployment.sha }}
+      ENLACE: ${{ github.event.workflow_run.html_url || github.event.deployment_status.log_url || github.event.deployment_status.target_url }}
+    steps:
+      - run: |
+          abierto=$(gh issue list --state open --search "in:title \"$TITULO\"" --json number --jq '.[0].number // empty')
+          if [ "$FALLO" = "true" ]; then
+            cuerpo="$QUE fallo en ${SHA:0:7}: $ENLACE"
+            if [ -n "$abierto" ]; then gh issue comment "$abierto" --body "$cuerpo"
+            else gh issue create --title "$TITULO" --body "$cuerpo"; fi
+          elif [ -n "$abierto" ]; then
+            gh issue close "$abierto" --comment "$QUE salio bien en ${SHA:0:7}."
+          fi
