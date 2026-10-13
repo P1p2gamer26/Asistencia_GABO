@@ -3,9 +3,10 @@ import type { Role } from '../api/contract';
 const TODOS: Role[] = ['ADMIN', 'DOCENTE', 'ACUDIENTE'];
 const DOCENTES: Role[] = ['ADMIN', 'DOCENTE'];
 
-export const VIDEOS: { src: string; titulo: string; duracion: string; texto: string; roles: Role[] }[] = [
+export const VIDEOS: { src: string; titulo: string; duracion: string; texto: string; roles: Role[]; publico?: boolean }[] = [
   { src: '/videos/promo.mp4', titulo: 'Conozca el colegio', duracion: '0:55',
-    texto: 'Tomas aéreas y del patio del Colegio Gabriel García Márquez.', roles: TODOS },
+    texto: 'Tomas aéreas y del patio del Colegio Gabriel García Márquez.', roles: TODOS,
+    publico: true },   // el unico que se ve sin sesion; los tutoriales son para cada rol
   { src: '/videos/piloto-docentes.mp4', titulo: 'Prueba piloto: la app en su celular', duracion: '3:23',
     texto: 'Instalar la aplicación, entrar con la clave temporal y tomar la lista, paso a paso.', roles: DOCENTES },
   { src: '/videos/tutorial-docentes.mp4', titulo: 'Tutorial para docentes', duracion: '2:44',
