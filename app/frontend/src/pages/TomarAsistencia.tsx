@@ -217,6 +217,8 @@ export default function TomarAsistencia() {
     if (!blockId || !lectivo || students.length === 0) return;
     setError('');
     setAvisoEnvio('');
+    setConfirmacion({ tipo: 'cargando', titulo: 'Enviando asistencia...',
+      detalle: `${students.length} estudiantes` });
     try {
       for (const s of students) {
         await markAttendance({
@@ -227,7 +229,24 @@ export default function TomarAsistencia() {
           comment: motivos[s.id] ?? '',
         });
       }
-      const { pending, alcanzable: hay } = await flushOutbox();
+      // Con señal muy debil la peticion puede quedarse colgada minutos. La lista ya
+      // esta guardada en el telefono (markAttendance), asi que pasado el limite se
+      // le dice al docente que puede seguir; el envio continua por detras.
+      const subida = flushOutbox();
+      const lento = await Promise.race([
+        subida.then(() => false, () => false),
+        new Promise<boolean>((r) => setTimeout(() => r(true), LIMITE_ENVIO_MS)),
+      ]);
+      if (lento) {
+        setAvisoEnvio(`Lista de ${students.length} estudiantes guardada en el telefono.`
+          + ' La conexion esta muy lenta; se subira sola cuando mejore.');
+        setConfirmacion({ tipo: 'lento', titulo: 'Tu internet está muy lento',
+          detalle: 'Pero tranquilo: la lista ya quedó guardada en el teléfono y se subirá sola cuando tengas mejor señal.' });
+        subida.then(({ pending, alcanzable: hay }) => { setPendientes(pending); setAlcanzable(hay); })
+              .catch(() => {});
+        return;
+      }
+      const { pending, alcanzable: hay } = await subida;
       setPendientes(pending);
       setAlcanzable(hay);
       const faltas = students.filter((s) => (marcas[s.id] ?? 'P') !== 'P').length;
@@ -248,6 +267,7 @@ export default function TomarAsistencia() {
           detalle: `El servidor rechazo ${pending} ${pending === 1 ? 'registro' : 'registros'}. Se reintentara solo.` });
       }
     } catch (e) {
+      setConfirmacion(null);
       setError(e instanceof Error ? e.message : 'No se pudo enviar');
     }
   }
@@ -374,15 +394,31 @@ export default function TomarAsistencia() {
   );
 }
 
-type Confirmacion = { tipo: 'ok' | 'offline' | 'error'; titulo: string; detalle: string };
+/** Pasado esto sin respuesta del servidor, la red se considera demasiado lenta. */
+export const LIMITE_ENVIO_MS = 12_000;
+
+type Confirmacion = { tipo: 'cargando' | 'ok' | 'offline' | 'lento' | 'error'; titulo: string; detalle: string };
 
 /** Confirmacion a pantalla completa; se cierra sola a los 3 s o al tocar Continuar. */
 function AvisoEnvio({ tipo, titulo, detalle, onCerrar }: Confirmacion & { onCerrar: () => void }) {
   useEffect(() => {
-    const t = setTimeout(onCerrar, tipo === 'ok' ? 3000 : 5000);
+    if (tipo === 'cargando') return;   // se cierra cuando termina el envio
+    const t = setTimeout(onCerrar, tipo === 'ok' ? 3000 : tipo === 'lento' ? 7000 : 5000);
     return () => clearTimeout(t);
   }, [tipo, onCerrar]);
-  const icono = tipo === 'ok' ? '✓' : tipo === 'offline' ? '⇪' : '!';
+  const icono = tipo === 'ok' ? '✓' : tipo === 'offline' || tipo === 'lento' ? '⇪' : '!';
+  if (tipo === 'cargando') {
+    return (
+      <div className="aviso-envio-fondo">
+        <div className="aviso-envio cargando" role="alertdialog" aria-modal="true" aria-busy="true"
+             aria-labelledby="aviso-envio-titulo">
+          <div className="aviso-envio-spinner" aria-hidden="true" />
+          <h2 id="aviso-envio-titulo">{titulo}</h2>
+          <p>{detalle}</p>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="aviso-envio-fondo" onClick={onCerrar}>
       <div className={`aviso-envio ${tipo}`} role="alertdialog" aria-modal="true"
