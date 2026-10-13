@@ -177,7 +177,11 @@ class ExcelTest extends AbstractIntegrationTest {
     @Test
     void el_semanal_trae_la_rejilla_con_el_estudiante_y_la_hoja_de_comentarios() throws Exception {
         jdbc.update("UPDATE attendance SET comment = 'llego con excusa' WHERE status = 'F'");
-        String curso = jdbc.queryForObject("SELECT grade FROM schedule_blocks ORDER BY id LIMIT 1", String.class);
+        // El curso de las marcas que crea datos(): con la CI en orden aleatorio otros tests
+        // agregan bloques y "el primer bloque" ya no es el de esas marcas.
+        String curso = jdbc.queryForObject("""
+                SELECT sb.grade FROM attendance a JOIN schedule_blocks sb ON sb.id = a.schedule_block_id
+                LIMIT 1""", String.class);
         try (var wb = new XSSFWorkbook(new ByteArrayInputStream(descargar("tipo", "semanal", "grade", curso)))) {
             Sheet hoja = wb.getSheetAt(0);
             assertThat(hoja.getRow(0).getCell(0).getStringCellValue()).isEqualTo("Estudiante");
