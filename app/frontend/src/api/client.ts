@@ -41,11 +41,22 @@ export class HttpError extends Error {
   constructor(message: string, public readonly status: number) { super(message); }
 }
 
+/**
+ * Tope de espera por peticion. Sin el, una peticion colgada con señal de una rayita
+ * frenaba minutos el reintento automatico (que espera a que termine). Es generoso
+ * porque Render gratis tarda ~50 s en despertar: cortar antes haria fallar el primer
+ * uso del dia. Pasado el tope cuenta como sin conexion y la cola reintenta despues.
+ */
+export const TOPE_PETICION_MS = 60_000;
+
 async function request<T>(path: string, init: RequestInit, retry = true): Promise<T> {
   const session = getSession();
   let res: Response;
+  const corte = new AbortController();
+  const reloj = setTimeout(() => corte.abort(), TOPE_PETICION_MS);
   try {
     res = await fetch(apiUrl(path), {
+      signal: corte.signal,
       ...init,
       headers: {
         'Content-Type': 'application/json',
@@ -55,6 +66,8 @@ async function request<T>(path: string, init: RequestInit, retry = true): Promis
     });
   } catch {
     throw new OfflineError('Sin conexion');
+  } finally {
+    clearTimeout(reloj);
   }
   // 502/503/504 los pone el proxy de Render cuando el servidor esta caido o
   // despertando: no hubo respuesta de la aplicacion, es lo mismo que no tener red.

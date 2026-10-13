@@ -1,12 +1,27 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { api, apiUrl, getSession, clearSession, OfflineError } from './client';
+import { api, apiUrl, getSession, clearSession, OfflineError, TOPE_PETICION_MS } from './client';
 import { guardarCredencial } from './credencialLocal';
 
 describe('cliente http', () => {
   beforeEach(() => {
     localStorage.clear();
     clearSession();
+  });
+
+  it('una peticion colgada se corta y cuenta como sin conexion', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      vi.stubGlobal('fetch', vi.fn((_u: string, init?: RequestInit) => new Promise<Response>((_, rechazar) => {
+        init?.signal?.addEventListener('abort', () => rechazar(new DOMException('abort', 'AbortError')));
+      })));
+      const peticion = api.get('/api/x');
+      const esperado = expect(peticion).rejects.toBeInstanceOf(OfflineError);
+      await vi.advanceTimersByTimeAsync(TOPE_PETICION_MS + 1);
+      await esperado;
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('un 502/503/504 del proxy cuenta como sin conexion, no como rechazo', async () => {
