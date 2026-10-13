@@ -154,7 +154,7 @@ export default function Portal() {
       <section id="videos" className="portal-videos" data-revelar>
         <h2>Videos</h2>
         <div className="portal-videos-grid">
-          {VIDEOS.map((v) => (
+          {VIDEOS.filter((v) => v.publico).map((v) => (
             <figure key={v.src} className="portal-video">
               <video src={v.src} poster={v.src.replace('.mp4', '.jpg')} controls preload="none" playsInline />
               <figcaption>
