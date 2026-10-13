@@ -18,6 +18,7 @@ const DESTINOS: Destino[] = [
   { a: '/ingreso',     texto: 'Ingreso al colegio', roles: ['ADMIN', 'DOCENTE'] },
   { a: '/consultas',   texto: 'Consultas',      roles: ['ADMIN', 'DOCENTE'] },
   { a: '/dashboard',   texto: 'Tablero',        roles: ['ADMIN'] },
+  { a: '/videos',      texto: 'Videos tutoriales', roles: ['ADMIN', 'DOCENTE', 'ACUDIENTE'] },
   { a: '/admin',       texto: 'Administracion', roles: ['ADMIN'] },
 ];
 

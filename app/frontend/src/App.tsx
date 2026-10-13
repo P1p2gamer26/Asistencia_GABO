@@ -17,6 +17,7 @@ import Horario from './pages/Horario';
 import InicioAdmin from './pages/InicioAdmin';
 import InicioDocente from './pages/InicioDocente';
 import Portal from './pages/Portal';
+import Videos from './pages/Videos';
 import Layout from './components/Layout';
 
 const PERSONAL = ['DOCENTE', 'ADMIN'];
@@ -78,6 +79,7 @@ export default function App() {
       <Route path="/admin" element={<SoloRoles roles={['ADMIN']}><Admin /></SoloRoles>} />
       {/* Calendario publico en solo lectura: sin sesion se ve sin el menu lateral. */}
       <Route path="/calendario" element={getSession() ? <Protegida><Calendario /></Protegida> : <Calendario />} />
+      <Route path="/videos" element={<Protegida><Videos /></Protegida>} />
       <Route path="/horario" element={<Protegida><Horario /></Protegida>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
