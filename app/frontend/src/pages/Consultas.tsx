@@ -27,7 +27,6 @@ type MarcaSemana = {
   classDate: string; blockNo: number; subject: string | null; teacherName: string | null;
   studentId: number; documentId: string; fullName: string; status: string; comment: string | null;
 };
-type DiaCalendario = { calendarDate: string; dayType: string; description: string | null; cycleDay: number | null };
 
 type Modo = 'curso' | 'estudiante' | 'tomas' | 'semana';
 const MODOS: { id: Modo; texto: string }[] = [
@@ -314,48 +313,40 @@ function diasDeLaSemana(fecha: string): string[] {
 
 const ddmm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 
+type BloqueSemana = { blockNo: number; subject: string | null; teacherName: string | null; startTime: string; endTime: string };
+type DiaSemana = { fecha: string; cicloDia: number | null; descripcion: string | null; bloques: BloqueSemana[] };
+type ResumenSemana = {
+  estudiantes: { id: number; documentId: string; fullName: string }[];
+  dias: DiaSemana[];
+  marcas: MarcaSemana[];
+};
+
 function Semana({ cursos, setError }: { cursos: string[]; setError: (e: string) => void }) {
   const [grade, setGrade] = useState('');
   const [fecha, setFecha] = useState(isoLocal(new Date()));
-  const [marcas, setMarcas] = useState<MarcaSemana[] | null>(null);
-  const [calendario, setCalendario] = useState<DiaCalendario[]>([]);
+  const [datos, setDatos] = useState<ResumenSemana | null>(null);
 
-  const dias = fecha ? diasDeLaSemana(fecha) : [];
+  const fechas = fecha ? diasDeLaSemana(fecha) : [];
 
   useEffect(() => {
-    if (!grade || !fecha) { setMarcas(null); return; }
-    const [lunes, viernes] = [dias[0], dias[4]];
+    if (!grade || !fecha) { setDatos(null); return; }
+    const [lunes, viernes] = [fechas[0], fechas[4]];
     setError('');
-    setMarcas(null);   // sin esto, al cambiar de curso se ve la semana del anterior
+    setDatos(null);   // sin esto, al cambiar de curso se ve la semana del anterior
     let vigente = true;
-    Promise.all([
-      api.get<MarcaSemana[]>(`/api/reports/semana?grade=${encodeURIComponent(grade)}&from=${lunes}&to=${viernes}`),
-      api.get<DiaCalendario[]>(`/api/calendar/school-days?from=${lunes}&to=${viernes}`),
-    ]).then(([m, c]) => { if (vigente) { setMarcas(m); setCalendario(c); } })
+    api.get<ResumenSemana>(`/api/reports/semana?grade=${encodeURIComponent(grade)}&from=${lunes}&to=${viernes}`)
+      .then((d) => { if (vigente) setDatos(d); })
       .catch(() => { if (vigente) setError('No se pudo consultar. Requiere conexion.'); });
     return () => { vigente = false; };
   }, [grade, fecha]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const rotulo = (iso: string, i: number) => `${DIAS_SEMANA[i]} ${ddmm(iso)}`;
-  const info = (iso: string) => calendario.find((c) => c.calendarDate === iso);
-  const cicloDe = (iso: string) => info(iso)?.cycleDay ?? null;
-  const encabezado = (iso: string, i: number) => {
-    const ciclo = cicloDe(iso);
-    return ciclo == null ? rotulo(iso, i) : `${rotulo(iso, i)} · Día ${ciclo}`;
-  };
+  const encabezado = (d: DiaSemana, i: number) =>
+    d.cicloDia == null ? `${rotulo(d.fecha, i)} · ${d.descripcion || 'Sin clase'}` : `${rotulo(d.fecha, i)} · Día ${d.cicloDia}`;
+  const hm = (t: string) => t.slice(0, 5);
 
-  // Bloques con al menos una marca ese dia en este curso: solo esas columnas.
-  const bloquesDe = (iso: string) =>
-    [...new Set((marcas ?? []).filter((m) => m.classDate === iso).map((m) => m.blockNo))].sort((a, b) => a - b);
-
-  // Estudiantes en el orden en que llegan del servidor.
-  const estudiantes: { id: number; nombre: string; doc: string; marcas: MarcaSemana[] }[] = [];
-  for (const m of marcas ?? []) {
-    let e = estudiantes.find((x) => x.id === m.studentId);
-    if (!e) { e = { id: m.studentId, nombre: m.fullName, doc: m.documentId, marcas: [] }; estudiantes.push(e); }
-    e.marcas.push(m);
-  }
-  const conComentario = (marcas ?? []).filter((m) => m.comment);
+  const marcas = datos?.marcas ?? [];
+  const conComentario = marcas.filter((m) => m.comment);
 
   return (
     <>
@@ -368,57 +359,64 @@ function Semana({ cursos, setError }: { cursos: string[]; setError: (e: string) 
         <label htmlFor="semana">Semana</label>
         <input id="semana" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
       </div>
-      {dias.length > 0 && (
+      {fechas.length > 0 && (
         <p className="meta">
-          Semana del {rotulo(dias[0], 0).toLowerCase()} al {rotulo(dias[4], 4).toLowerCase()}
+          {grade ? `Curso ${grade} · ` : ''}Semana del {rotulo(fechas[0], 0).toLowerCase()} al {rotulo(fechas[4], 4).toLowerCase()}
         </p>
       )}
-      {marcas && marcas.length === 0 && <p className="meta">Sin marcas de asistencia en esa semana.</p>}
-      {marcas && marcas.length > 0 && (
+      {datos && datos.estudiantes.length === 0 && <p className="meta">Ese curso no tiene estudiantes activos.</p>}
+      {datos && datos.estudiantes.length > 0 && (
         <>
           <button type="button" className="secundario" onClick={() => window.print()}>Imprimir</button>
+          <button type="button" className="secundario" onClick={async () => {
+            try {
+              await bajarExcel(`tipo=semanal&grade=${encodeURIComponent(grade)}&from=${fechas[0]}&to=${fechas[4]}`,
+                `semana_${grade}_${fechas[0]}.xlsx`);
+            } catch { setError('No se pudo descargar el Excel.'); }
+          }}>Descargar Excel</button>
+          {marcas.length === 0 && <p className="meta">Sin marcas de asistencia en esa semana.</p>}
           <div className="tabla-scroll">
-            <table>
+            <table className="tabla-semana">
               <thead>
                 <tr>
                   <th rowSpan={2}>Estudiante</th>
-                  {dias.map((iso, i) => (
-                    <th key={iso} colSpan={Math.max(bloquesDe(iso).length, 1)}>
-                      {cicloDe(iso) == null ? `${rotulo(iso, i)} · ${info(iso)?.description || 'Sin clase'}` : encabezado(iso, i)}
-                    </th>
+                  {datos.dias.map((d, i) => (
+                    <th key={d.fecha} colSpan={Math.max(d.bloques.length, 1)}>{encabezado(d, i)}</th>
                   ))}
                   <th rowSpan={2} className="num">P</th><th rowSpan={2} className="num">T</th>
                   <th rowSpan={2} className="num">F</th><th rowSpan={2} className="num">E</th>
                   <th rowSpan={2} className="num">Días con falta</th>
                 </tr>
                 <tr>
-                  {dias.flatMap((iso) => {
-                    const b = bloquesDe(iso);
-                    return b.length === 0 ? [<th key={iso} />]
-                      : b.map((n) => <th key={`${iso}-${n}`} className="num">{n}</th>);
-                  })}
+                  {datos.dias.flatMap((d) => d.bloques.length === 0 ? [<th key={d.fecha} />]
+                    : d.bloques.map((b) => (
+                      <th key={`${d.fecha}-${b.blockNo}`} className="num"
+                          title={`${b.subject ?? 'Sin materia'}${b.teacherName ? `, ${b.teacherName}` : ''} (${hm(b.startTime)}–${hm(b.endTime)})`}>
+                        B{b.blockNo}<small className="materia">{b.subject}</small>
+                      </th>
+                    )))}
                 </tr>
               </thead>
               <tbody>
-                {estudiantes.map((e) => {
-                  const cuenta = (s: string) => e.marcas.filter((m) => m.status === s).length;
-                  const diasFalta = new Set(e.marcas.filter((m) => m.status === 'F' || m.status === 'E')
+                {datos.estudiantes.map((e) => {
+                  const mias = marcas.filter((m) => m.studentId === e.id);
+                  const cuenta = (s: string) => mias.filter((m) => m.status === s).length;
+                  const diasFalta = new Set(mias.filter((m) => m.status === 'F' || m.status === 'E')
                     .map((m) => m.classDate)).size;
                   return (
                     <tr key={e.id}>
-                      <td>{e.nombre} <small>{e.doc}</small></td>
-                      {dias.flatMap((iso) => {
-                        const b = bloquesDe(iso);
-                        return b.length === 0 ? [<td key={iso} />] : b.map((n) => {
-                          const m = e.marcas.find((x) => x.classDate === iso && x.blockNo === n);
+                      <td>{e.fullName} <small>{e.documentId}</small></td>
+                      {datos.dias.flatMap((d) => d.bloques.length === 0 ? [<td key={d.fecha} />]
+                        : d.bloques.map((b) => {
+                          const m = mias.find((x) => x.classDate === d.fecha && x.blockNo === b.blockNo);
                           return (
-                            <td key={`${iso}-${n}`} className={m ? `estado-${m.status}` : undefined}
+                            <td key={`${d.fecha}-${b.blockNo}`} className={m ? `estado-${m.status}` : 'sin-lista'}
                                 title={m?.comment ?? undefined}>
-                              {m ? m.status + (m.comment ? '*' : '') : ''}
+                              {m ? m.status : '·'}
+                              {m?.comment && <small className="comentario">{m.comment}</small>}
                             </td>
                           );
-                        });
-                      })}
+                        }))}
                       <td className="num">{cuenta('P')}</td><td className="num">{cuenta('T')}</td>
                       <td className="num">{cuenta('F')}</td><td className="num">{cuenta('E')}</td>
                       <td className="num">{diasFalta}</td>
@@ -428,13 +426,14 @@ function Semana({ cursos, setError }: { cursos: string[]; setError: (e: string) 
               </tbody>
             </table>
           </div>
+          <p className="meta">P Presente · T Tarde · F Falta · E Evasión · · sin lista tomada</p>
           {conComentario.length > 0 && (
             <>
               <h2>Comentarios de la semana</h2>
               <ul>
                 {conComentario.map((m, i) => {
-                  const idx = dias.indexOf(m.classDate);
-                  const dia = idx < 0 ? m.classDate : encabezado(m.classDate, idx);
+                  const idx = datos.dias.findIndex((d) => d.fecha === m.classDate);
+                  const dia = idx < 0 ? m.classDate : encabezado(datos.dias[idx], idx);
                   return (
                     <li key={i}>
                       {m.fullName} — {dia} · bloque {m.blockNo} ({m.subject ?? 'Sin materia'}
@@ -450,7 +449,6 @@ function Semana({ cursos, setError }: { cursos: string[]; setError: (e: string) 
     </>
   );
 }
-
 function Tomas({ from, to, fechas, cursos, setError }: Comun & { cursos: string[] }) {
   const [grade, setGrade] = useState('');
   const [teacherId, setTeacherId] = useState('');

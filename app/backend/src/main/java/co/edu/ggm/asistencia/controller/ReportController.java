@@ -113,19 +113,43 @@ public class ReportController {
     public record MarcaSemana(LocalDate classDate, short blockNo, String subject, String teacherName,
                               Long studentId, String documentId, String fullName, String status, String comment) {}
 
+    public record EstudianteSemana(Long id, String documentId, String fullName) {}
+    public record BloqueSemana(short blockNo, String subject, String teacherName,
+                               java.time.LocalTime startTime, java.time.LocalTime endTime) {}
+    public record DiaSemana(LocalDate fecha, Integer cicloDia, String descripcion, List<BloqueSemana> bloques) {}
+    public record SemanaDto(List<EstudianteSemana> estudiantes, List<DiaSemana> dias, List<MarcaSemana> marcas) {}
+
     @GetMapping("/semana")
-    public List<MarcaSemana> semana(
+    public SemanaDto semana(
             @RequestParam String grade,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         if (to.isBefore(from) || from.plusDays(31).isBefore(to)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Rango invalido: maximo 31 dias");
         }
-        return repo.marcasSemana(grade, from, to).stream()
+        var estudiantes = repo.estudiantesSemana(grade, from, to).stream()
+                .map(r -> new EstudianteSemana(r.getId(), r.getDocumentId(), r.getFullName())).toList();
+
+        var bloquesPorCiclo = new java.util.HashMap<Integer, List<BloqueSemana>>();
+        for (var b : repo.bloquesDelCurso(grade)) {
+            bloquesPorCiclo.computeIfAbsent((int) b.getWeekday(), k -> new java.util.ArrayList<>())
+                    .add(new BloqueSemana(b.getBlockNo(), b.getSubject(), b.getTeacherName(),
+                            b.getStartTime(), b.getEndTime()));
+        }
+        var dias = new java.util.ArrayList<DiaSemana>();
+        for (var d : calendarioService.range(from, to)) {
+            var dow = d.getCalendarDate().getDayOfWeek();
+            if (dow == java.time.DayOfWeek.SATURDAY || dow == java.time.DayOfWeek.SUNDAY) continue;
+            Integer ciclo = d.getCycleDay();
+            dias.add(new DiaSemana(d.getCalendarDate(), ciclo, d.getDescription(),
+                    ciclo == null ? List.of() : bloquesPorCiclo.getOrDefault(ciclo, List.of())));
+        }
+        var marcas = repo.marcasSemana(grade, from, to).stream()
                 .map(r -> new MarcaSemana(r.getClassDate(), r.getBlockNo() == null ? 0 : r.getBlockNo(),
                         r.getSubject(), r.getTeacherName(), r.getStudentId(), r.getDocumentId(),
                         r.getFullName(), r.getStatus(), r.getComment()))
                 .toList();
+        return new SemanaDto(estudiantes, dias, marcas);
     }
 
     public record DocenteItem(Long id, String fullName) {}
@@ -196,6 +220,13 @@ public class ReportController {
             case "completo" -> {
                 libro = excel.buildCompleto(repo.marcasCompletas(grade, from, to), from, to);
                 nombre = "asistencia_completa_%s_%s_%s.xlsx".formatted(curso, from, to);
+            }
+            case "semanal" -> {
+                if (grade == null) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Falta el parametro grade");
+                }
+                libro = excel.buildSemanal(semana(grade, from, to), from, to);
+                nombre = "semana_%s_%s_%s.xlsx".formatted(curso, from, to);
             }
             case "inasistencias" -> {
                 libro = excel.buildInasistencias(repo.absences(grade, from, to), from, to);
