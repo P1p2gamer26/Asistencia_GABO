@@ -350,6 +350,7 @@ describe('TomarAsistencia', () => {
     // Este es el aviso que pedian en el colegio: offline no se tocan 40 botones y
     // "esperemos que se haya guardado"; el docente debe saber que el trabajo quedo.
     expect(await screen.findByText(/guardada en el telefono/i)).toBeInTheDocument();
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(/Guardada sin internet/);
     expect(screen.getByText(/se subira sola cuando haya conexion/i)).toBeInTheDocument();
   });
 
@@ -367,6 +368,7 @@ describe('TomarAsistencia', () => {
     await userEvent.click(screen.getByRole('button', { name: /enviar asistencia/i }));
 
     expect(await screen.findByText(/enviada al servidor/i)).toBeInTheDocument();
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(/Asistencia enviada/);
   });
 
   it('al abrir un bloque ya registrado muestra lo que hay guardado', async () => {

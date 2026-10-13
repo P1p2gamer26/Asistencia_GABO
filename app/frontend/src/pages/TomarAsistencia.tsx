@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { db } from '../db/local';
 import { api } from '../api/client';
@@ -46,6 +46,10 @@ export default function TomarAsistencia() {
   const [error, setError] = useState('');
   const [avisoCarga, setAvisoCarga] = useState('');
   const [avisoEnvio, setAvisoEnvio] = useState('');
+  // Aviso grande tras "Enviar": el docente tiene que ver de un vistazo si la lista
+  // llego al servidor o quedo en el telefono, sin leer la franja pequena.
+  const [confirmacion, setConfirmacion] = useState<Confirmacion | null>(null);
+  const cerrarConfirmacion = useCallback(() => setConfirmacion(null), []);
 
   // Panel lateral: las ultimas tomas de lista y, de la elegida, el detalle editable.
   const [sesiones, setSesiones] = useState<AttendanceSesion[]>([]);
@@ -226,14 +230,22 @@ export default function TomarAsistencia() {
       const { pending, alcanzable: hay } = await flushOutbox();
       setPendientes(pending);
       setAlcanzable(hay);
+      const faltas = students.filter((s) => (marcas[s.id] ?? 'P') !== 'P').length;
+      const detalle = `${students.length} estudiantes · ${students.length - faltas} presentes`
+        + (faltas ? ` · ${faltas} con novedad` : '');
       if (pending === 0) {
         setAvisoEnvio(`Lista de ${students.length} estudiantes enviada al servidor.`);
+        setConfirmacion({ tipo: 'ok', titulo: 'Asistencia enviada', detalle });
       } else if (!hay) {
         setAvisoEnvio(`Lista de ${students.length} estudiantes guardada en el telefono.`
           + ' Se subira sola cuando haya conexion.');
+        setConfirmacion({ tipo: 'offline', titulo: 'Guardada sin internet',
+          detalle: `${detalle}. Se enviara sola cuando vuelva la conexion.` });
       } else {
         setAvisoEnvio(`El servidor rechazo ${pending} ${pending === 1 ? 'registro' : 'registros'};`
           + ' se reintentara solo.');
+        setConfirmacion({ tipo: 'error', titulo: 'No se envio todo',
+          detalle: `El servidor rechazo ${pending} ${pending === 1 ? 'registro' : 'registros'}. Se reintentara solo.` });
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo enviar');
@@ -243,6 +255,7 @@ export default function TomarAsistencia() {
   return (
    <div className="asistencia-2col">
     <main className="card">
+      {confirmacion && <AvisoEnvio {...confirmacion} onCerrar={cerrarConfirmacion} />}
       <BannerEstado online={online} alcanzable={alcanzable} pendientes={pendientes} onSincronizar={enviar} />
 
       <span className="eyebrow">Planilla del dia</span>
@@ -358,5 +371,27 @@ export default function TomarAsistencia() {
      </details>
     </aside>
    </div>
+  );
+}
+
+type Confirmacion = { tipo: 'ok' | 'offline' | 'error'; titulo: string; detalle: string };
+
+/** Confirmacion a pantalla completa; se cierra sola a los 3 s o al tocar Continuar. */
+function AvisoEnvio({ tipo, titulo, detalle, onCerrar }: Confirmacion & { onCerrar: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onCerrar, tipo === 'ok' ? 3000 : 5000);
+    return () => clearTimeout(t);
+  }, [tipo, onCerrar]);
+  const icono = tipo === 'ok' ? '✓' : tipo === 'offline' ? '⇪' : '!';
+  return (
+    <div className="aviso-envio-fondo" onClick={onCerrar}>
+      <div className={`aviso-envio ${tipo}`} role="alertdialog" aria-modal="true"
+           aria-labelledby="aviso-envio-titulo" onClick={(e) => e.stopPropagation()}>
+        <div className="aviso-envio-icono" aria-hidden="true">{icono}</div>
+        <h2 id="aviso-envio-titulo">{titulo}</h2>
+        <p>{detalle}</p>
+        <button type="button" onClick={onCerrar} autoFocus>Continuar</button>
+      </div>
+    </div>
   );
 }
