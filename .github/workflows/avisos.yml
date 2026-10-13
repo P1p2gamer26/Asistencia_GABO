@@ -26,7 +26,8 @@ jobs:
       ENLACE: ${{ github.event.workflow_run.html_url || github.event.deployment_status.log_url || github.event.deployment_status.target_url }}
     steps:
       - run: |
-          abierto=$(gh issue list --state open --search "in:title \"$TITULO\"" --json number --jq '.[0].number // empty')
+          # Listado normal, no --search: el buscador tarda en indexar y duplicaba el issue.
+          abierto=$(gh issue list --state open --json number,title --jq 'map(select(.title == env.TITULO))[0].number // empty')
           if [ "$FALLO" = "true" ]; then
             cuerpo="$QUE fallo en ${SHA:0:7}: $ENLACE"
             if [ -n "$abierto" ]; then gh issue comment "$abierto" --body "$cuerpo"
