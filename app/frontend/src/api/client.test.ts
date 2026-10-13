@@ -1,12 +1,19 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { api, apiUrl, getSession, clearSession } from './client';
+import { api, apiUrl, getSession, clearSession, OfflineError } from './client';
 import { guardarCredencial } from './credencialLocal';
 
 describe('cliente http', () => {
   beforeEach(() => {
     localStorage.clear();
     clearSession();
+  });
+
+  it('un 502/503/504 del proxy cuenta como sin conexion, no como rechazo', async () => {
+    for (const status of [502, 503, 504]) {
+      vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status })));
+      await expect(api.get('/api/x')).rejects.toBeInstanceOf(OfflineError);
+    }
   });
 
   it('guarda la sesion tras un login correcto', async () => {

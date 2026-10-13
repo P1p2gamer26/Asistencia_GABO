@@ -53,7 +53,17 @@ export default defineConfig({
     }),
   ],
   server: {
-    proxy: { '/api': 'http://localhost:8080' },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        // Con el backend apagado Vite contesta 500; Render contesta 502. Se imita a
+        // Render para que probar "sin servidor" en local se comporte como produccion.
+        configure: (proxy) => proxy.on('error', (_e, _req, res) => {
+          if ('writeHead' in res && !res.headersSent) res.writeHead(502);
+          res.end();
+        }),
+      },
+    },
   },
   build: {
     target: 'es2020',
