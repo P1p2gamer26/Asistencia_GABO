@@ -563,4 +563,30 @@ public interface ReportRepository extends Repository<Student, Long> {
             """, nativeQuery = true)
     List<MarcaCompletaRow> marcasCompletas(@Param("grade") String grade,
                                            @Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    interface MarcaSemanaRow {
+        LocalDate getClassDate(); Short getBlockNo(); String getSubject(); String getTeacherName();
+        Long getStudentId(); String getDocumentId(); String getFullName();
+        String getStatus(); String getComment();
+    }
+
+    /** Marcas de un curso en un rango corto, por estudiante: base del resumen semanal. */
+    @Query(value = """
+            SELECT a.class_date AS classDate, sb.block_no AS blockNo, su.name AS subject,
+                   tu.full_name AS teacherName, s.id AS studentId, s.document_id AS documentId,
+                   trim(regexp_replace(concat_ws(' ', s.first_name, s.middle_name,
+                        s.last_name, s.second_surname), '\\s+', ' ', 'g')) AS fullName,
+                   a.status AS status, a.comment AS comment
+            FROM attendance a
+            JOIN students s ON s.id = a.student_id
+            JOIN schedule_blocks sb ON sb.id = a.schedule_block_id
+            LEFT JOIN subjects su ON su.id = sb.subject_id
+            LEFT JOIN users tu ON tu.id = sb.teacher_id
+            WHERE a.deleted_at IS NULL
+              AND a.class_date BETWEEN :from AND :to
+              AND sb.grade = :grade
+            ORDER BY s.last_name, s.second_surname, s.first_name, s.id, a.class_date, sb.block_no
+            """, nativeQuery = true)
+    List<MarcaSemanaRow> marcasSemana(@Param("grade") String grade,
+                                      @Param("from") LocalDate from, @Param("to") LocalDate to);
 }

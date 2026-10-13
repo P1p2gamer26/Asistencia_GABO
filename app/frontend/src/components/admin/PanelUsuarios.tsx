@@ -17,7 +17,7 @@ const [aviso, setAviso] = useState('');
   const [error, setError] = useState('');
   const [docenteCreado, setDocenteCreado] = useState<AdminUser | null>(null);
   const [editandoId, setEditandoId] = useState<number | null>(null);
-  const [edicion, setEdicion] = useState({ fullName: '', role: 'DOCENTE' as Role });
+  const [edicion, setEdicion] = useState({ email: '', fullName: '', role: 'DOCENTE' as Role });
 
   async function cargar() {
     setError('');
@@ -82,18 +82,18 @@ const [aviso, setAviso] = useState('');
 
   function iniciarEdicion(u: AdminUser) {
     setEditandoId(u.id);
-    setEdicion({ fullName: u.fullName, role: u.role });
+    setEdicion({ email: u.email, fullName: u.fullName, role: u.role });
   }
 
   async function guardarEdicion(u: AdminUser) {
     setError(''); setAviso('');
     try {
       const r = await api.cambiar('PUT', `/api/admin/users/${u.id}`,
-        { fullName: edicion.fullName, role: edicion.role, active: u.active },
+        { email: edicion.email, fullName: edicion.fullName, role: edicion.role, active: u.active },
         `Editar usuario ${u.email}`);
       if (r.encolado) {
         setAviso(AVISO_ENCOLADO);
-        setUsuarios((prev) => prev.map((x) => x.id === u.id ? { ...x, fullName: edicion.fullName, role: edicion.role } : x));
+        setUsuarios((prev) => prev.map((x) => x.id === u.id ? { ...x, email: edicion.email.trim().toLowerCase() || x.email, fullName: edicion.fullName, role: edicion.role } : x));
         setEditandoId(null);
       } else {
         setAviso(`Guardado: ${edicion.fullName} (${edicion.role}).`);
@@ -169,7 +169,10 @@ const [aviso, setAviso] = useState('');
                       <input aria-label={`Editar nombre de ${u.fullName}`} value={edicion.fullName}
                              onChange={(e) => setEdicion({ ...edicion, fullName: e.target.value })} />
                     </td>
-                    <td>{u.email}</td>
+                    <td>
+                      <input type="email" aria-label={`Editar correo de ${u.fullName}`} value={edicion.email}
+                             onChange={(e) => setEdicion({ ...edicion, email: e.target.value })} />
+                    </td>
                     <td>
                       <select aria-label={`Editar rol de ${u.fullName}`} value={edicion.role}
                               onChange={(e) => setEdicion({ ...edicion, role: e.target.value as Role })}>

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Consultas from './Consultas';
@@ -173,6 +173,35 @@ describe('Consultas', () => {
     expect(screen.getByText('Ciencias')).toBeInTheDocument();
     expect(screen.getByRole('cell', { name: /F Falta/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /excel del estudiante/i })).toBeInTheDocument();
+  });
+
+  it('resumen semanal: una fila por estudiante con P y F, dia de ciclo, totales y comentarios', async () => {
+    const marca = (blockNo: number, status: string, comment: string | null) => ({
+      classDate: '2026-10-12', blockNo, subject: 'Ciencias', teacherName: 'Francisco Palacios',
+      studentId: 1, documentId: '111', fullName: 'ANA LOPEZ', status, comment,
+    });
+    const f = vi.fn(async (url: string) => {
+      const u = String(url);
+      if (u.includes('/api/reports/semana')) return respuesta([marca(1, 'P', null), marca(2, 'F', 'sin excusa')]);
+      if (u.includes('/api/calendar/school-days')) return respuesta([
+        { calendarDate: '2026-10-12', dayType: 'LECTIVO', description: null, cycleDay: 3 }]);
+      return respuesta(FILAS);
+    });
+    vi.stubGlobal('fetch', f);
+    render(<Consultas />);
+
+    await userEvent.click(screen.getByRole('button', { name: /resumen semanal/i }));
+    await waitFor(() => expect(screen.getByRole('option', { name: '601' })).toBeInTheDocument());
+    await userEvent.selectOptions(screen.getByLabelText(/curso/i), '601');
+    fireEvent.change(screen.getByLabelText(/semana/i), { target: { value: '2026-10-14' } });
+
+    await waitFor(() => expect(screen.getByRole('cell', { name: /ANA LOPEZ/ })).toBeInTheDocument());
+    expect(screen.getByRole('columnheader', { name: 'Lun 12/10 · Día 3' })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: 'P' })).toHaveClass('estado-P');
+    expect(screen.getByRole('cell', { name: 'F*' })).toHaveAttribute('title', 'sin excusa');
+    expect(screen.getByText(/lun 12\/10 al vie 16\/10/)).toBeInTheDocument();
+    expect(screen.getByText(/Comentarios de la semana/)).toBeInTheDocument();
+    expect(screen.getByText(/bloque 2 \(Ciencias, Francisco Palacios\): Falta — sin excusa/)).toBeInTheDocument();
   });
 
   it('tomas de asistencia: lista quien tomo cada lista y resalta cuando no fue el titular', async () => {

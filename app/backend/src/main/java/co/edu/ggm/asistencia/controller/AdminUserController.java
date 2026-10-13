@@ -28,7 +28,8 @@ public class AdminUserController {
     }
     public record CreateRequest(@Email @NotBlank String email, @NotBlank String fullName,
                                 @NotNull Role role) {}
-    public record UpdateRequest(@NotBlank String fullName, @NotNull Role role, boolean active) {}
+    // email opcional: los docentes nacen con un correo provisional hasta que el colegio da el real.
+    public record UpdateRequest(@Email String email, @NotBlank String fullName, @NotNull Role role, boolean active) {}
     public record ResetResponse(String temporaryPassword) {}
 
     @GetMapping
@@ -44,7 +45,7 @@ public class AdminUserController {
 
     @PutMapping("/{id}")
     public UserDto update(@PathVariable Long id, @Valid @RequestBody UpdateRequest req) {
-        return UserDto.de(service.update(id, req.fullName(), req.role(), req.active()));
+        return UserDto.de(service.update(id, req.email(), req.fullName(), req.role(), req.active()));
     }
 
     @PostMapping("/{id}/reset-password")
