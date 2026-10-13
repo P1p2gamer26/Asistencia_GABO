@@ -56,6 +56,12 @@ async function request<T>(path: string, init: RequestInit, retry = true): Promis
   } catch {
     throw new OfflineError('Sin conexion');
   }
+  // 502/503/504 los pone el proxy de Render cuando el servidor esta caido o
+  // despertando: no hubo respuesta de la aplicacion, es lo mismo que no tener red.
+  // Tratarlos como rechazo decia "marca rechazada" a una lista que solo espera subir.
+  if (res.status === 502 || res.status === 503 || res.status === 504) {
+    throw new OfflineError('Servidor no disponible');
+  }
 
   if (res.status === 401 && retry && session?.refreshToken) {
     const renewed = await refresh(session.refreshToken);
