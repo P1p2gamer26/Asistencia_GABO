@@ -20,3 +20,12 @@ docs/datos-oficiales/*.xlsx
 # CSV generados por tools/generar-datos-oficiales.py a partir del plano de
 # matricula: llevan los mismos datos de menores que el .xlsx.
 docs/datos-oficiales/*.csv
+
+# reset-produccion.sql generado por el mismo script: estudiantes con documento.
+docs/datos-oficiales/*.sql
+
+# PDFs de horarios entregados por el colegio (nombres de docentes).
+docs/datos-oficiales/*.pdf
+__pycache__/
+.idea/
+*.iml
