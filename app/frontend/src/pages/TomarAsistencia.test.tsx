@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../db/local';
 import { MemoryRouter } from 'react-router-dom';
-import TomarAsistencia from './TomarAsistencia';
+import TomarAsistencia, { LIMITE_ENVIO_MS } from './TomarAsistencia';
 
 const HOY = new Date().toLocaleDateString('en-CA');
 
@@ -352,6 +352,22 @@ describe('TomarAsistencia', () => {
     expect(await screen.findByText(/guardada en el telefono/i)).toBeInTheDocument();
     expect(screen.getByRole('alertdialog')).toHaveTextContent(/Guardada sin internet/);
     expect(screen.getByText(/se subira sola cuando haya conexion/i)).toBeInTheDocument();
+  });
+
+  it('con internet muy lento muestra la carga y luego dice que quedo guardada', async () => {
+    await elegirCursoYBloque();
+    // El servidor nunca contesta: señal de una rayita.
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => {})));
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      await userEvent.click(screen.getByRole('button', { name: /enviar asistencia/i }));
+      expect(await screen.findByRole('alertdialog')).toHaveTextContent(/Enviando asistencia/);
+      await vi.advanceTimersByTimeAsync(LIMITE_ENVIO_MS + 100);
+      await waitFor(() => expect(screen.getByRole('alertdialog')).toHaveTextContent(/internet está muy lento/));
+      expect(screen.getByRole('alertdialog')).toHaveTextContent(/quedó guardada en el teléfono/);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('enviar con conexion confirma que la lista llego al servidor', async () => {

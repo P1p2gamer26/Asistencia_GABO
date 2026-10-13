@@ -885,12 +885,19 @@ select { max-width: 100%; text-overflow: ellipsis; }
   animation: aviso-icono .6s .15s cubic-bezier(.2, 1.6, .4, 1) both;
 }
 .aviso-envio.ok .aviso-envio-icono { background: #1b8a4b; box-shadow: 0 0 0 0 rgba(27, 138, 75, .5); animation: aviso-icono .6s .15s cubic-bezier(.2, 1.6, .4, 1) both, aviso-pulso 1.4s .7s ease-out 2; }
-.aviso-envio.offline .aviso-envio-icono { background: #d98a00; }
+.aviso-envio.offline .aviso-envio-icono,
+.aviso-envio.lento .aviso-envio-icono { background: #d98a00; }
 .aviso-envio.error .aviso-envio-icono { background: #c62828; }
+.aviso-envio-spinner {
+  width: 80px; height: 80px; margin: 8px auto; border-radius: 50%;
+  border: 8px solid #e3efe7; border-top-color: #1b8a4b; animation: aviso-gira .9s linear infinite;
+}
+@keyframes aviso-gira { to { transform: rotate(360deg); } }
 @keyframes aviso-fondo { from { opacity: 0; } }
 @keyframes aviso-entra { from { opacity: 0; transform: scale(.7) translateY(30px); } }
 @keyframes aviso-icono { from { transform: scale(0) rotate(-45deg); } }
 @keyframes aviso-pulso { to { box-shadow: 0 0 0 24px rgba(27, 138, 75, 0); } }
 @media (prefers-reduced-motion: reduce) {
   .aviso-envio-fondo, .aviso-envio, .aviso-envio-icono { animation: none !important; }
+  .aviso-envio-spinner { animation-duration: 3s; }
 }
