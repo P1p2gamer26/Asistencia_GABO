@@ -110,6 +110,24 @@ public class ReportController {
                 .toList();
     }
 
+    public record MarcaSemana(LocalDate classDate, short blockNo, String subject, String teacherName,
+                              Long studentId, String documentId, String fullName, String status, String comment) {}
+
+    @GetMapping("/semana")
+    public List<MarcaSemana> semana(
+            @RequestParam String grade,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        if (to.isBefore(from) || from.plusDays(31).isBefore(to)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Rango invalido: maximo 31 dias");
+        }
+        return repo.marcasSemana(grade, from, to).stream()
+                .map(r -> new MarcaSemana(r.getClassDate(), r.getBlockNo() == null ? 0 : r.getBlockNo(),
+                        r.getSubject(), r.getTeacherName(), r.getStudentId(), r.getDocumentId(),
+                        r.getFullName(), r.getStatus(), r.getComment()))
+                .toList();
+    }
+
     public record DocenteItem(Long id, String fullName) {}
 
     @GetMapping("/docentes")

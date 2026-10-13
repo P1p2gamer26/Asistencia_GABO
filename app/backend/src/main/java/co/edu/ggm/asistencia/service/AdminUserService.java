@@ -52,9 +52,16 @@ public class AdminUserService {
     }
 
     @Transactional
-    public User update(Long id, String fullName, Role role, boolean active) {
+    public User update(Long id, String email, String fullName, Role role, boolean active) {
         User u = users.findById(id).orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No existe ese usuario"));
+        if (email != null && !email.isBlank()) {
+            String correo = email.trim().toLowerCase();
+            if (!correo.equals(u.getEmail()) && users.existsByEmail(correo)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe un usuario con ese correo");
+            }
+            u.setEmail(correo);
+        }
         u.setFullName(fullName.trim());
         u.setRole(role);
         u.setActive(active);

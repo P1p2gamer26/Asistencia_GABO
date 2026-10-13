@@ -117,6 +117,42 @@ class ConsultasAvanzadasTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void la_semana_trae_las_marcas_del_curso_con_comentario_y_bloque_sin_las_de_otro_curso() throws Exception {
+        jdbc.update("UPDATE attendance SET comment = 'llego con excusa' WHERE status = 'F'");
+        String curso = jdbc.queryForObject(
+                "SELECT grade FROM schedule_blocks ORDER BY id LIMIT 1", String.class);
+        // Una marca del mismo alumno en un bloque de otro curso: no debe aparecer.
+        jdbc.update("""
+            INSERT INTO attendance (id, student_id, schedule_block_id, class_date, status, recorded_by, recorded_at)
+            SELECT gen_random_uuid(), s.id, b.id, DATE '2026-06-03', 'T', u.id, now()
+            FROM students s
+            CROSS JOIN (SELECT id FROM schedule_blocks WHERE grade <> ? ORDER BY id LIMIT 1) b
+            CROSS JOIN users u
+            WHERE s.document_id = ? AND u.email = 'coord@ggm.edu.co'
+            """, curso, ALUMNO);
+
+        mvc.perform(get("/api/reports/semana").param("grade", curso)
+                        .param("from", "2026-06-01").param("to", "2026-06-05")
+                        .header("Authorization", coord()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].classDate").value("2026-06-01"))
+                .andExpect(jsonPath("$[0].status").value("P"))
+                .andExpect(jsonPath("$[0].documentId").value(ALUMNO))
+                .andExpect(jsonPath("$[0].blockNo").isNumber())
+                .andExpect(jsonPath("$[1].status").value("F"))
+                .andExpect(jsonPath("$[1].comment").value("llego con excusa"));
+    }
+
+    @Test
+    void la_semana_rechaza_rangos_de_mas_de_31_dias() throws Exception {
+        mvc.perform(get("/api/reports/semana").param("grade", "601")
+                        .param("from", "2026-06-01").param("to", "2026-07-15")
+                        .header("Authorization", coord()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void el_excel_completo_trae_una_fila_por_marca_con_todo_el_contexto() throws Exception {
         byte[] libro = mvc.perform(get("/api/reports/excel")
                         .param("tipo", "completo").param("from", "2026-06-01").param("to", "2026-06-03")

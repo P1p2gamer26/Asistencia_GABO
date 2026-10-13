@@ -83,6 +83,29 @@ class AdminUserTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void cambia_el_correo_provisional_por_el_real_y_no_pisa_uno_ajeno() throws Exception {
+        String cuerpo = mvc.perform(post("/api/admin/users").header("Authorization", admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(crear("provisional@admintest.co", "DOCENTE")))
+                .andReturn().getResponse().getContentAsString();
+        long id = Long.parseLong(cuerpo.replaceAll(".*\"id\":(\\d+).*", "$1"));
+        mvc.perform(post("/api/admin/users").header("Authorization", admin())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(crear("ocupado@admintest.co", "DOCENTE"))).andExpect(status().isOk());
+
+        mvc.perform(put("/api/admin/users/" + id).header("Authorization", admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"Real.Docente@AdminTest.co\",\"fullName\":\"Persona De Prueba\",\"role\":\"DOCENTE\",\"active\":true}"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.email").value("real.docente@admintest.co"));
+
+        mvc.perform(put("/api/admin/users/" + id).header("Authorization", admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"ocupado@admintest.co\",\"fullName\":\"Persona De Prueba\",\"role\":\"DOCENTE\",\"active\":true}"))
+           .andExpect(status().isConflict());
+    }
+
+    @Test
     void el_listado_filtra_por_rol() throws Exception {
         mvc.perform(post("/api/admin/users").header("Authorization", admin())
                 .contentType(MediaType.APPLICATION_JSON)
