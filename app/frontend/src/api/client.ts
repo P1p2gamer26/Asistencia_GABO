@@ -43,17 +43,45 @@ export class HttpError extends Error {
 
 /**
  * Tope de espera por peticion. Sin el, una peticion colgada con señal de una rayita
- * frenaba minutos el reintento automatico (que espera a que termine). Es generoso
- * porque Render gratis tarda ~50 s en despertar: cortar antes haria fallar el primer
- * uso del dia. Pasado el tope cuenta como sin conexion y la cola reintenta despues.
+ * frenaba minutos el reintento automatico (que espera a que termine). Render gratis
+ * tarda ~3 min en despertar (medido oct-2026), mas que este tope: si se durmio, la
+ * primera peticion se corta, cuenta como sin conexion y la cola reintenta despues;
+ * AvisoServidorLento sigue diciendo que el servidor esta despertando.
  */
 export const TOPE_PETICION_MS = 60_000;
+
+/**
+ * Si una peticion tarda mas que esto sin respuesta, se avisa que el servidor esta
+ * despertando (Render gratis tarda ~3 min en la primera entrada del dia). Es solo
+ * informativo: no corta la peticion, de eso se encarga TOPE_PETICION_MS.
+ */
+export const UMBRAL_LENTO_MS = 8_000;
+
+/** Bandera de modulo: hay al menos una peticion sin respuesta desde hace rato. */
+let lento = false;
+
+/** Para que la interfaz sepa si el servidor esta tardando en contestar. */
+export function servidorLento(): boolean {
+  return lento;
+}
+
+/**
+ * Cambia la bandera y avisa a quien escuche, pero solo cuando el valor cambia:
+ * sin esa guarda una rafaga de peticiones lentas dispararia el evento una vez
+ * por cada una.
+ */
+function marcarServidorLento(valor: boolean) {
+  if (valor === lento) return;
+  lento = valor;
+  window.dispatchEvent(new Event('servidor-lento'));
+}
 
 async function request<T>(path: string, init: RequestInit, retry = true): Promise<T> {
   const session = getSession();
   let res: Response;
   const corte = new AbortController();
   const reloj = setTimeout(() => corte.abort(), TOPE_PETICION_MS);
+  const relojLento = setTimeout(() => marcarServidorLento(true), UMBRAL_LENTO_MS);
   try {
     res = await fetch(apiUrl(path), {
       signal: corte.signal,
@@ -68,6 +96,13 @@ async function request<T>(path: string, init: RequestInit, retry = true): Promis
     throw new OfflineError('Sin conexion');
   } finally {
     clearTimeout(reloj);
+    clearTimeout(relojLento);
+  }
+  // Llego una respuesta HTTP que no es de las que pone el proxy: el servidor
+  // contesto, asi que ya no esta despertando. Un timeout o un error de red no
+  // pasan por aqui y dejan la bandera como estaba.
+  if (res.status !== 502 && res.status !== 503 && res.status !== 504) {
+    marcarServidorLento(false);
   }
   // 502/503/504 los pone el proxy de Render cuando el servidor esta caido o
   // despertando: no hubo respuesta de la aplicacion, es lo mismo que no tener red.

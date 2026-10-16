@@ -8,17 +8,15 @@ name: Keepalive
 # URL publica: se toma de la variable de repositorio APP_URL, o el default apunta
 # al dominio del colegio (asistencia.ggm.edu.co). Cambarla en Settings -> Variables.
 
-# Ademas, en jornada escolar (lun-vie 5:30-14:30 Bogota) cada 5 min: Render gratis
-# apaga el servicio tras 15 min sin uso y el docente que va a tomar lista esperaba
-# ~50 s. ~9 h x 22 dias = ~200 h/mes, dentro de las 750 h gratis de Render.
-# ponytail: GitHub retrasa o salta crons con carga (el diario corre horas tarde);
-# si en el colegio se sigue viendo el arranque lento, usar un pinger externo
-# (cron-job.org / UptimeRobot) contra la misma URL.
+# Render gratis apaga el servicio tras 15 min sin uso y despertarlo tarda ~3 min.
+# Lo mantiene despierto un pinger externo (cron-job.org, cada 10 min, 24/7: ~744 h/mes,
+# dentro de las 750 h gratis de Render) contra la misma URL. Aqui habia un cron de
+# cada 5 min en jornada, pero GitHub casi no lo disparaba (4 de ~108 al dia en
+# oct-2026); este diario queda solo como respaldo para Supabase.
 
 on:
   schedule:
     - cron: '30 14 * * *'          # 14:30 UTC = 09:30 Bogota, una vez al dia
-    - cron: '*/5 10-19 * * 1-5'    # jornada escolar, cada 5 min
   workflow_dispatch: {}
 
 jobs:
@@ -28,11 +26,7 @@ jobs:
       - name: Sonda de salud (base + app)
         env:
           APP_URL: ${{ vars.APP_URL || 'https://asistencia-ggm.onrender.com' }}
-          JORNADA: ${{ github.event.schedule == '*/5 10-19 * * 1-5' }}
         run: |
-          # El cron va por horas UTC completas: fuera de 0530-1430 Bogota no hace falta.
-          hora=$(TZ=America/Bogota date +%H%M)
-          if [ "$JORNADA" = "true" ] && { [ "$hora" -lt 0530 ] || [ "$hora" -gt 1430 ]; }; then exit 0; fi
           # Si la app esta dormida, el retry espera su arranque en frio (Render).
           curl -sf --retry 6 --retry-delay 60 --retry-all-errors \
                --connect-timeout 30 --max-time 120 \

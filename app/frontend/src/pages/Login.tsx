@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import Escudo from '../components/Escudo';
 import BotonInstalar from '../components/BotonInstalar';
+import AvisoServidorLento from '../components/AvisoServidorLento';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -26,25 +27,28 @@ export default function Login() {
   }
 
   return (
-    <form className="card login" onSubmit={submit}>
-      <header className="marca">
-        <Escudo size={128} />
-        <div>
-          <span className="eyebrow">Planilla de asistencia</span>
-          <h1>Asistencia GGM</h1>
-          <p className="meta">Colegio Gabriel Garcia Marquez</p>
-        </div>
-      </header>
-      <label htmlFor="email">Correo institucional</label>
-      <input id="email" type="email" autoComplete="username" required
-             value={email} onChange={(e) => setEmail(e.target.value)} />
-      <label htmlFor="password">Contrasena</label>
-      <input id="password" type="password" autoComplete="current-password" required
-             value={password} onChange={(e) => setPassword(e.target.value)} />
-      {error && <p role="alert" className="error">{error}</p>}
-      <button type="submit" disabled={busy}>{busy ? 'Entrando...' : 'Entrar'}</button>
-      <BotonInstalar />
-      <p><Link to="/">« Volver al inicio</Link></p>
-    </form>
+    <>
+      <AvisoServidorLento />
+      <form className="card login" onSubmit={submit}>
+        <header className="marca">
+          <Escudo size={128} />
+          <div>
+            <span className="eyebrow">Planilla de asistencia</span>
+            <h1>Asistencia GGM</h1>
+            <p className="meta">Colegio Gabriel Garcia Marquez</p>
+          </div>
+        </header>
+        <label htmlFor="email">Correo institucional</label>
+        <input id="email" type="email" autoComplete="username" required
+               value={email} onChange={(e) => setEmail(e.target.value)} />
+        <label htmlFor="password">Contrasena</label>
+        <input id="password" type="password" autoComplete="current-password" required
+               value={password} onChange={(e) => setPassword(e.target.value)} />
+        {error && <p role="alert" className="error">{error}</p>}
+        <button type="submit" disabled={busy}>{busy ? 'Entrando...' : 'Entrar'}</button>
+        <BotonInstalar />
+        <p><Link to="/">« Volver al inicio</Link></p>
+      </form>
+    </>
   );
 }
