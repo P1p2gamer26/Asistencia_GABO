@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { api, apiUrl, getSession, clearSession, OfflineError, TOPE_PETICION_MS } from './client';
+import { api, apiUrl, getSession, clearSession, OfflineError, HttpError, TOPE_PETICION_MS, UMBRAL_LENTO_MS, servidorLento } from './client';
 import { guardarCredencial } from './credencialLocal';
 
 describe('cliente http', () => {
@@ -61,6 +61,139 @@ describe('cliente http', () => {
     expect(data.ok).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(getSession()?.token).toBe('nuevo');
+  });
+});
+
+describe('servidor lento', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    clearSession();
+  });
+
+  function okJson() {
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200, headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  // La bandera es estado de modulo: cada prueba arranca apagandola con una respuesta
+  // 200 para no arrastrar el true que dejan la prueba del tope y la del 502.
+  async function apagarBandera() {
+    vi.stubGlobal('fetch', vi.fn(async () => okJson()));
+    await api.post('/api/x', {});
+    expect(servidorLento()).toBe(false);
+  }
+
+  // fetch que no responde hasta que el test le entrega la respuesta a mano.
+  function fetchQueEspera() {
+    let resolver!: (r: Response) => void;
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>((res) => { resolver = res; })));
+    return (r: Response) => resolver(r);
+  }
+
+  it('esta en false a los 7999 ms, en true a los 8000 ms y un 200 la vuelve a false', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      await apagarBandera();
+      const responder = fetchQueEspera();
+      const peticion = api.post('/api/x', {});
+
+      await vi.advanceTimersByTimeAsync(UMBRAL_LENTO_MS - 1);
+      expect(servidorLento()).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(servidorLento()).toBe(true);
+
+      responder(okJson());
+      await peticion;
+      expect(servidorLento()).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('una peticion que termina por el tope deja la bandera en true; un 200 posterior la apaga', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      await apagarBandera();
+      vi.stubGlobal('fetch', vi.fn((_u: string, init?: RequestInit) => new Promise<Response>((_, rechazar) => {
+        init?.signal?.addEventListener('abort', () => rechazar(new DOMException('abort', 'AbortError')));
+      })));
+      const peticion = api.post('/api/x', {});
+      const esperado = expect(peticion).rejects.toBeInstanceOf(OfflineError);
+      await vi.advanceTimersByTimeAsync(TOPE_PETICION_MS + 1);
+      await esperado;
+      expect(servidorLento()).toBe(true);
+
+      await apagarBandera();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('un 502 en una peticion lenta deja la bandera en true', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      await apagarBandera();
+      const responder = fetchQueEspera();
+      const peticion = api.post('/api/x', {});
+      const esperado = expect(peticion).rejects.toBeInstanceOf(OfflineError);
+
+      await vi.advanceTimersByTimeAsync(UMBRAL_LENTO_MS);
+      expect(servidorLento()).toBe(true);
+
+      responder(new Response('', { status: 502 }));
+      await esperado;
+      expect(servidorLento()).toBe(true);
+
+      await apagarBandera();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('una respuesta 400 o 401 (el servidor contesto) apaga la bandera aunque haya tardado', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      for (const status of [400, 401]) {
+        await apagarBandera();
+        const responder = fetchQueEspera();
+        const peticion = api.post('/api/x', {});
+        const esperado = expect(peticion).rejects.toBeInstanceOf(HttpError);
+
+        await vi.advanceTimersByTimeAsync(UMBRAL_LENTO_MS);
+        expect(servidorLento()).toBe(true);
+
+        responder(new Response(JSON.stringify({ detail: 'x' }), {
+          status, headers: { 'Content-Type': 'application/json' },
+        }));
+        await esperado;
+        expect(servidorLento()).toBe(false);
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('una respuesta a los 100 ms nunca emite servidor-lento', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      await apagarBandera();
+      let emisiones = 0;
+      const contar = () => { emisiones += 1; };
+      window.addEventListener('servidor-lento', contar);
+
+      const responder = fetchQueEspera();
+      const peticion = api.post('/api/x', {});
+      await vi.advanceTimersByTimeAsync(100);
+      responder(okJson());
+      await peticion;
+
+      window.removeEventListener('servidor-lento', contar);
+      expect(emisiones).toBe(0);
+      expect(servidorLento()).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
