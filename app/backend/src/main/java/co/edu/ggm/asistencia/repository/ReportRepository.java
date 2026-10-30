@@ -26,8 +26,8 @@ public interface ReportRepository extends Repository<Student, Long> {
     @Query(value = """
             SELECT s.id AS studentId,
                    s.document_id AS documentId,
-                   trim(regexp_replace(concat_ws(' ', s.first_name, s.middle_name,
-                        s.last_name, s.second_surname), '\\s+', ' ', 'g')) AS fullName,
+                   trim(regexp_replace(concat_ws(' ', s.last_name, s.second_surname,
+                        s.first_name, s.middle_name), '\\s+', ' ', 'g')) AS fullName,
                    s.grade AS grade,
                    count(*) FILTER (WHERE a.status = 'P') AS present,
                    count(*) FILTER (WHERE a.status = 'T') AS late,
@@ -64,8 +64,8 @@ public interface ReportRepository extends Repository<Student, Long> {
     @Query(value = """
             SELECT s.id AS studentId,
                    s.document_id AS documentId,
-                   trim(regexp_replace(concat_ws(' ', s.first_name, s.middle_name,
-                        s.last_name, s.second_surname), '\\s+', ' ', 'g')) AS fullName,
+                   trim(regexp_replace(concat_ws(' ', s.last_name, s.second_surname,
+                        s.first_name, s.middle_name), '\\s+', ' ', 'g')) AS fullName,
                    s.grade AS grade,
                    a.class_date AS classDate,
                    a.status AS status
@@ -89,8 +89,8 @@ public interface ReportRepository extends Repository<Student, Long> {
 
     @Query(value = """
             SELECT s.document_id AS documentId,
-                   trim(regexp_replace(concat_ws(' ', s.first_name, s.middle_name,
-                        s.last_name, s.second_surname), '\\s+', ' ', 'g')) AS fullName,
+                   trim(regexp_replace(concat_ws(' ', s.last_name, s.second_surname,
+                        s.first_name, s.middle_name), '\\s+', ' ', 'g')) AS fullName,
                    s.grade AS grade,
                    count(*) FILTER (WHERE a.status = 'F') AS absences,
                    count(*) FILTER (WHERE a.status = 'E') AS evasions,
@@ -319,8 +319,8 @@ public interface ReportRepository extends Repository<Student, Long> {
 
     @Query(value = """
             SELECT s.id AS studentId,
-                   trim(regexp_replace(concat_ws(' ', s.first_name, s.middle_name,
-                        s.last_name, s.second_surname), '\\s+', ' ', 'g')) AS fullName,
+                   trim(regexp_replace(concat_ws(' ', s.last_name, s.second_surname,
+                        s.first_name, s.middle_name), '\\s+', ' ', 'g')) AS fullName,
                    s.grade AS grade,
                    a.class_date AS classDate,
                    sub.name AS subject,
@@ -354,8 +354,8 @@ public interface ReportRepository extends Repository<Student, Long> {
     // ese curso ese dia de la semana, para poder decir "dia completo" o "3 de 6".
     @Query(value = """
             SELECT s.id AS studentId,
-                   trim(regexp_replace(concat_ws(' ', s.first_name, s.middle_name,
-                        s.last_name, s.second_surname), '\\s+', ' ', 'g')) AS fullName,
+                   trim(regexp_replace(concat_ws(' ', s.last_name, s.second_surname,
+                        s.first_name, s.middle_name), '\\s+', ' ', 'g')) AS fullName,
                    s.grade AS grade,
                    a.class_date AS classDate,
                    count(*) AS faltados,
@@ -461,12 +461,12 @@ public interface ReportRepository extends Repository<Student, Long> {
     /** Busqueda por trozo de nombre (sin importar mayusculas ni acentos) o por prefijo de documento. */
     @Query(value = """
             SELECT s.id AS id, s.document_id AS documentId,
-                   trim(regexp_replace(concat_ws(' ', s.first_name, s.middle_name,
-                        s.last_name, s.second_surname), '\\s+', ' ', 'g')) AS fullName,
+                   trim(regexp_replace(concat_ws(' ', s.last_name, s.second_surname,
+                        s.first_name, s.middle_name), '\\s+', ' ', 'g')) AS fullName,
                    s.grade AS grade
             FROM students s
             WHERE s.active
-              AND (translate(lower(concat_ws(' ', s.first_name, s.middle_name, s.last_name, s.second_surname)),
+              AND (translate(lower(concat_ws(' ', s.last_name, s.second_surname, s.first_name, s.middle_name)),
                              'áéíóúüñ', 'aeiouun')
                      LIKE '%' || translate(lower(:q), 'áéíóúüñ', 'aeiouun') || '%'
                    OR s.document_id LIKE :q || '%')
@@ -544,8 +544,8 @@ public interface ReportRepository extends Repository<Student, Long> {
             SELECT a.class_date AS classDate, sb.grade AS grade, sb.block_no AS blockNo, su.name AS subject,
                    tu.full_name AS teacherName, sb.room AS room,
                    s.document_id AS documentId,
-                   trim(regexp_replace(concat_ws(' ', s.first_name, s.middle_name,
-                        s.last_name, s.second_surname), '\\s+', ' ', 'g')) AS fullName,
+                   trim(regexp_replace(concat_ws(' ', s.last_name, s.second_surname,
+                        s.first_name, s.middle_name), '\\s+', ' ', 'g')) AS fullName,
                    a.status AS status, a.comment AS comment,
                    COALESCE(ru.full_name, a.recorded_by_name) AS recordedByName, a.recorded_at AS recordedAt,
                    COALESCE(eu.full_name, a.edited_by_name) AS editedByName, a.edited_at AS editedAt, a.previous_status AS previousStatus
@@ -574,8 +574,8 @@ public interface ReportRepository extends Repository<Student, Long> {
     @Query(value = """
             SELECT a.class_date AS classDate, sb.block_no AS blockNo, su.name AS subject,
                    tu.full_name AS teacherName, s.id AS studentId, s.document_id AS documentId,
-                   trim(regexp_replace(concat_ws(' ', s.first_name, s.middle_name,
-                        s.last_name, s.second_surname), '\\s+', ' ', 'g')) AS fullName,
+                   trim(regexp_replace(concat_ws(' ', s.last_name, s.second_surname,
+                        s.first_name, s.middle_name), '\\s+', ' ', 'g')) AS fullName,
                    a.status AS status, a.comment AS comment
             FROM attendance a
             JOIN students s ON s.id = a.student_id
@@ -595,8 +595,8 @@ public interface ReportRepository extends Repository<Student, Long> {
     /** Activos del curso mas quien tenga marcas en el rango en ese curso aunque ya no este activo. */
     @Query(value = """
             SELECT s.id AS id, s.document_id AS documentId,
-                   trim(regexp_replace(concat_ws(' ', s.first_name, s.middle_name,
-                        s.last_name, s.second_surname), '\\s+', ' ', 'g')) AS fullName
+                   trim(regexp_replace(concat_ws(' ', s.last_name, s.second_surname,
+                        s.first_name, s.middle_name), '\\s+', ' ', 'g')) AS fullName
             FROM students s
             WHERE (s.active AND s.grade = :grade)
                OR s.id IN (SELECT a.student_id FROM attendance a

@@ -62,7 +62,7 @@ class GuardianTest extends AbstractIntegrationTest {
                         .header("Authorization", "Bearer " + jwt.issueAccess(acudienteId, "ACUDIENTE")))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.length()").value(1))
-           .andExpect(jsonPath("$[0].fullName").value("JUAN DIEGO AVILA VERGARA"));
+           .andExpect(jsonPath("$[0].fullName").value("AVILA VERGARA JUAN DIEGO"));
     }
 
     @Test
@@ -83,13 +83,13 @@ class GuardianTest extends AbstractIntegrationTest {
                         .header("Authorization", "Bearer " + jwt.issueAccess(acudienteId, "ACUDIENTE")))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.length()").value(1))
-           .andExpect(jsonPath("$[0].fullName").value("JUAN DIEGO AVILA VERGARA"));
+           .andExpect(jsonPath("$[0].fullName").value("AVILA VERGARA JUAN DIEGO"));
 
         mvc.perform(get("/api/guardian/children")
                         .header("Authorization", "Bearer " + jwt.issueAccess(otroAcudienteId, "ACUDIENTE")))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.length()").value(1))
-           .andExpect(jsonPath("$[0].fullName").value("LINDA ISABELLA AREVALO FIGUEROA"));
+           .andExpect(jsonPath("$[0].fullName").value("AREVALO FIGUEROA LINDA ISABELLA"));
     }
 
     @Test

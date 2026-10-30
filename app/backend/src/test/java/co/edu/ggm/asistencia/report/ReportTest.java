@@ -67,7 +67,7 @@ class ReportTest extends AbstractIntegrationTest {
                         .param("grade", "601").param("from", "2026-06-01").param("to", "2026-06-30")
                         .header("Authorization", token()))
            .andExpect(status().isOk())
-           .andExpect(jsonPath("$[0].fullName").value("LINDA ISABELLA AREVALO FIGUEROA"))
+           .andExpect(jsonPath("$[0].fullName").value("AREVALO FIGUEROA LINDA ISABELLA"))
            .andExpect(jsonPath("$[0].present").value(1))
            .andExpect(jsonPath("$[0].absent").value(1))
            .andExpect(jsonPath("$[0].evasion").value(1));
@@ -80,7 +80,7 @@ class ReportTest extends AbstractIntegrationTest {
                         .param("grade", "601").param("from", "2026-06-01").param("to", "2026-06-30")
                         .header("Authorization", token()))
            .andExpect(status().isOk())
-           .andExpect(jsonPath("$[0].fullName").value("LINDA ISABELLA AREVALO FIGUEROA"))
+           .andExpect(jsonPath("$[0].fullName").value("AREVALO FIGUEROA LINDA ISABELLA"))
            .andExpect(jsonPath("$[0].attendanceRate").value(33.3));
     }
 
@@ -91,7 +91,7 @@ class ReportTest extends AbstractIntegrationTest {
                         .param("grade", "602").param("from", "2026-06-01").param("to", "2026-06-30")
                         .header("Authorization", token()))
            .andExpect(status().isOk())
-           .andExpect(jsonPath("$[0].fullName").value("DANIEL ALEJANDRO BARRIOS PARATES"))
+           .andExpect(jsonPath("$[0].fullName").value("BARRIOS PARATES DANIEL ALEJANDRO"))
            .andExpect(jsonPath("$[0].present").value(0))
            .andExpect(jsonPath("$[0].attendanceRate").doesNotExist());
     }
@@ -146,7 +146,7 @@ class ReportTest extends AbstractIntegrationTest {
             var hoja = wb.getSheetAt(0);
             assertThat(hoja.getRow(0).getCell(0).getStringCellValue()).isEqualTo("Documento");
             assertThat(hoja.getRow(1).getCell(1).getStringCellValue())
-                    .isEqualTo("LINDA ISABELLA AREVALO FIGUEROA");
+                    .isEqualTo("AREVALO FIGUEROA LINDA ISABELLA");
         }
     }
 

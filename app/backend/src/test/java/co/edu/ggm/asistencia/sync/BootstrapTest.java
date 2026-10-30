@@ -106,7 +106,7 @@ class BootstrapTest extends AbstractIntegrationTest {
            .andExpect(jsonPath("$.blocks[0].subject").value("Matematicas"))
            // el estudiante de 602 NO debe venir: ese docente no dicta ese grado
            .andExpect(jsonPath("$.students.length()").value(2))
-           .andExpect(jsonPath("$.students[0].fullName").value("LINDA ISABELLA AREVALO FIGUEROA"))
+           .andExpect(jsonPath("$.students[0].fullName").value("AREVALO FIGUEROA LINDA ISABELLA"))
            .andExpect(jsonPath("$.students[0].sortKey").value("AREVALO FIGUEROA LINDA ISABELLA"));
     }
 

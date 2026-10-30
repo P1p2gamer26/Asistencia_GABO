@@ -32,9 +32,8 @@ public class Student {
                 .filter(s -> s != null && !s.isBlank()).toList());
     }
 
-    /** Nombre completo sin espacios dobles cuando faltan segundo nombre o segundo apellido. */
+    /** Apellidos primero, luego nombres (sin espacios dobles). */
     public String fullName() {
-        return String.join(" ", java.util.stream.Stream.of(firstName, middleName, lastName, secondSurname)
-                .filter(s -> s != null && !s.isBlank()).toList());
+        return sortKey();
     }
 }

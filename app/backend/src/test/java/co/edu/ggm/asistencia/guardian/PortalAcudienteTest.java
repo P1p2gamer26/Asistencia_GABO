@@ -41,8 +41,8 @@ class PortalAcudienteTest extends AbstractIntegrationTest {
                         .param("from", "2026-06-01").param("to", "2026-06-10"))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.length()").value(2))
-           .andExpect(jsonPath("$[?(@.fullName=='Ana Perez')].grade").value("610p"))
-           .andExpect(jsonPath("$[?(@.fullName=='Luis Perez')].grade").value("820p"));
+           .andExpect(jsonPath("$[?(@.fullName=='Perez Ana')].grade").value("610p"))
+           .andExpect(jsonPath("$[?(@.fullName=='Perez Luis')].grade").value("820p"));
     }
 
     @Test
@@ -89,7 +89,7 @@ class PortalAcudienteTest extends AbstractIntegrationTest {
         mvc.perform(get("/api/guardian/children").header("Authorization", token)
                         .param("from", "2026-06-01").param("to", "2026-06-10"))
            .andExpect(jsonPath("$.length()").value(1))
-           .andExpect(jsonPath("$[0].fullName").value("Ana Perez"));
+           .andExpect(jsonPath("$[0].fullName").value("Perez Ana"));
     }
 
     @Test
