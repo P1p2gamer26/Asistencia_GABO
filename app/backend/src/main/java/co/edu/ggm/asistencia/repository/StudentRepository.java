@@ -37,8 +37,8 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 
     @Query(value = """
             SELECT s.id AS studentId,
-                   trim(regexp_replace(concat_ws(' ', s.first_name, s.middle_name,
-                        s.last_name, s.second_surname), '\\s+', ' ', 'g')) AS fullName,
+                   trim(regexp_replace(concat_ws(' ', s.last_name, s.second_surname,
+                        s.first_name, s.middle_name), '\\s+', ' ', 'g')) AS fullName,
                    s.grade AS grade
             FROM students s
             JOIN guardianships g ON g.student_id = s.id
