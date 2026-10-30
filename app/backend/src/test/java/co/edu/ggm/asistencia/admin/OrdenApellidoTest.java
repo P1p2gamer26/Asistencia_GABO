@@ -51,9 +51,9 @@ class OrdenApellidoTest extends AbstractIntegrationTest {
         mvc.perform(get("/api/guardian/children")
                         .header("Authorization", tokenDe("padre@oap.co", "ACUDIENTE")))
            .andExpect(status().isOk())
-           .andExpect(jsonPath("$[0].fullName").value("ZOE PEREZ ACOSTA"))
-           .andExpect(jsonPath("$[1].fullName").value("ANA PEREZ ZAPATA"))
-           .andExpect(jsonPath("$[2].fullName").value("BETO RUIZ ACOSTA"));
+           .andExpect(jsonPath("$[0].fullName").value("PEREZ ACOSTA ZOE"))
+           .andExpect(jsonPath("$[1].fullName").value("PEREZ ZAPATA ANA"))
+           .andExpect(jsonPath("$[2].fullName").value("RUIZ ACOSTA BETO"));
     }
 
     @Test
@@ -65,8 +65,8 @@ class OrdenApellidoTest extends AbstractIntegrationTest {
         mvc.perform(get("/api/admin/students").param("grade", "OAP")
                         .header("Authorization", tokenDe("admin@oap.co", "ADMIN")))
            .andExpect(status().isOk())
-           .andExpect(jsonPath("$[0].fullName").value("ZOE PEREZ ACOSTA"))
-           .andExpect(jsonPath("$[1].fullName").value("ANA PEREZ ZAPATA"))
-           .andExpect(jsonPath("$[2].fullName").value("BETO RUIZ ACOSTA"));
+           .andExpect(jsonPath("$[0].fullName").value("PEREZ ACOSTA ZOE"))
+           .andExpect(jsonPath("$[1].fullName").value("PEREZ ZAPATA ANA"))
+           .andExpect(jsonPath("$[2].fullName").value("RUIZ ACOSTA BETO"));
     }
 }

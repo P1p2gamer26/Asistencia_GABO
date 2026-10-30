@@ -24,7 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 class ConsultasAvanzadasTest extends AbstractIntegrationTest {
 
-    private static final String ALUMNO = "1010101010";   // LINDA ISABELLA AREVALO FIGUEROA, curso 601
+    private static final String ALUMNO = "1010101010";   // AREVALO FIGUEROA LINDA ISABELLA, curso 601
 
     @Autowired MockMvc mvc;
     @Autowired JdbcTemplate jdbc;

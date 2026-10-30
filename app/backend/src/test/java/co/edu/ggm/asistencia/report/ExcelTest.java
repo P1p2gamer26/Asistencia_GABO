@@ -24,7 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 class ExcelTest extends AbstractIntegrationTest {
 
-    private static final String ALUMNO = "1010101010";   // LINDA ISABELLA AREVALO FIGUEROA, curso 601
+    private static final String ALUMNO = "1010101010";   // AREVALO FIGUEROA LINDA ISABELLA, curso 601
 
     @Autowired MockMvc mvc;
     @Autowired JdbcTemplate jdbc;
@@ -138,7 +138,7 @@ class ExcelTest extends AbstractIntegrationTest {
             Sheet hoja = wb.getSheetAt(0);
             assertThat(hoja.getRow(0).getCell(0).getStringCellValue()).isEqualTo("Estudiante");
             assertThat(hoja.getRow(0).getCell(1).getStringCellValue())
-                    .isEqualTo("LINDA ISABELLA AREVALO FIGUEROA");
+                    .isEqualTo("AREVALO FIGUEROA LINDA ISABELLA");
             assertThat(hoja.getRow(1).getCell(1).getStringCellValue()).isEqualTo(ALUMNO);
             assertThat(hoja.getRow(3).getCell(0).getStringCellValue()).isEqualTo("Fecha");
             // recentAttendance ordena por fecha descendente: el mas reciente primero
@@ -189,7 +189,7 @@ class ExcelTest extends AbstractIntegrationTest {
             assertThat(hoja.getRow(0).getCell(2).getStringCellValue()).contains("·");
             boolean esta = false;
             for (int i = 2; i <= hoja.getLastRowNum(); i++) {
-                esta |= "LINDA ISABELLA AREVALO FIGUEROA".equals(hoja.getRow(i).getCell(0).getStringCellValue());
+                esta |= "AREVALO FIGUEROA LINDA ISABELLA".equals(hoja.getRow(i).getCell(0).getStringCellValue());
             }
             assertThat(esta).isTrue();
             var com = wb.getSheet("Comentarios");
