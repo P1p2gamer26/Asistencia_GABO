@@ -18,8 +18,23 @@ import java.util.List;
 public class AdminUserController {
 
     private final AdminUserService service;
+    private final co.edu.ggm.asistencia.service.AccesoCursoService acceso;
 
-    public AdminUserController(AdminUserService service) { this.service = service; }
+    public AdminUserController(AdminUserService service, co.edu.ggm.asistencia.service.AccesoCursoService acceso) {
+        this.service = service; this.acceso = acceso;
+    }
+
+    public record AssignmentsDto(List<String> grades) {}
+
+    @GetMapping("/{id}/assignments")
+    public AssignmentsDto assignments(@PathVariable Long id) {
+        return new AssignmentsDto(acceso.asignados(id));
+    }
+
+    @PutMapping("/{id}/assignments")
+    public AssignmentsDto setAssignments(@PathVariable Long id, @Valid @RequestBody AssignmentsDto body) {
+        return new AssignmentsDto(acceso.reemplazar(id, body.grades() == null ? List.of() : body.grades()));
+    }
 
     public record UserDto(Long id, String email, String fullName, String role, boolean active) {
         static UserDto de(User u) {

@@ -40,7 +40,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/entry")
-@PreAuthorize("hasAnyRole('DOCENTE','ADMIN')")
+@PreAuthorize("hasAnyRole('DOCENTE','ORIENTADOR','ADMIN')")
 public class EntryController {
 
     private static final ZoneId BOGOTA = ZoneId.of("America/Bogota");

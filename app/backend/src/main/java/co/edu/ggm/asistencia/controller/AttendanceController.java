@@ -28,7 +28,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/attendance")
-@PreAuthorize("hasAnyRole('DOCENTE','ADMIN')")
+@PreAuthorize("hasAnyRole('DOCENTE','ORIENTADOR','ADMIN')")
 public class AttendanceController {
 
     private static final Logger log = LoggerFactory.getLogger(AttendanceController.class);
