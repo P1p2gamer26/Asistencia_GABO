@@ -1,4 +1,4 @@
-export type Role = 'ADMIN' | 'DOCENTE' | 'ACUDIENTE';
+export type Role = 'ADMIN' | 'DOCENTE' | 'ORIENTADOR' | 'ACUDIENTE';
 export type Status = 'P' | 'T' | 'F' | 'E';
 export type DayType = 'LECTIVO' | 'FESTIVO' | 'VACACIONES' | 'INSTITUCIONAL' | 'SUSPENDIDO';
 
@@ -13,7 +13,9 @@ export type Block = {
 export type PendingBlock = { blockId: number; grade: string; subject: string; blockNo: number };
 export type StudentDto = { id: number; documentId: string; fullName: string; grade: string; sortKey?: string };
 export type SchoolDay = { calendarDate: string; dayType: DayType; description?: string; cycleDay?: number | null; cycleDayFixed?: number | null };
-export type Bootstrap = { blocks: Block[]; students: StudentDto[]; schoolDays: SchoolDay[] };
+export type Bootstrap = { blocks: Block[]; students: StudentDto[]; schoolDays: SchoolDay[];
+  /** Cursos asignados al docente sin horario (el backend puede omitirlo). */
+  assignedGrades?: string[] };
 
 export type SummaryRow = {
   studentId: number; documentId: string; fullName: string; grade: string;

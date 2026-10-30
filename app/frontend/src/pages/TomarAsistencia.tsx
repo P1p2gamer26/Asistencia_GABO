@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { db } from '../db/local';
-import { api } from '../api/client';
+import { api, getSession } from '../api/client';
 import type { Block, StudentDto, Status, AttendanceSesion } from '../api/contract';
 import { ESTADOS } from '../api/contract';
 import { downloadBootstrap, flushOutbox, markAttendance, pendingCount } from '../sync/engine';
@@ -30,6 +30,8 @@ export default function TomarAsistencia() {
   // Los pendientes de hoy en el inicio enlazan aqui con el curso y el bloque ya elegidos.
   const [params] = useSearchParams();
   const [blocks, setBlocks] = useState<Block[]>([]);
+  const [asignados, setAsignados] = useState<string[]>([]);
+  const [todosLosGrados, setTodosLosGrados] = useState<string[]>([]);
   const [students, setStudents] = useState<StudentDto[]>([]);
   const [grade, setGrade] = useState(params.get('grade') ?? '');
   const [blockId, setBlockId] = useState<number | null>(
@@ -59,6 +61,18 @@ export default function TomarAsistencia() {
   const [cargado, setCargado] = useState(false);
   const esMovil = useEsMovil();
 
+  // Bloques, cursos asignados sin horario y todos los cursos (de los estudiantes
+  // descargados) salen de la copia local, asi que funciona sin conexion.
+  async function leerCursos(locales: Block[]) {
+    const meta = await db.meta.get('assignedGrades');
+    let asig: string[] = [];
+    try { asig = meta?.value ? JSON.parse(meta.value) : []; } catch { /* copia ilegible */ }
+    const todos = (await db.students.orderBy('grade').uniqueKeys()) as string[];
+    setBlocks(locales);
+    setAsignados(asig);
+    setTodosLosGrados(todos);
+  }
+
   useEffect(() => {
     // La copia local la llena downloadBootstrap en segundo plano; con 1200 estudiantes
     // tarda, y antes esta pantalla leia los bloques vacios y no reintentaba (el Curso
@@ -69,12 +83,12 @@ export default function TomarAsistencia() {
         await downloadBootstrap().catch(() => {});
         locales = await db.blocks.toArray();
       }
-      setBlocks(locales);
+      await leerCursos(locales);
       setCargado(true);
       // Y en segundo plano se refresca por si el horario cambio en el servidor (un
       // curso reasignado al docente): asi no hay que cerrar sesion para verlo.
       void downloadBootstrap()
-        .then(async () => setBlocks(await db.blocks.toArray()))
+        .then(async () => leerCursos(await db.blocks.toArray()))
         .catch(() => {});
     })();
     void pendingCount().then(setPendientes);
@@ -112,9 +126,15 @@ export default function TomarAsistencia() {
     setBlockId(b.id);
   }, [params, blocks]);
 
+  // Orientacion y docentes sin horario ni asignaciones ven todos los cursos.
+  const rol = getSession()?.role;
+  const veTodos = rol === 'ORIENTADOR'
+    || (rol === 'DOCENTE' && blocks.length === 0 && asignados.length === 0);
   const grados = useMemo(
-    () => [...new Set(blocks.map((b) => b.grade))].sort(ordenCurso),
-    [blocks],
+    () => [...new Set([
+      ...blocks.map((b) => b.grade), ...asignados, ...(veTodos ? todosLosGrados : []),
+    ])].sort(ordenCurso),
+    [blocks, asignados, veTodos, todosLosGrados],
   );
 
   // Solo los bloques que ocurren el dia de ciclo de la fecha elegida. Ofrecer otro
