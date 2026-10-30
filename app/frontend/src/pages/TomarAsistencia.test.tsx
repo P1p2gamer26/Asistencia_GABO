@@ -33,6 +33,47 @@ describe('TomarAsistencia', () => {
     ]);
   });
 
+  describe('cursos ofrecidos', () => {
+    const opciones = () => [...screen.getByLabelText(/curso/i).querySelectorAll('option')]
+      .map((o) => o.textContent).filter((t) => t && !t.startsWith('Seleccione'));
+    const entrar = (role: string, asignados?: string[]) => {
+      localStorage.setItem('ggm.session', JSON.stringify({
+        token: 't', refreshToken: 'r', role, fullName: 'X', userId: 1, mustChangePassword: false }));
+      return db.meta.put({ key: 'assignedGrades', value: JSON.stringify(asignados ?? []) });
+    };
+    beforeEach(async () => {
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('sin red'))));
+      await db.meta.clear();
+      await db.students.bulkPut([{ id: 13, documentId: '444', fullName: 'DANI SOL', grade: '701' }]);
+    });
+
+    it('docente con asignaciones ve los cursos asignados ademas de su horario', async () => {
+      await entrar('DOCENTE', ['701']);
+      render(<MemoryRouter><TomarAsistencia /></MemoryRouter>);
+      await waitFor(() => expect(opciones()).toEqual(['601', '602', '701']));
+    });
+
+    it('docente sin bloques ni asignaciones ve todos los cursos', async () => {
+      await db.blocks.clear();
+      await entrar('DOCENTE');
+      render(<MemoryRouter><TomarAsistencia /></MemoryRouter>);
+      await waitFor(() => expect(opciones()).toEqual(['601', '602', '701']));
+    });
+
+    it('docente con horario y sin asignaciones solo ve los suyos', async () => {
+      await entrar('DOCENTE');
+      render(<MemoryRouter><TomarAsistencia /></MemoryRouter>);
+      await waitFor(() => expect(opciones()).toEqual(['601', '602']));
+    });
+
+    it('orientador ve todos los cursos', async () => {
+      await db.blocks.clear();
+      await entrar('ORIENTADOR');
+      render(<MemoryRouter><TomarAsistencia /></MemoryRouter>);
+      await waitFor(() => expect(opciones()).toEqual(['601', '602', '701']));
+    });
+  });
+
   it('sin curso elegido no muestra estudiantes', async () => {
     render(<MemoryRouter><TomarAsistencia /></MemoryRouter>);
     expect(await screen.findByText(/elija curso y bloque/i)).toBeInTheDocument();

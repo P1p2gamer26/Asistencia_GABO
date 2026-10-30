@@ -10,15 +10,15 @@ type Destino = { a: string; texto: string; roles: Role[] };
 
 /** El orden es el de la jornada: primero lo que se usa a diario. */
 const DESTINOS: Destino[] = [
-  { a: '/',            texto: 'Inicio',         roles: ['ADMIN', 'DOCENTE'] },
+  { a: '/',            texto: 'Inicio',         roles: ['ADMIN', 'DOCENTE', 'ORIENTADOR'] },
   { a: '/',            texto: 'Mis hijos',      roles: ['ACUDIENTE'] },
-  { a: '/asistencia',  texto: 'Asistencia a clase', roles: ['ADMIN', 'DOCENTE'] },
-  { a: '/horario',     texto: 'Horario',        roles: ['ADMIN', 'DOCENTE'] },
-  { a: '/calendario',  texto: 'Calendario',     roles: ['ADMIN', 'DOCENTE', 'ACUDIENTE'] },
-  { a: '/ingreso',     texto: 'Ingreso al colegio', roles: ['ADMIN', 'DOCENTE'] },
-  { a: '/consultas',   texto: 'Consultas',      roles: ['ADMIN', 'DOCENTE'] },
-  { a: '/dashboard',   texto: 'Tablero',        roles: ['ADMIN'] },
-  { a: '/videos',      texto: 'Videos tutoriales', roles: ['ADMIN', 'DOCENTE', 'ACUDIENTE'] },
+  { a: '/asistencia',  texto: 'Asistencia a clase', roles: ['ADMIN', 'DOCENTE', 'ORIENTADOR'] },
+  { a: '/horario',     texto: 'Horario',        roles: ['ADMIN', 'DOCENTE', 'ORIENTADOR'] },
+  { a: '/calendario',  texto: 'Calendario',     roles: ['ADMIN', 'DOCENTE', 'ORIENTADOR', 'ACUDIENTE'] },
+  { a: '/ingreso',     texto: 'Ingreso al colegio', roles: ['ADMIN', 'DOCENTE', 'ORIENTADOR'] },
+  { a: '/consultas',   texto: 'Consultas',      roles: ['ADMIN', 'DOCENTE', 'ORIENTADOR'] },
+  { a: '/dashboard',   texto: 'Tablero',        roles: ['ADMIN', 'ORIENTADOR'] },
+  { a: '/videos',      texto: 'Videos tutoriales', roles: ['ADMIN', 'DOCENTE', 'ORIENTADOR', 'ACUDIENTE'] },
   { a: '/admin',       texto: 'Administracion', roles: ['ADMIN'] },
 ];
 
