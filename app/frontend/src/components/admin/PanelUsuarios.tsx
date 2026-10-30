@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { api, AVISO_ENCOLADO, HttpError } from '../../api/client';
 import type { AdminUser, Role } from '../../api/contract';
+import { useCursos } from '../../lib/useCursos';
 
-const ROLES: Role[] = ['ADMIN', 'DOCENTE', 'ACUDIENTE'];
+const ROLES: Role[] = ['ADMIN', 'DOCENTE', 'ORIENTADOR', 'ACUDIENTE'];
 
 type PanelUsuariosProps = {
   onAsignarHorario?: (docente: AdminUser) => void;
@@ -18,6 +19,32 @@ const [aviso, setAviso] = useState('');
   const [docenteCreado, setDocenteCreado] = useState<AdminUser | null>(null);
   const [editandoId, setEditandoId] = useState<number | null>(null);
   const [edicion, setEdicion] = useState({ email: '', fullName: '', role: 'DOCENTE' as Role });
+
+  const cursos = useCursos();
+  const [cursosDe, setCursosDe] = useState<AdminUser | null>(null);
+  const [asignados, setAsignados] = useState<string[]>([]);
+
+  async function abrirCursos(u: AdminUser) {
+    setError(''); setAviso(''); setCursosDe(u); setAsignados([]);
+    try {
+      const r = await api.get<{ grades: string[] }>(`/api/admin/users/${u.id}/assignments`);
+      setAsignados(r.grades);
+    } catch {
+      setError('No se pudieron cargar los cursos asignados.');
+    }
+  }
+
+  async function guardarCursos() {
+    if (!cursosDe) return;
+    setError(''); setAviso('');
+    try {
+      await api.put(`/api/admin/users/${cursosDe.id}/assignments`, { grades: asignados });
+      setAviso(`Cursos de ${cursosDe.fullName} guardados.`);
+      setCursosDe(null);
+    } catch (e) {
+      setError(e instanceof HttpError ? e.message : 'No se pudieron guardar los cursos.');
+    }
+  }
 
   async function cargar() {
     setError('');
@@ -153,6 +180,25 @@ const [aviso, setAviso] = useState('');
           </div>
         </section>
       )}
+      {cursosDe && (
+        <section className="card" role="region" aria-label={`Cursos de ${cursosDe.fullName}`}>
+          <h2>Cursos de {cursosDe.fullName} ({cursosDe.role})</h2>
+          <div className="leyenda">
+            {cursos.map((c) => (
+              <label key={c}>
+                <input type="checkbox" checked={asignados.includes(c)}
+                       onChange={(e) => setAsignados(e.target.checked
+                         ? [...asignados, c] : asignados.filter((x) => x !== c))} />
+                {c}
+              </label>
+            ))}
+          </div>
+          <div className="leyenda">
+            <button type="button" onClick={() => void guardarCursos()}>Guardar cursos</button>
+            <button type="button" className="secundario" onClick={() => setCursosDe(null)}>Cancelar</button>
+          </div>
+        </section>
+      )}
       {error && <p role="alert" className="error">{error}</p>}
 
       <div className="leyenda mt-4">
@@ -217,6 +263,13 @@ const [aviso, setAviso] = useState('');
                           onClick={() => iniciarEdicion(u)}>
                     Editar
                   </button>
+                  {(u.role === 'DOCENTE' || u.role === 'ORIENTADOR') && (
+                    <button type="button" className="secundario chico"
+                            aria-label={`Cursos de ${u.fullName}`}
+                            onClick={() => void abrirCursos(u)}>
+                      Cursos
+                    </button>
+                  )}
                   <button type="button" className="secundario chico"
                           onClick={() => void alternarActivo(u)}>
                     {u.active ? 'Desactivar' : 'Activar'}
