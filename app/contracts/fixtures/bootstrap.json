@@ -9,5 +9,6 @@
   "schoolDays": [
     { "calendarDate": "2026-07-13", "dayType": "LECTIVO", "cycleDay": 1 },
     { "calendarDate": "2026-07-20", "dayType": "FESTIVO" }
-  ]
+  ],
+  "assignedGrades": []
 }

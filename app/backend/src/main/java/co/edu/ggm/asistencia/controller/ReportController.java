@@ -30,7 +30,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/reports")
-@PreAuthorize("hasAnyRole('DOCENTE','ADMIN')")
+@PreAuthorize("hasAnyRole('DOCENTE','ORIENTADOR','ADMIN')")
 public class ReportController {
 
     private static final ZoneId BOGOTA = ZoneId.of("America/Bogota");

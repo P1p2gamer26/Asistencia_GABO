@@ -118,12 +118,16 @@ class SyncTest extends AbstractIntegrationTest {
         Long block = blockId();
         Long admin = jdbc.queryForObject("SELECT id FROM users WHERE email = 'admin@ggm.edu.co'", Long.class);
         jdbc.update("UPDATE schedule_blocks SET teacher_id = ? WHERE id = ?", admin, block);
+        // Sin horario ni asignaciones un docente puede tomar lista de cualquier curso; con una asignacion a otro no.
+        jdbc.update("DELETE FROM teacher_course_assignments");
+        jdbc.update("INSERT INTO teacher_course_assignments (user_id, grade) SELECT id, '999' FROM users WHERE email = 'fpalacios@ggm.edu.co'");
         mvc.perform(post("/api/attendance/sync").header("Authorization", token())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(lote("16161616-1616-4161-8161-161616161616", studentId("1010101010"), "P", "2026-04-15")))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.accepted").value(0))
            .andExpect(jsonPath("$.rejected[0].reason").value("El bloque no es suyo"));
+        jdbc.update("DELETE FROM teacher_course_assignments");
     }
 
     @Test

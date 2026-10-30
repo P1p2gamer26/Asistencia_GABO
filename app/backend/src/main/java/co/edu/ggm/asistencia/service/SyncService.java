@@ -23,11 +23,14 @@ public class SyncService {
     private final CalendarService calendar;
     private final StudentRepository students;
     private final ScheduleRepository blocks;
+    private final AccesoCursoService acceso;
     private static final ZoneId BOGOTA = ZoneId.of("America/Bogota");
 
     public SyncService(AttendanceRepository repo, CalendarService calendar,
-                       StudentRepository students, ScheduleRepository blocks) {
+                       StudentRepository students, ScheduleRepository blocks,
+                       AccesoCursoService acceso) {
         this.repo = repo; this.calendar = calendar; this.students = students; this.blocks = blocks;
+        this.acceso = acceso;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -40,7 +43,7 @@ public class SyncService {
                 .orElseThrow(() -> new SyncRejectedException("Estudiante inexistente"));
         var block = blocks.findById(blockId)
                 .orElseThrow(() -> new SyncRejectedException("Bloque inexistente"));
-        if (!admin && !recordedBy.equals(block.getTeacherId())) {
+        if (!admin && !acceso.puedeTomarLista(recordedBy, block.getGrade())) {
             throw new SyncRejectedException("El bloque no es suyo");
         }
         if (!student.getGrade().equals(block.getGrade())) {
