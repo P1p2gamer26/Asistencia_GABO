@@ -64,13 +64,16 @@ function ListaNovedades({ titulo, items, sinRegistros, vacioTexto }: {
   );
 }
 
-function TablaMesPorCurso({ cursos }: { cursos: CursoMes[] }) {
+type HoyCurso = { ausentes: number; evasiones: number };
+
+function TablaMesPorCurso({ cursos, hoyPorCurso }: { cursos: CursoMes[]; hoyPorCurso: Record<string, HoyCurso> }) {
   return (
     <div className="tabla-scroll">
       <table>
         <thead>
           <tr><th>Curso</th><th className="num">Asistencia</th><th className="num">P</th>
-              <th className="num">T</th><th className="num">F</th><th className="num">E</th></tr>
+              <th className="num">T</th><th className="num">F</th><th className="num">E</th>
+              <th className="num">Ausentes hoy</th><th className="num">Evasiones hoy</th></tr>
         </thead>
         <tbody>
           {cursos.map((c) => (
@@ -91,6 +94,8 @@ function TablaMesPorCurso({ cursos }: { cursos: CursoMes[] }) {
               <td className="num">{c.late}</td>
               <td className="num">{c.absent}</td>
               <td className="num">{c.evasion}</td>
+              <td className="num">{c.sinRegistros ? '—' : (hoyPorCurso[c.grade]?.ausentes ?? 0)}</td>
+              <td className="num">{c.sinRegistros ? '—' : (hoyPorCurso[c.grade]?.evasiones ?? 0)}</td>
             </tr>
           ))}
         </tbody>
@@ -102,6 +107,7 @@ function TablaMesPorCurso({ cursos }: { cursos: CursoMes[] }) {
 export default function InicioAdmin() {
   const [hoy, setHoy] = useState<ResumenHoy | null>(null);
   const [novedades, setNovedades] = useState<Novedades | null>(null);
+  const [hoyPorCurso, setHoyPorCurso] = useState<Record<string, HoyCurso>>({});
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(true);
 
@@ -114,6 +120,24 @@ export default function InicioAdmin() {
       .catch(() => setError('No se pudo cargar el resumen de hoy. Requiere conexion.'))
       .finally(() => setCargando(false));
   }, []);
+
+  // Ausentes y evasiones de hoy por curso: una sola consulta, sumada por curso.
+  useEffect(() => {
+    if (!hoy?.fecha) return;
+    api.get<{ grade: string; absent: number; evasion: number }[]>(
+      `/api/reports/summary?from=${hoy.fecha}&to=${hoy.fecha}`)
+      .then((filas) => {
+        const acum: Record<string, HoyCurso> = {};
+        for (const f of filas) {
+          const a = acum[f.grade] ?? { ausentes: 0, evasiones: 0 };
+          a.ausentes += f.absent;
+          a.evasiones += f.evasion;
+          acum[f.grade] = a;
+        }
+        setHoyPorCurso(acum);
+      })
+      .catch(() => setHoyPorCurso({}));
+  }, [hoy?.fecha]);
 
   const faltan = hoy ? hoy.bloquesEsperados - hoy.bloquesMarcados : 0;
   // mesPorCurso ya viene de peor a mejor y los cursos sin registros van al final.
@@ -196,7 +220,7 @@ export default function InicioAdmin() {
           <p className="meta">{hoy.mesDiasLectivos} dias lectivos transcurridos</p>
 
           <h3>Asistencia por curso (peor a mejor)</h3>
-          <TablaMesPorCurso cursos={hoy.mesPorCurso} />
+          <TablaMesPorCurso cursos={hoy.mesPorCurso} hoyPorCurso={hoyPorCurso} />
 
           <p className="meta"><Link to="/dashboard">Ver el tablero completo</Link></p>
         </div>

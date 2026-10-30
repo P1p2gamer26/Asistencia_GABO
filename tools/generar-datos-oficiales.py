@@ -137,12 +137,15 @@ EXCEPCIONES = {"JOHN SALAMANCA": "SALAMANCA RUBIO JHON ALVARO"}
 # Correos que la planta no trae y el colegio entrego despues (WhatsApp de coordinacion).
 CORREOS_ENTREGADOS = {"YAMILE PACHON": "aida.pachon414@educacionbogota.edu.co",   # 13-oct-2026
                       "LEIDY LINARES": "leidy.linares213@outlook.com"}
+# Errores de escritura en la planta que se corrigen aqui, sin tocar el archivo del colegio.
+CORREOS_CORREGIDOS = {"jpabloga@educacionbogotal.edu.co": "jpabloga@educacionbogota.edu.co"}
 
 
 def planta():
     hoja = openpyxl.load_workbook(PLANTA, read_only=True)["Hoja1"]
     filas = list(hoja.iter_rows(values_only=True))[1:]
-    return [(plano(str(n)), (c or "").strip().lower()) for n, c in filas if n]
+    return [(plano(str(n)), CORREOS_CORREGIDOS.get((c or "").strip().lower(), (c or "").strip().lower()))
+            for n, c in filas if n]
 
 
 def correo(nombre, filas):
@@ -420,6 +423,51 @@ def comprobar(bloques, cursos):
             print("  OJO %s: %d huecos %s" % (curso, len(huecos), huecos))
 
 
+# ----------------------------------------------------------------- preescolar
+# Primera Infancia: una pagina por docente, con celdas por bloque. La asistencia se toma
+# una vez al dia, asi que cada docente recibe UN bloque de 07:30 a 12:30 por curso y dia.
+# El numero de bloque sale de la materia (titular 1, ingles 2, danzas 3) para que los
+# docentes de un mismo curso no se pisen en (curso, dia, bloque).
+PDF_PRIMERA_INFANCIA = RAIZ / "HORARIO DOCENTES PI FINAL 2026.pdf"
+PI_CURSOS = {"JARDIN 1": "J01", "JARDIN 2": "J02", "JARDIN 3": "J03", "TRANSICION 1": "T01",
+             "TRANSICION 2": "T02", "TRANSICION 3": "T03", "PRE-JARDIN": "PJ01"}
+PI_MATERIAS = {"EXPERIENCIA P": (1, "Experiencia P"), "INGLES": (2, "Ingles"),
+               "DANZAS LUDOTECA": (3, "Danzas")}          # materia -> (bloque, nombre)
+PI_INICIO, PI_FIN = "07:30", "12:30"
+# Nombre corto del PDF -> nombre completo de la planta. Va aparte de COMPLETOS porque
+# "YAZMIN MORENO" de Primera Infancia es Nelly Yasmin (Jardin 1 en la lista del colegio),
+# y Luz Yazmin Moreno es la de secundaria: no pueden compartir la misma clave.
+PI_DOCENTES = {"YAZMIN MORENO": "NELLY YASMIN MORENO BERNAL",
+               "JANNETH SERRADOR": "JANNETH ROCIO SERRADOR PARDO",
+               "ADRIANA SANCHEZ": "ADRIANA SANCHEZ RIASCOS",
+               "DIANA BERNAL": "DIANA YESMIN BERNAL PINILLA",
+               "AMPARO PARRADO": "AMPARO PARRADO PARRADO",
+               "BLANCA N SIERRA": "BLANCA NIEVES SIERRA BARRERA",
+               "FRANCISCA AVILA": "PAOLA FRANCISCA AVILA TRUJILLO",
+               "BARBARA QUINTERO": "BARBARA ALEJANDRA QUINTERO GUERRERO"}
+
+
+def horario_primera_infancia(ruta=PDF_PRIMERA_INFANCIA):
+    """PDF de Primera Infancia -> [(curso, dia, bloque, inicio, fin, materia, docente, aula)]."""
+    vistos = set()
+    with pdfplumber.open(ruta) as pdf:
+        for pagina in pdf.pages:
+            cabecera = next(l for l in pagina.extract_text().split("\n") if l.startswith("Profesor "))
+            corto = plano(cabecera[len("Profesor "):])
+            docente = PI_DOCENTES.get(corto, corto)
+            for fila in pagina.extract_table()[1:]:
+                dia = int(re.search(r"\d", fila[0]).group())
+                for i in (1, 2, 4, 5, 6):                   # la columna 3 es el DESCANSO
+                    lineas = [plano(x) for x in (fila[i] or "").split("\n") if x.strip()]
+                    if len(lineas) < 2:
+                        continue
+                    materia, curso = lineas[0], PI_CURSOS.get(" ".join(lineas[1:]))
+                    if materia in PI_MATERIAS and curso:
+                        vistos.add((curso, dia, docente, materia))
+    return [(curso, dia, PI_MATERIAS[m][0], PI_INICIO, PI_FIN, PI_MATERIAS[m][1], docente, "")
+            for curso, dia, docente, m in sorted(vistos)]
+
+
 # --------------------------------------------------------------------- salida
 
 
@@ -525,7 +573,12 @@ def main():
     # cursos (9/02); el de segundo es del 8/02 y pierde. Tercero a quinto no chocan.
     primero = [b for b in por_docente if b[0].startswith("1")]
     primaria = combinar([primero, por_curso, por_docente])
-    bloques = sorted(secundaria + primaria, key=lambda b: (b[0], b[1], b[2]))
+    preescolar = horario_primera_infancia()
+    sin_horario = sorted(c for c in cursos if c.startswith(("J", "T", "PJ"))
+                         and c not in {b[0] for b in preescolar})
+    if sin_horario:
+        print("  OJO preescolar sin docente en el PDF: %s" % ", ".join(sin_horario))
+    bloques = sorted(secundaria + primaria + preescolar, key=lambda b: (b[0], b[1], b[2]))
     comprobar(bloques, cursos)
 
     filas = planta()

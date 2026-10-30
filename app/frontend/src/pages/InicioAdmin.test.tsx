@@ -64,7 +64,8 @@ describe('InicioAdmin', () => {
     vi.stubGlobal('fetch', mockFetch());
     pintar();
     await waitFor(() => expect(screen.getByText('22')).toBeInTheDocument());
-    expect(screen.getByText(/ausentes hoy/i)).toBeInTheDocument();
+    // El KPI y el encabezado de la tabla por curso dicen lo mismo.
+    expect(screen.getAllByText(/ausentes hoy/i).length).toBeGreaterThan(0);
   });
 
   it('muestra el mes con sus totales y el desglose por curso', async () => {
@@ -143,6 +144,27 @@ describe('InicioAdmin', () => {
     pintar();
     const enlace = await screen.findByRole('link', { name: '601' });
     expect(enlace).toHaveAttribute('href', '/curso/601');
+  });
+
+  it('cada curso muestra cuantos ausentes y evasiones hay hoy', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (String(url).includes('/summary')) {
+        return respuesta([
+          { studentId: 1, documentId: '1', fullName: 'A', grade: '601', present: 0, late: 0, absent: 1, evasion: 0, schoolDays: 1, attendanceRate: 0 },
+          { studentId: 2, documentId: '2', fullName: 'B', grade: '601', present: 0, late: 0, absent: 1, evasion: 1, schoolDays: 1, attendanceRate: 0 },
+        ]);
+      }
+      return mockFetch()(url);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    pintar();
+    await screen.findByRole('link', { name: '601' });
+    await waitFor(() => expect(screen.getByRole('columnheader', { name: 'Ausentes hoy' })).toBeInTheDocument());
+    await waitFor(() => {
+      const fila = screen.getByRole('link', { name: '601' }).closest('tr')!;
+      expect(fila.querySelectorAll('td')[6]).toHaveTextContent('2');
+      expect(fila.querySelectorAll('td')[7]).toHaveTextContent('1');
+    });
   });
 
   it('un curso sin registros en el mes no es un enlace', async () => {

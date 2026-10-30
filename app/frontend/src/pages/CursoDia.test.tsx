@@ -33,7 +33,9 @@ describe('CursoDia', () => {
   it('muestra los estudiantes del curso con su marca en cada bloque del dia', async () => {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => respuesta(semanaPara(String(url)))));
     pintar();
-    const tabla = await screen.findByRole('table');
+    // Hay dos tablas: el resumen de bloques y la de estudiantes (la ultima).
+    const tablas = await screen.findAllByRole('table');
+    const tabla = tablas[tablas.length - 1];
     expect(within(tabla).getByText('Luis Ruiz')).toBeInTheDocument();
     expect(within(tabla).getByText('Matematicas')).toBeInTheDocument();
     expect(within(tabla).getByText('Ingles')).toBeInTheDocument();
@@ -45,13 +47,36 @@ describe('CursoDia', () => {
     const fetchMock = vi.fn(async (url: string) => respuesta(semanaPara(String(url))));
     vi.stubGlobal('fetch', fetchMock);
     pintar();
-    await screen.findByRole('table');
+    await screen.findAllByRole('table');
     const primera = new URL(String(fetchMock.mock.calls[0][0]), 'http://x').searchParams.get('from')!;
     fireEvent.click(screen.getByRole('button', { name: /dia anterior/i }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     const segunda = new URL(String(fetchMock.mock.calls[1][0]), 'http://x').searchParams.get('from')!;
     expect(segunda < primera).toBe(true);
     expect(String(fetchMock.mock.calls[1][0])).toContain('grade=601');
+  });
+
+  it('el resumen de bloques dice cuales ya se tomaron', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => respuesta(semanaPara(String(url)))));
+    pintar();
+    await screen.findByRole('heading', { name: 'Bloques del dia' });
+    // El estudiante tiene marca en los dos bloques: ambos quedan tomados.
+    expect(screen.getAllByText('Tomada').length).toBe(2);
+  });
+
+  it('en el dia 0 otro clic en P quita la marca', async () => {
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (String(url).includes('/api/dia-cero') && init?.method === 'PUT') return respuesta({ guardadas: 0 });
+      if (String(url).includes('/api/dia-cero')) return respuesta([]);
+      return respuesta({ ...semanaPara(String(url)), dias: [{ fecha: new URL(String(url), 'http://x').searchParams.get('from'), cicloDia: null, descripcion: null, bloques: [], tipo: 'DIA_CERO' }], marcas: [] });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    pintar();
+    const pBoton = await screen.findByRole('button', { name: 'Luis Ruiz: Presente' });
+    fireEvent.click(pBoton);
+    expect(pBoton).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(pBoton);
+    expect(pBoton).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('un dia sin clases lo dice en vez de mostrar una tabla vacia', async () => {
