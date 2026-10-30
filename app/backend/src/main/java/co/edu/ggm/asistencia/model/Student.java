@@ -26,6 +26,12 @@ public class Student {
     private String phone;
     private boolean active;
 
+    /** Clave para ordenar listas de clase: primer apellido, segundo apellido, nombres. */
+    public String sortKey() {
+        return String.join(" ", java.util.stream.Stream.of(lastName, secondSurname, firstName, middleName)
+                .filter(s -> s != null && !s.isBlank()).toList());
+    }
+
     /** Nombre completo sin espacios dobles cuando faltan segundo nombre o segundo apellido. */
     public String fullName() {
         return String.join(" ", java.util.stream.Stream.of(firstName, middleName, lastName, secondSurname)

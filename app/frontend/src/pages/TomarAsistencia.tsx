@@ -40,6 +40,9 @@ export default function TomarAsistencia() {
   const [diaCiclo, setDiaCiclo] = useState<number | null>(null);
   const [marcas, setMarcas] = useState<Record<number, Status>>({});
   const [motivos, setMotivos] = useState<Record<number, string>>({});
+  // Bloque doble: se dictan dos bloques seguidos del mismo curso y materia, y la
+  // asistencia se toma una sola vez. Marcada por defecto al elegir un bloque.
+  const [dobleActivo, setDobleActivo] = useState(true);
   const [online, setOnline] = useState(navigator.onLine);
   const [alcanzable, setAlcanzable] = useState(true);
   const [pendientes, setPendientes] = useState(0);
@@ -123,10 +126,26 @@ export default function TomarAsistencia() {
     [blocks, grade, diaCiclo],
   );
 
+  const bloqueElegido = useMemo(
+    () => bloquesDelGrado.find((b) => b.id === blockId) ?? null,
+    [bloquesDelGrado, blockId],
+  );
+
+  // El bloque contiguo del mismo curso y materia, si existe ese dia de ciclo.
+  const siguiente = useMemo(() => {
+    if (!bloqueElegido) return null;
+    return bloquesDelGrado.find(
+      (b) => b.blockNo === bloqueElegido.blockNo + 1 && b.subject === bloqueElegido.subject
+        && b.teacherId === bloqueElegido.teacherId,
+    ) ?? null;
+  }, [bloquesDelGrado, bloqueElegido]);
+
+  useEffect(() => { setDobleActivo(true); }, [blockId]);
+
   useEffect(() => {
     if (!grade) { setStudents([]); return; }
     void db.students.where('grade').equals(grade).toArray()
-      .then((lista) => setStudents(lista.sort((a, b) => a.fullName.localeCompare(b.fullName))));
+      .then((lista) => setStudents(lista.sort((a, b) => (a.sortKey ?? a.fullName).localeCompare(b.sortKey ?? b.fullName, 'es'))));
   }, [grade]);
 
   useEffect(() => {
@@ -220,14 +239,19 @@ export default function TomarAsistencia() {
     setConfirmacion({ tipo: 'cargando', titulo: 'Enviando asistencia...',
       detalle: `${students.length} estudiantes` });
     try {
-      for (const s of students) {
-        await markAttendance({
-          studentId: s.id,
-          scheduleBlockId: blockId,
-          classDate: fecha,
-          status: marcas[s.id] ?? 'P',
-          comment: motivos[s.id] ?? '',
-        });
+      // Bloque doble: las mismas marcas se guardan en el bloque elegido y en el
+      // contiguo de la misma materia, para que el docente no tome lista dos veces.
+      const destinos = siguiente && dobleActivo ? [blockId, siguiente.id] : [blockId];
+      for (const destino of destinos) {
+        for (const s of students) {
+          await markAttendance({
+            studentId: s.id,
+            scheduleBlockId: destino,
+            classDate: fecha,
+            status: marcas[s.id] ?? 'P',
+            comment: motivos[s.id] ?? '',
+          });
+        }
       }
       // Con señal muy debil la peticion puede quedarse colgada minutos. La lista ya
       // esta guardada en el telefono (markAttendance), asi que pasado el limite se
@@ -251,7 +275,8 @@ export default function TomarAsistencia() {
       setAlcanzable(hay);
       const faltas = students.filter((s) => (marcas[s.id] ?? 'P') !== 'P').length;
       const detalle = `${students.length} estudiantes · ${students.length - faltas} presentes`
-        + (faltas ? ` · ${faltas} con novedad` : '');
+        + (faltas ? ` · ${faltas} con novedad` : '')
+        + (siguiente && dobleActivo ? ' en 2 bloques' : '');
       if (pending === 0) {
         setAvisoEnvio(`Lista de ${students.length} estudiantes enviada al servidor.`);
         setConfirmacion({ tipo: 'ok', titulo: 'Asistencia enviada', detalle });
@@ -308,6 +333,14 @@ export default function TomarAsistencia() {
 
         <SelectorFecha valor={fecha} onChange={setFecha} max={hoyISO()} />
       </div>
+
+      {siguiente && (
+        <label className="bloque-doble">
+          <input type="checkbox" checked={dobleActivo}
+                 onChange={(e) => setDobleActivo(e.target.checked)} />
+          Tambien registrar en el bloque {siguiente.blockNo} ({siguiente.startTime}) - bloque doble
+        </label>
+      )}
 
       {error && <p role="alert" className="error">{error}</p>}
       {avisoCarga && <p className="banner no-lectivo" role="status">{avisoCarga}</p>}

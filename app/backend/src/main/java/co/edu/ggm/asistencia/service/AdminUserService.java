@@ -25,8 +25,8 @@ public class AdminUserService {
     }
 
     public List<User> list(Role role, String query) {
-        List<User> base = role == null ? users.findAllByOrderByFullName()
-                                       : users.findByRoleOrderByFullName(role);
+        List<User> base = role == null ? users.findAllOrderByApellidos()
+                                       : users.findByRoleOrderByApellidos(role);
         if (query == null || query.isBlank()) return base;
         String q = query.trim().toLowerCase();
         return base.stream()
@@ -66,6 +66,31 @@ public class AdminUserService {
         u.setRole(role);
         u.setActive(active);
         return users.save(u);
+    }
+
+    /**
+     * Borra solo la cuenta. La asistencia y lo que esa persona creo se conservan (V69: la
+     * autoria pasa a NULL y el nombre queda en el registro). Un docente con bloques en el
+     * horario no se borra: el bloque necesita docente, hay que reasignarlo antes.
+     */
+    @Transactional
+    public void delete(Long id, Long actorId) {
+        User u = users.findById(id).orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No existe ese usuario"));
+        if (id.equals(actorId)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "No puedes borrar tu propia cuenta");
+        }
+        if (u.getRole() == Role.ADMIN && u.isActive() && users.countByRoleAndActiveTrue(Role.ADMIN) <= 1) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "No se puede borrar al unico administrador activo");
+        }
+        long bloques = users.contarBloques(id);
+        if (bloques > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Tiene " + bloques
+                    + " bloques en el horario. Reasignalos a otro docente antes de borrar la cuenta, "
+                    + "o desactivala si solo quieres que no entre.");
+        }
+        users.delete(u);
+        users.flush();
     }
 
     @Transactional

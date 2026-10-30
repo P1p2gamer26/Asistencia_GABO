@@ -24,7 +24,7 @@ public class AdminStudentService {
     public List<Student> list(String grade, String query) {
         List<Student> base = (grade == null || grade.isBlank())
                 ? students.findAllOrdenados()
-                : students.findByGradeOrderByLastNameAscFirstNameAsc(grade.trim());
+                : students.findByGradeOrderByLastNameAscSecondSurnameAscFirstNameAsc(grade.trim());
         if (query == null || query.isBlank()) return base;
         String q = query.trim().toLowerCase();
         return base.stream()
