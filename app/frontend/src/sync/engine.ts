@@ -144,6 +144,7 @@ export async function downloadBootstrap(): Promise<void> {
     // El calendario se fusiona, no se limpia: el servidor baja una ventana de cuatro
     // meses y un clear perderia dias validos ya descargados.
     await db.schoolDays.bulkPut(data.schoolDays);
+    await db.meta.put({ key: 'assignedGrades', value: JSON.stringify(data.assignedGrades ?? []) });
     await db.meta.put({ key: 'lastBootstrap', value: new Date().toISOString() });
   });
   // La franja de estado no consulta sola: sin esto seguia diciendo "faltan los datos"
