@@ -1,6 +1,6 @@
 export type Role = 'ADMIN' | 'DOCENTE' | 'ACUDIENTE';
 export type Status = 'P' | 'T' | 'F' | 'E';
-export type DayType = 'LECTIVO' | 'FESTIVO' | 'VACACIONES' | 'INSTITUCIONAL' | 'SUSPENDIDO';
+export type DayType = 'LECTIVO' | 'FESTIVO' | 'VACACIONES' | 'INSTITUCIONAL' | 'SUSPENDIDO' | 'DIA_CERO';
 
 export type Session = {
   token: string; refreshToken: string; role: Role; fullName: string; userId: number;

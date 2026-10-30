@@ -39,7 +39,7 @@ public class DashboardService {
 
         LocalDate hoy = LocalDate.now(BOGOTA);
         // Si hoy no es lectivo, no hay bloques "pendientes" que reclamar.
-        int pendientes = calendar.isSchoolDay(hoy)
+        int pendientes = calendar.requiereAsistencia(hoy)
                 ? repo.countBlocksPending(calendar.cycleDay(hoy), hoy)
                 : 0;
 

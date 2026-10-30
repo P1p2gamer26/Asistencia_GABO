@@ -29,17 +29,30 @@ public class CalendarService {
      */
     private volatile Set<LocalDate> lectivos = ConcurrentHashMap.newKeySet();
 
+    /** Solo los lectivos: ahi una asistencia no tomada es pendiente. El dia 0 tiene clase
+     * pero no pendiente. ponytail: mismo criterio de cache que lectivos. */
+    private volatile Set<LocalDate> conPendientes = ConcurrentHashMap.newKeySet();
+
     public CalendarService(CalendarRepository repo) { this.repo = repo; }
 
     @PostConstruct
     void cargar() {
-        lectivos = repo.findByDayType(DayType.LECTIVO).stream()
+        lectivos = repo.findByDayTypeIn(List.of(DayType.LECTIVO, DayType.DIA_CERO)).stream()
+                .map(SchoolDay::getCalendarDate)
+                .collect(Collectors.toCollection(ConcurrentHashMap::newKeySet));
+        conPendientes = repo.findByDayType(DayType.LECTIVO).stream()
                 .map(SchoolDay::getCalendarDate)
                 .collect(Collectors.toCollection(ConcurrentHashMap::newKeySet));
     }
 
+    /** Dia con clase: se puede tomar asistencia (lectivo o dia 0). */
     public boolean isSchoolDay(LocalDate date) {
         return lectivos.contains(date);
+    }
+
+    /** Dia en el que no tomar asistencia cuenta como pendiente (solo lectivos). */
+    public boolean requiereAsistencia(LocalDate date) {
+        return conPendientes.contains(date);
     }
 
     /** Dia de ciclo 1..5, o 0 cuando la fecha no es lectiva. */
@@ -50,7 +63,7 @@ public class CalendarService {
 
     /** Los ultimos n dias lectivos anteriores a una fecha, del mas reciente al mas antiguo. */
     public List<LocalDate> ultimosLectivosAntesDe(LocalDate antesDe, int n) {
-        return lectivos.stream()
+        return conPendientes.stream()
                 .filter(d -> d.isBefore(antesDe))
                 .sorted(java.util.Comparator.reverseOrder())
                 .limit(n)
@@ -74,7 +87,9 @@ public class CalendarService {
         dia.setUpdatedAt(Instant.now());
         SchoolDay guardado = repo.save(dia);
 
-        if (type == DayType.LECTIVO) lectivos.add(date); else lectivos.remove(date);
+        boolean conClase = type == DayType.LECTIVO || type == DayType.DIA_CERO;
+        if (conClase) lectivos.add(date); else lectivos.remove(date);
+        if (type == DayType.LECTIVO) conPendientes.add(date); else conPendientes.remove(date);
         return guardado;
     }
 
@@ -87,9 +102,9 @@ public class CalendarService {
     @Transactional
     public void fijarDiaCiclo(LocalDate date, Integer cycleDay, boolean cascada, Long userId) {
         SchoolDay dia = repo.findById(date)
-                .filter(d -> d.getDayType() == DayType.LECTIVO)
+                .filter(d -> d.getDayType() == DayType.LECTIVO || d.getDayType() == DayType.DIA_CERO)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Solo un dia lectivo tiene dia de ciclo"));
+                        "Solo un dia con clase tiene dia de ciclo"));
         if (cycleDay != null && (cycleDay < 1 || cycleDay > 5)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El dia de ciclo va de 1 a 5");
         }
