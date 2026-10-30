@@ -89,7 +89,7 @@ export default function TomarAsistencia() {
 
   useEffect(() => {
     void db.schoolDays.get(fecha).then((dia) => {
-      setLectivo(dia?.dayType === 'LECTIVO');
+      setLectivo(dia?.dayType === 'LECTIVO' || dia?.dayType === 'DIA_CERO');
       setDiaCiclo(dia?.cycleDay ?? null);
     });
   }, [fecha]);

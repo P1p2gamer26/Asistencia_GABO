@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import type { DayType, SchoolDay } from '../../api/contract';
 
-const TIPOS: DayType[] = ['LECTIVO', 'FESTIVO', 'VACACIONES', 'INSTITUCIONAL', 'SUSPENDIDO'];
+const TIPOS: DayType[] = ['LECTIVO', 'DIA_CERO', 'FESTIVO', 'VACACIONES', 'INSTITUCIONAL', 'SUSPENDIDO'];
 const hoyISO = () => new Date().toLocaleDateString('en-CA');
 
 export default function PanelCalendario() {
@@ -94,8 +94,9 @@ export default function PanelCalendario() {
       )}
 
       <p className="meta">
-        Cambiar un dia a algo distinto de LECTIVO impide registrar asistencia ese dia,
-        tanto en la aplicacion como en el servidor.
+        Cambiar un dia a algo distinto de LECTIVO o DIA 0 impide registrar asistencia ese dia,
+        tanto en la aplicacion como en el servidor. Un DIA 0 si permite tomarla, pero no
+        tomarla no genera pendientes ni alertas.
       </p>
 
       <div className="tabla-scroll">

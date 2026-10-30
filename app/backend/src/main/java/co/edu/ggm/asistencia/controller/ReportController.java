@@ -116,7 +116,7 @@ public class ReportController {
     public record EstudianteSemana(Long id, String documentId, String fullName) {}
     public record BloqueSemana(short blockNo, String subject, String teacherName,
                                java.time.LocalTime startTime, java.time.LocalTime endTime) {}
-    public record DiaSemana(LocalDate fecha, Integer cicloDia, String descripcion, List<BloqueSemana> bloques) {}
+    public record DiaSemana(LocalDate fecha, Integer cicloDia, String descripcion, List<BloqueSemana> bloques, String tipo) {}
     public record SemanaDto(List<EstudianteSemana> estudiantes, List<DiaSemana> dias, List<MarcaSemana> marcas) {}
 
     @GetMapping("/semana")
@@ -142,7 +142,8 @@ public class ReportController {
             if (dow == java.time.DayOfWeek.SATURDAY || dow == java.time.DayOfWeek.SUNDAY) continue;
             Integer ciclo = d.getCycleDay();
             dias.add(new DiaSemana(d.getCalendarDate(), ciclo, d.getDescription(),
-                    ciclo == null ? List.of() : bloquesPorCiclo.getOrDefault(ciclo, List.of())));
+                    ciclo == null ? List.of() : bloquesPorCiclo.getOrDefault(ciclo, List.of()),
+                    d.getDayType().name()));
         }
         var marcas = repo.marcasSemana(grade, from, to).stream()
                 .map(r -> new MarcaSemana(r.getClassDate(), r.getBlockNo() == null ? 0 : r.getBlockNo(),
@@ -198,7 +199,8 @@ public class ReportController {
         switch (tipo) {
             case "matriz" -> {
                 var lectivos = calendar
-                        .findByDayTypeAndCalendarDateBetweenOrderByCalendarDate(DayType.LECTIVO, from, to)
+                        .findByDayTypeInAndCalendarDateBetweenOrderByCalendarDate(
+                                List.of(DayType.LECTIVO, DayType.DIA_CERO), from, to)
                         .stream().map(SchoolDay::getCalendarDate).toList();
                 libro = excel.buildMatriz(repo.matrix(grade, from, to), lectivos, from, to);
                 nombre = "asistencia_matriz_%s_%s_%s.xlsx".formatted(curso, from, to);
@@ -251,6 +253,8 @@ public class ReportController {
     @GetMapping("/pending-today")
     public List<ReportRepository.PendingBlock> pendingToday() {
         LocalDate hoy = LocalDate.now(BOGOTA);
+        // El dia 0 no tiene pendientes: no tomar asistencia ese dia no alerta.
+        if (!calendarioService.requiereAsistencia(hoy)) return List.of();
         return repo.pendingToday(JwtService.currentUserId(), calendarioService.cycleDay(hoy), hoy);
     }
 

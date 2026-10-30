@@ -20,12 +20,12 @@ export default function SelectorFecha({ valor, onChange, max }: Props) {
   }, [valor]);
 
   useEffect(() => {
-    void db.schoolDays.where('dayType').equals('LECTIVO').toArray().then((dias) => {
+    void db.schoolDays.where('dayType').anyOf('LECTIVO', 'DIA_CERO').toArray().then((dias) => {
       setRecientes(dias.map((d) => d.calendarDate).filter((d) => d <= max).sort().slice(-5).reverse());
     });
   }, [max]);
 
-  const lectivo = dia?.dayType === 'LECTIVO';
+  const lectivo = dia?.dayType === 'LECTIVO' || dia?.dayType === 'DIA_CERO';
 
   return (
     <>
