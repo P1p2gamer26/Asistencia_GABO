@@ -42,6 +42,15 @@ describe('rutas por rol', () => {
     await waitFor(() => expect(screen.getByText(/Asistencia de mis hijos/i)).toBeInTheDocument());
   });
 
+  it('el orientador ve Consultas y Tablero, no administracion, y /admin lo devuelve al inicio', async () => {
+    sesion('ORIENTADOR');
+    abrir('/admin');
+    await waitFor(() => expect(screen.getAllByRole('link', { name: /consultas/i }).length).toBeGreaterThan(0));
+    expect(screen.getAllByRole('link', { name: /tablero/i }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('link', { name: /administracion/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/entras como orientador/i)).toBeInTheDocument();
+  });
+
   it('el docente si entra a tomar asistencia', async () => {
     sesion('DOCENTE');
     abrir('/asistencia');
