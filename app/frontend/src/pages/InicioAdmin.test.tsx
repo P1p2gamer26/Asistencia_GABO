@@ -137,4 +137,18 @@ describe('InicioAdmin', () => {
     await waitFor(() =>
       expect(screen.getByRole('alert')).toHaveTextContent(/no se pudo cargar/i));
   });
+
+  it('el nombre de un curso lleva a su pagina del dia', async () => {
+    vi.stubGlobal('fetch', mockFetch());
+    pintar();
+    const enlace = await screen.findByRole('link', { name: '601' });
+    expect(enlace).toHaveAttribute('href', '/curso/601');
+  });
+
+  it('un curso sin registros en el mes no es un enlace', async () => {
+    vi.stubGlobal('fetch', mockFetch());
+    pintar();
+    await screen.findByRole('link', { name: '601' });
+    expect(screen.queryByRole('link', { name: '603' })).not.toBeInTheDocument();
+  });
 });

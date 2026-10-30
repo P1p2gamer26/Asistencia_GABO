@@ -34,7 +34,7 @@ public interface ReportRepository extends Repository<Student, Long> {
                    count(*) FILTER (WHERE a.status = 'F') AS absent,
                    count(*) FILTER (WHERE a.status = 'E') AS evasion,
                    (SELECT count(*) FROM school_calendar c
-                     WHERE c.day_type = 'LECTIVO'
+                     WHERE c.day_type IN ('LECTIVO','DIA_CERO')
                        AND c.calendar_date BETWEEN :from AND :to) AS schoolDays,
                    -- Porcentaje sobre las MARCAS por bloque (P+T+F+E), no sobre los dias
                    -- lectivos: son unidades distintas (ver Consultas.tsx). Sin ninguna
@@ -238,7 +238,7 @@ public interface ReportRepository extends Repository<Student, Long> {
 
     @Query(value = """
             SELECT count(*) FROM school_calendar
-            WHERE day_type = 'LECTIVO' AND calendar_date BETWEEN :from AND :to
+            WHERE day_type IN ('LECTIVO','DIA_CERO') AND calendar_date BETWEEN :from AND :to
             """, nativeQuery = true)
     int countSchoolDays(@Param("from") LocalDate from, @Param("to") LocalDate to);
 
@@ -430,7 +430,7 @@ public interface ReportRepository extends Repository<Student, Long> {
             SELECT c.calendar_date AS fecha, c.day_type AS tipo, count(*) AS marcas
             FROM school_calendar c
             JOIN attendance a ON a.class_date = c.calendar_date
-            WHERE c.day_type <> 'LECTIVO' AND c.calendar_date BETWEEN :from AND :to
+            WHERE c.day_type NOT IN ('LECTIVO','DIA_CERO') AND c.calendar_date BETWEEN :from AND :to
               AND a.deleted_at IS NULL
             GROUP BY c.calendar_date, c.day_type
             ORDER BY c.calendar_date

@@ -92,5 +92,5 @@ export const db = new LocalDb();
 /** Un dia es lectivo solo si el calendario descargado lo dice. Sin calendario, no se asume nada. */
 export async function isSchoolDay(fecha: string): Promise<boolean> {
   const dia = await db.schoolDays.get(fecha);
-  return dia?.dayType === 'LECTIVO';
+  return dia?.dayType === 'LECTIVO' || dia?.dayType === 'DIA_CERO';
 }

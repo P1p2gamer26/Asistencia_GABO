@@ -65,7 +65,7 @@ export default function InicioDocente() {
            setError('No se pudo consultar el dia. Requiere conexion.');
            return;
          }
-         if (diaLocal.dayType !== 'LECTIVO') {
+         if (diaLocal.dayType !== 'LECTIVO' && diaLocal.dayType !== 'DIA_CERO') {
            setDia({ lectivo: false, fecha: hoy, motivo: diaLocal.description ?? null, bloques: [] });
            return;
          }

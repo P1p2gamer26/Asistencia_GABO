@@ -47,6 +47,9 @@ public class TodayService {
         // dar una alarma falsa todos los fines de semana.
         int esperados = lectivo ? repo.countBlocksOfWeekday(weekday) : 0;
         int marcados = lectivo ? repo.countBlocksReported(weekday, dia) : 0;
+        // Dia 0: se puede tomar asistencia, pero no tomarla no es pendiente. Sin esperados
+        // no hay "faltan" y la pantalla no lanza la alerta.
+        if (lectivo && !calendar.requiereAsistencia(dia)) esperados = marcados;
 
         var c = repo.countsOfDay(dia);
 

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api, getSession, clearSession } from '../api/client';
 import { actualizarClaveLocal } from '../api/credencialLocal';
 
@@ -46,6 +47,7 @@ export default function CambiarClave() {
 
   return (
     <main className="card">
+      {!getSession()?.mustChangePassword && <p><Link to="/">« Volver al inicio</Link></p>}
       <h1>Cambie su contrasena</h1>
       <p className="meta">
         {getSession()?.mustChangePassword

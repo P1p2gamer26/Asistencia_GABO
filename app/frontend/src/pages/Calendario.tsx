@@ -4,10 +4,11 @@ import { api, getSession } from '../api/client';
 import { db } from '../db/local';
 import type { DayType, SchoolDay } from '../api/contract';
 
-const TIPOS: DayType[] = ['LECTIVO', 'FESTIVO', 'VACACIONES', 'INSTITUCIONAL', 'SUSPENDIDO'];
+const TIPOS: DayType[] = ['LECTIVO', 'DIA_CERO', 'FESTIVO', 'VACACIONES', 'INSTITUCIONAL', 'SUSPENDIDO'];
 
 const ETIQUETA: Record<DayType, string> = {
   LECTIVO: 'clase',
+  DIA_CERO: 'dia 0',
   FESTIVO: 'festivo',
   VACACIONES: 'vacaciones',
   INSTITUCIONAL: 'jornada institucional',
@@ -19,6 +20,7 @@ const ETIQUETA: Record<DayType, string> = {
  * no haya espacio para la palabra completa (nunca solo color). */
 const ETIQUETA_CORTA: Record<DayType, string> = {
   LECTIVO: '',
+  DIA_CERO: 'D0',
   FESTIVO: 'Fest.',
   VACACIONES: 'Vac.',
   INSTITUCIONAL: 'Inst.',
@@ -129,7 +131,7 @@ export default function Calendario({ hoy = new Date() }: { hoy?: Date }) {
   const huecos = (primero.getDay() + 6) % 7;
 
   const lectivos = useMemo(
-    () => Object.values(dias).filter((d) => d.dayType === 'LECTIVO').length,
+    () => Object.values(dias).filter((d) => d.dayType === 'LECTIVO' || d.dayType === 'DIA_CERO').length,
     [dias]);
 
   function mover(delta: number) {

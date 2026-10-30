@@ -105,7 +105,7 @@ function makeNovedades() {
 function makeSchoolDays() {
   const year = new Date().getFullYear();
   const month = new Date().getMonth();
-  const days: { calendarDate: string; dayType: 'LECTIVO' | 'FESTIVO' | 'VACACIONES' | 'INSTITUCIONAL' | 'SUSPENDIDO'; description?: string; cycleDay?: number | null; cycleDayFixed?: number | null }[] = [];
+  const days: { calendarDate: string; dayType: 'LECTIVO' | 'FESTIVO' | 'VACACIONES' | 'INSTITUCIONAL' | 'SUSPENDIDO' | 'DIA_CERO'; description?: string; cycleDay?: number | null; cycleDayFixed?: number | null }[] = [];
   let cycleDay = 1;
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
