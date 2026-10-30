@@ -169,4 +169,52 @@ describe('PanelUsuarios', () => {
     await userEvent.click(screen.getByRole('button', { name: /borrar cuenta de francisco palacios/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/Tiene 4 bloques/);
   });
+
+  describe('cursos asignados', () => {
+    const todos = [...USUARIOS, { id: 5, email: 'a@x.co', fullName: 'Ana Acudiente', role: 'ACUDIENTE', active: true }];
+    function mock(puts: unknown[] = []) {
+      const f = vi.fn(async (u: string, init?: RequestInit) => {
+        if (u.includes('/assignments')) {
+          if (init?.method === 'PUT') { puts.push(JSON.parse(String(init.body))); return respuesta({}); }
+          return respuesta({ grades: ['6A'] });
+        }
+        if (u.includes('/api/reports/summary')) return respuesta([{ grade: '6A' }, { grade: '7B' }]);
+        return respuesta(todos);
+      });
+      vi.stubGlobal('fetch', f);
+      return f;
+    }
+
+    it('el selector de rol ofrece ORIENTADOR', async () => {
+      mock();
+      render(<PanelUsuarios />);
+      expect(within(screen.getByLabelText('Rol')).getByRole('option', { name: 'ORIENTADOR' })).toBeInTheDocument();
+    });
+
+    it('al abrir un docente carga sus cursos y los marca', async () => {
+      const f = mock();
+      render(<PanelUsuarios />);
+      await userEvent.click(await screen.findByRole('button', { name: 'Cursos de Francisco Palacios' }));
+      expect(await screen.findByLabelText('6A')).toBeChecked();
+      expect(await screen.findByLabelText('7B')).not.toBeChecked();
+      expect(f).toHaveBeenCalledWith(expect.stringContaining('/api/admin/users/3/assignments'), expect.anything());
+    });
+
+    it('al guardar envia el PUT con los cursos marcados', async () => {
+      const puts: unknown[] = [];
+      mock(puts);
+      render(<PanelUsuarios />);
+      await userEvent.click(await screen.findByRole('button', { name: 'Cursos de Francisco Palacios' }));
+      await userEvent.click(await screen.findByLabelText('7B'));
+      await userEvent.click(screen.getByRole('button', { name: /guardar cursos/i }));
+      await waitFor(() => expect(puts).toEqual([{ grades: ['6A', '7B'] }]));
+    });
+
+    it('un acudiente no muestra la opcion de cursos', async () => {
+      mock();
+      render(<PanelUsuarios />);
+      await screen.findByText('Ana Acudiente');
+      expect(screen.queryByRole('button', { name: 'Cursos de Ana Acudiente' })).not.toBeInTheDocument();
+    });
+  });
 });
