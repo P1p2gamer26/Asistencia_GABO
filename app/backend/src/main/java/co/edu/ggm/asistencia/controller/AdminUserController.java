@@ -48,6 +48,12 @@ public class AdminUserController {
         return UserDto.de(service.update(id, req.email(), req.fullName(), req.role(), req.active()));
     }
 
+    @DeleteMapping("/{id}")
+    @ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long id) {
+        service.delete(id, co.edu.ggm.asistencia.service.JwtService.currentUserId());
+    }
+
     @PostMapping("/{id}/reset-password")
     public ResetResponse reset(@PathVariable Long id) {
         return new ResetResponse(service.resetPassword(id));

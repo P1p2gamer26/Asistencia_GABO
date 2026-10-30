@@ -46,7 +46,7 @@ public interface ReportRepository extends Repository<Student, Long> {
             WHERE s.active AND (:grade IS NULL OR s.grade = :grade)
             GROUP BY s.id, s.document_id, s.first_name, s.middle_name,
                      s.last_name, s.second_surname, s.grade
-            ORDER BY orden_curso(s.grade), s.grade, s.last_name, s.first_name
+            ORDER BY orden_curso(s.grade), s.grade, s.last_name, s.second_surname, s.first_name
             """, nativeQuery = true)
     List<Row> summary(@Param("grade") String grade,
                       @Param("from") LocalDate from,
@@ -72,7 +72,7 @@ public interface ReportRepository extends Repository<Student, Long> {
             FROM students s
             LEFT JOIN attendance a ON a.student_id = s.id AND a.class_date BETWEEN :from AND :to AND a.deleted_at IS NULL
             WHERE s.active AND (:grade IS NULL OR s.grade = :grade)
-            ORDER BY orden_curso(s.grade), s.grade, s.last_name, s.first_name, a.class_date
+            ORDER BY orden_curso(s.grade), s.grade, s.last_name, s.second_surname, s.first_name, a.class_date
             """, nativeQuery = true)
     List<MatrixRow> matrix(@Param("grade") String grade,
                            @Param("from") LocalDate from,
@@ -470,7 +470,7 @@ public interface ReportRepository extends Repository<Student, Long> {
                              'áéíóúüñ', 'aeiouun')
                      LIKE '%' || translate(lower(:q), 'áéíóúüñ', 'aeiouun') || '%'
                    OR s.document_id LIKE :q || '%')
-            ORDER BY s.last_name, s.first_name
+            ORDER BY s.last_name, s.second_surname, s.first_name
             LIMIT 20
             """, nativeQuery = true)
     List<EstudianteBusquedaRow> buscarEstudiantes(@Param("q") String q);
@@ -484,7 +484,7 @@ public interface ReportRepository extends Repository<Student, Long> {
     @Query(value = """
             SELECT a.class_date AS classDate, sb.block_no AS blockNo, su.name AS subject,
                    a.status AS status, a.comment AS comment,
-                   ru.full_name AS recordedByName, a.recorded_at AS recordedAt
+                   COALESCE(ru.full_name, a.recorded_by_name) AS recordedByName, a.recorded_at AS recordedAt
             FROM attendance a
             JOIN schedule_blocks sb ON sb.id = a.schedule_block_id
             LEFT JOIN subjects su ON su.id = sb.subject_id
@@ -512,7 +512,7 @@ public interface ReportRepository extends Repository<Student, Long> {
     @Query(value = """
             SELECT a.class_date AS classDate, sb.grade AS grade, sb.block_no AS blockNo,
                    su.name AS subject, tu.full_name AS teacherName,
-                   min(ru.full_name) AS recordedByName, max(a.recorded_at) AS lastRecordedAt,
+                   min(COALESCE(ru.full_name, a.recorded_by_name)) AS recordedByName, max(a.recorded_at) AS lastRecordedAt,
                    count(*) AS total,
                    count(*) FILTER (WHERE a.status = 'F') AS absent,
                    count(*) FILTER (WHERE a.status = 'E') AS evasion
@@ -547,8 +547,8 @@ public interface ReportRepository extends Repository<Student, Long> {
                    trim(regexp_replace(concat_ws(' ', s.first_name, s.middle_name,
                         s.last_name, s.second_surname), '\\s+', ' ', 'g')) AS fullName,
                    a.status AS status, a.comment AS comment,
-                   ru.full_name AS recordedByName, a.recorded_at AS recordedAt,
-                   eu.full_name AS editedByName, a.edited_at AS editedAt, a.previous_status AS previousStatus
+                   COALESCE(ru.full_name, a.recorded_by_name) AS recordedByName, a.recorded_at AS recordedAt,
+                   COALESCE(eu.full_name, a.edited_by_name) AS editedByName, a.edited_at AS editedAt, a.previous_status AS previousStatus
             FROM attendance a
             JOIN students s ON s.id = a.student_id
             JOIN schedule_blocks sb ON sb.id = a.schedule_block_id
@@ -559,7 +559,7 @@ public interface ReportRepository extends Repository<Student, Long> {
             WHERE a.deleted_at IS NULL
               AND a.class_date BETWEEN :from AND :to
               AND (:grade IS NULL OR sb.grade = :grade)
-            ORDER BY a.class_date, orden_curso(sb.grade), sb.grade, sb.block_no, s.last_name, s.first_name
+            ORDER BY a.class_date, orden_curso(sb.grade), sb.grade, sb.block_no, s.last_name, s.second_surname, s.first_name
             """, nativeQuery = true)
     List<MarcaCompletaRow> marcasCompletas(@Param("grade") String grade,
                                            @Param("from") LocalDate from, @Param("to") LocalDate to);

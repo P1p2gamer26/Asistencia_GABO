@@ -140,7 +140,7 @@ export default function Calendario({ hoy = new Date() }: { hoy?: Date }) {
 
   return (
     <main className="card ancha">
-      {!sesion && <p><Link to="/">« Volver al inicio</Link></p>}
+      <p><Link to="/">« Volver al inicio</Link></p>
       <h1>Calendario escolar</h1>
 
       <div className="nav-mes">

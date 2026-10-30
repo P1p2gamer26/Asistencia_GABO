@@ -34,8 +34,8 @@ public class BootstrapController {
     }
 
     public record BlockDto(Long id, String grade, int weekday, int blockNo, String subject, String startTime,
-                           String room) {}
-    public record StudentDto(Long id, String documentId, String fullName, String grade) {}
+                           String room, Long teacherId) {}
+    public record StudentDto(Long id, String documentId, String fullName, String grade, String sortKey) {}
     public record Bootstrap(List<BlockDto> blocks, List<StudentDto> students,
                             List<CalendarController.DayDto> schoolDays) {}
 
@@ -55,12 +55,12 @@ public class BootstrapController {
         if (vecTodoElColegio) {
             // Con ~1200 estudiantes reales esto trae todos: aceptable y medido en
             // este proyecto (bootstrap se pide una vez al abrir la app, no por curso).
-            myStudents = students.findByActiveTrueOrderByLastNameAscFirstNameAsc();
+            myStudents = students.findByActiveTrueOrderByLastNameAscSecondSurnameAscFirstNameAsc();
         } else {
             Set<String> grades = myBlocks.stream().map(ScheduleBlock::getGrade).collect(Collectors.toSet());
             myStudents = grades.isEmpty()
                     ? List.of()
-                    : students.findByActiveTrueAndGradeInOrderByLastNameAscFirstNameAsc(grades);
+                    : students.findByActiveTrueAndGradeInOrderByLastNameAscSecondSurnameAscFirstNameAsc(grades);
         }
 
         // Ventana corta a proposito: un mes atras para corregir dias pasados,
@@ -75,7 +75,7 @@ public class BootstrapController {
         return new Bootstrap(
                 myBlocks.stream().map(BootstrapController::toDto).toList(),
                 myStudents.stream()
-                        .map(s -> new StudentDto(s.getId(), s.getDocumentId(), s.fullName(), s.getGrade()))
+                        .map(s -> new StudentDto(s.getId(), s.getDocumentId(), s.fullName(), s.getGrade(), s.sortKey()))
                         .toList(),
                 dias);
     }
@@ -95,6 +95,6 @@ public class BootstrapController {
         LocalTime start = b.getStartTime();
         return new BlockDto(b.getId(), b.getGrade(), b.getWeekday(), b.getBlockNo(),
                 b.getSubject().getName(), String.format("%02d:%02d", start.getHour(), start.getMinute()),
-                b.getRoom());
+                b.getRoom(), b.getTeacherId());
     }
 }

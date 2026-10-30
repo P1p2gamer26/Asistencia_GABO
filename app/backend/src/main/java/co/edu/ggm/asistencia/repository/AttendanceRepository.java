@@ -34,8 +34,8 @@ public interface AttendanceRepository extends JpaRepository<Attendance, UUID> {
                         st.second_surname), '\\s+', ' ', 'g')) AS fullName,
                    st.document_id AS documentId,
                    a.status AS status, a.comment AS comment,
-                   a.recorded_by AS recordedBy, ru.full_name AS recordedByName, a.recorded_at AS recordedAt,
-                   a.edited_by AS editedBy, eu.full_name AS editedByName, a.edited_at AS editedAt
+                   a.recorded_by AS recordedBy, COALESCE(ru.full_name, a.recorded_by_name) AS recordedByName, a.recorded_at AS recordedAt,
+                   a.edited_by AS editedBy, COALESCE(eu.full_name, a.edited_by_name) AS editedByName, a.edited_at AS editedAt
               FROM attendance a
               JOIN students st ON st.id = a.student_id
               LEFT JOIN users ru ON ru.id = a.recorded_by
@@ -58,7 +58,7 @@ public interface AttendanceRepository extends JpaRepository<Attendance, UUID> {
             SELECT a.schedule_block_id AS blockId, sb.grade AS grade, sb.block_no AS blockNo,
                    su.name AS subject, a.class_date AS classDate,
                    count(*) AS total,
-                   min(ru.full_name) AS recordedByName,
+                   min(COALESCE(ru.full_name, a.recorded_by_name)) AS recordedByName,
                    max(a.recorded_at) AS lastRecordedAt
               FROM attendance a
               JOIN schedule_blocks sb ON sb.id = a.schedule_block_id
