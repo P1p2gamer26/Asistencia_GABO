@@ -30,8 +30,7 @@ public interface AttendanceRepository extends JpaRepository<Attendance, UUID> {
     /** Lo ya registrado para un bloque/fecha, con quien lo tomo y quien lo corrigio (NULL si nadie). */
     @Query(value = """
             SELECT a.id AS id, a.student_id AS studentId,
-                   trim(regexp_replace(concat_ws(' ', st.first_name, st.middle_name, st.last_name,
-                        st.second_surname), '\\s+', ' ', 'g')) AS fullName,
+                   trim(regexp_replace(concat_ws(' ', st.last_name, st.second_surname, st.first_name, st.middle_name), '\\s+', ' ', 'g')) AS fullName,
                    st.document_id AS documentId,
                    a.status AS status, a.comment AS comment,
                    a.recorded_by AS recordedBy, COALESCE(ru.full_name, a.recorded_by_name) AS recordedByName, a.recorded_at AS recordedAt,

@@ -73,7 +73,7 @@ class AdminEstudianteTest extends AbstractIntegrationTest {
         mvc.perform(get("/api/admin/students").param("grade", GRADE)
                         .header("Authorization", admin))
            .andExpect(status().isOk())
-           .andExpect(jsonPath("$[?(@.documentId == 'AES0001')].fullName").value("ANA PRUEBA"))
+           .andExpect(jsonPath("$[?(@.documentId == 'AES0001')].fullName").value("PRUEBA ANA"))
            .andExpect(jsonPath("$[?(@.documentId == 'AES0001')].active").value(true));
     }
 
@@ -102,7 +102,7 @@ class AdminEstudianteTest extends AbstractIntegrationTest {
                                  "grade":"AES2","active":true}
                                 """))
            .andExpect(status().isOk())
-           .andExpect(jsonPath("$.fullName").value("CARLA MARIA PRUEBA"))
+           .andExpect(jsonPath("$.fullName").value("PRUEBA CARLA MARIA"))
            .andExpect(jsonPath("$.grade").value("AES2"));
     }
 

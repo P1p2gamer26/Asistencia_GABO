@@ -41,7 +41,7 @@ class EntryTest extends AbstractIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON).content(lote(uuid, "1010101012")))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.accepted").value(1))
-           .andExpect(jsonPath("$.names." + uuid).value("DANIEL ALEJANDRO BARRIOS PARATES"));
+           .andExpect(jsonPath("$.names." + uuid).value("BARRIOS PARATES DANIEL ALEJANDRO"));
     }
 
     @Test
@@ -69,12 +69,12 @@ class EntryTest extends AbstractIntegrationTest {
     @Test
     void acepta_el_texto_completo_del_carnet() throws Exception {
         String uuid = "88888888-8888-4888-8888-888888888888";
-        String cuerpo = lote(uuid, "DANIEL ALEJANDRO BARRIOS PARATES 1010101012 Sexto - 602");
+        String cuerpo = lote(uuid, "BARRIOS PARATES DANIEL ALEJANDRO 1010101012 Sexto - 602");
         mvc.perform(post("/api/entry/sync").header("Authorization", token())
                 .contentType(MediaType.APPLICATION_JSON).content(cuerpo))
            .andExpect(status().isOk())
            .andExpect(jsonPath("$.accepted").value(1))
-           .andExpect(jsonPath("$.names." + uuid).value("DANIEL ALEJANDRO BARRIOS PARATES"));
+           .andExpect(jsonPath("$.names." + uuid).value("BARRIOS PARATES DANIEL ALEJANDRO"));
     }
 
     @Test

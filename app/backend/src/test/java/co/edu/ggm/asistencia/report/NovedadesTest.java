@@ -105,12 +105,12 @@ class NovedadesTest extends AbstractIntegrationTest {
         var r = novedades.build(LUNES.minusDays(1), LUNES, 10);
 
         assertThat(r.evasiones()).hasSize(1);
-        assertThat(r.evasiones().get(0).fullName()).contains("UNO NOV");
+        assertThat(r.evasiones().get(0).fullName()).contains("NOV UNO");
         assertThat(r.evasiones().get(0).grade()).isEqualTo("997");
         assertThat(r.evasiones().get(0).comment()).isEqualTo("se salio del salon");
 
         assertThat(r.ausencias()).hasSize(1);
-        assertThat(r.ausencias().get(0).fullName()).contains("DOS NOV");
+        assertThat(r.ausencias().get(0).fullName()).contains("NOV DOS");
         assertThat(r.ausencias().get(0).grade()).isEqualTo("997");
     }
 
@@ -234,9 +234,9 @@ class NovedadesTest extends AbstractIntegrationTest {
         var r = novedades.build(otraFecha.minusDays(1), otraFecha, 4);
 
         assertThat(r.ausencias()).hasSize(4);
-        assertThat(r.ausencias()).anyMatch(n -> n.fullName().contains("GRAVE GRAVEDAD")
+        assertThat(r.ausencias()).anyMatch(n -> n.fullName().contains("GRAVEDAD GRAVE")
                 && n.comment().equalsIgnoreCase("Falto el dia completo"));
-        assertThat(r.ausencias().get(0).fullName()).contains("GRAVE GRAVEDAD");
+        assertThat(r.ausencias().get(0).fullName()).contains("GRAVEDAD GRAVE");
     }
 
     @Test
