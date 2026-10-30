@@ -302,9 +302,11 @@ const avisar = (pending: number, alcanzable: boolean, conError = 0) => {
  * navigator.onLine no sirve para esto: da true con el WiFi del colegio conectado pero
  * sin salida a internet, que es justo el caso que hay que detectar.
  */
+export const TOPE_COMPROBACION_MS = 200_000;   // mismo margen que TOPE_PETICION_MS: arranque de Render
+
 export async function comprobarConexion(): Promise<boolean> {
   const corte = new AbortController();
-  const reloj = window.setTimeout(() => corte.abort(), 5000);
+  const reloj = window.setTimeout(() => corte.abort(), TOPE_COMPROBACION_MS);
   try {
     const res = await fetch(apiUrl('/actuator/health'), {
       cache: 'no-store',

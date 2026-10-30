@@ -54,6 +54,25 @@ describe('TomarAsistencia', () => {
     expect(screen.queryByText('CARLA DIAZ')).not.toBeInTheDocument();
   });
 
+  it('lista a los estudiantes por apellido, no por nombre', async () => {
+    await db.students.bulkPut([
+      { id: 20, documentId: '1', fullName: 'ZOILA ACOSTA', grade: '601', sortKey: 'ACOSTA ZOILA' },
+      { id: 21, documentId: '2', fullName: 'ABEL ZAPATA', grade: '601', sortKey: 'ZAPATA ABEL' },
+    ]);
+    render(<MemoryRouter><TomarAsistencia /></MemoryRouter>);
+    await waitFor(() => expect(
+      screen.getByLabelText(/curso/i).querySelectorAll('option').length).toBeGreaterThan(1));
+    await userEvent.clear(screen.getByLabelText(/fecha/i));
+    await userEvent.type(screen.getByLabelText(/fecha/i), '2026-08-17');
+    await userEvent.selectOptions(screen.getByLabelText(/curso/i), '601');
+    await waitFor(() => expect(screen.getByLabelText(/bloque/i)).not.toBeDisabled());
+    await userEvent.selectOptions(screen.getByLabelText(/bloque/i), '1');
+    await screen.findByText('ZOILA ACOSTA');
+    const nombres = screen.getAllByRole('group', { name: /Estado de/ })
+      .map((g) => g.getAttribute('aria-label'));
+    expect(nombres.indexOf('Estado de ZOILA ACOSTA')).toBeLessThan(nombres.indexOf('Estado de ABEL ZAPATA'));
+  });
+
   it('los botones de estado muestran la palabra completa y el seleccionado se distingue sin depender del color', async () => {
     render(<MemoryRouter><TomarAsistencia /></MemoryRouter>);
     await waitFor(() => expect(
@@ -434,6 +453,89 @@ describe('TomarAsistencia', () => {
     await waitFor(() =>
       expect(screen.getByText(/sin conexion no se puede comprobar/i)).toBeInTheDocument());
   });
+
+  it('muestra marcada la casilla de bloque doble cuando el siguiente bloque es de la misma materia', async () => {
+    await db.blocks.put({
+      id: 5, grade: '601', weekday: 1, blockNo: 5, subject: 'Ciencias', startTime: '09:45',
+    });
+    await elegirCursoYBloque();
+
+    const casilla = await screen.findByRole('checkbox', { name: /bloque doble/i });
+    expect(casilla).toBeChecked();
+    expect(casilla).toHaveAccessibleName(/bloque 5 \(09:45\)/);
+  });
+
+  it('enviar con la casilla marcada registra los dos bloques con las mismas marcas', async () => {
+    await db.blocks.put({
+      id: 5, grade: '601', weekday: 1, blockNo: 5, subject: 'Ciencias', startTime: '09:45',
+    });
+    await elegirCursoYBloque();
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('network'); }));
+
+    const grupo = screen.getByRole('group', { name: /ANA LOPEZ/i });
+    await userEvent.click(within(grupo).getByRole('button', { name: /falta/i }));
+
+    await userEvent.click(screen.getByRole('button', { name: /enviar asistencia/i }));
+
+    await waitFor(async () => {
+      const cola = await db.outbox.toArray();
+      expect(cola).toHaveLength(4);
+      const bloque1 = cola.filter((r) => r.scheduleBlockId === 1);
+      const bloque5 = cola.filter((r) => r.scheduleBlockId === 5);
+      expect(bloque1).toHaveLength(2);
+      expect(bloque5).toHaveLength(2);
+      expect(bloque1.find((r) => r.studentId === 10)?.status).toBe('F');
+      expect(bloque5.find((r) => r.studentId === 10)?.status).toBe('F');
+    });
+  });
+
+  it('con la casilla desmarcada solo registra el bloque elegido', async () => {
+    await db.blocks.put({
+      id: 5, grade: '601', weekday: 1, blockNo: 5, subject: 'Ciencias', startTime: '09:45',
+    });
+    await elegirCursoYBloque();
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('network'); }));
+
+    await userEvent.click(screen.getByRole('checkbox', { name: /bloque doble/i }));
+    expect(screen.getByRole('checkbox', { name: /bloque doble/i })).not.toBeChecked();
+
+    await userEvent.click(screen.getByRole('button', { name: /enviar asistencia/i }));
+
+    await waitFor(async () => {
+      const cola = await db.outbox.toArray();
+      expect(cola).toHaveLength(2);
+      expect(cola.every((r) => r.scheduleBlockId === 1)).toBe(true);
+    });
+  });
+
+  it('no muestra la casilla si el siguiente bloque es de otra materia', async () => {
+    await db.blocks.put({
+      id: 5, grade: '601', weekday: 1, blockNo: 5, subject: 'Matematicas', startTime: '09:45',
+    });
+    await elegirCursoYBloque();
+
+    expect(screen.queryByRole('checkbox', { name: /bloque doble/i })).not.toBeInTheDocument();
+  });
+
+  it('con docentes distintos en los dos bloques no muestra la casilla de bloque doble', async () => {
+    await db.blocks.update(1, { teacherId: 7 });
+    await db.blocks.put({
+      id: 5, grade: '601', weekday: 1, blockNo: 5, subject: 'Ciencias', startTime: '09:45', teacherId: 8,
+    });
+    await elegirCursoYBloque();
+
+    expect(screen.queryByRole('checkbox', { name: /bloque doble/i })).not.toBeInTheDocument();
+  });
+
+  it('con el mismo docente en los dos bloques muestra la casilla marcada', async () => {
+    await db.blocks.update(1, { teacherId: 7 });
+    await db.blocks.put({
+      id: 5, grade: '601', weekday: 1, blockNo: 5, subject: 'Ciencias', startTime: '09:45', teacherId: 7,
+    });
+    await elegirCursoYBloque();
+
+    expect(await screen.findByRole('checkbox', { name: /bloque doble/i })).toBeChecked();
+  });
 });
 
 describe('TomarAsistencia: panel de ultimos llamados', () => {
@@ -476,4 +578,5 @@ describe('TomarAsistencia: panel de ultimos llamados', () => {
     expect(await screen.findByText(/todavia no hay tomas de lista/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/curso/i)).toBeInTheDocument();
   });
+
 });

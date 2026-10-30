@@ -44,11 +44,12 @@ export class HttpError extends Error {
 /**
  * Tope de espera por peticion. Sin el, una peticion colgada con señal de una rayita
  * frenaba minutos el reintento automatico (que espera a que termine). Render gratis
- * tarda ~3 min en despertar (medido oct-2026), mas que este tope: si se durmio, la
- * primera peticion se corta, cuenta como sin conexion y la cola reintenta despues;
- * AvisoServidorLento sigue diciendo que el servidor esta despertando.
+ * tarda ~3 min en despertar (medido oct-2026): el tope cubre ese arranque (200 s) para
+ * que la primera entrada del dia no diga "Sin conexion" mientras el servidor despierta;
+ * AvisoServidorLento explica la espera. Sin red de verdad fetch falla al instante, asi
+ * que este tope solo afecta a las peticiones colgadas.
  */
-export const TOPE_PETICION_MS = 60_000;
+export const TOPE_PETICION_MS = 200_000;
 
 /**
  * Si una peticion tarda mas que esto sin respuesta, se avisa que el servidor esta

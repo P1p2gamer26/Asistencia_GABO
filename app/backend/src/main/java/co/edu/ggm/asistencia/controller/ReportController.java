@@ -156,7 +156,7 @@ public class ReportController {
 
     @GetMapping("/docentes")
     public List<DocenteItem> docentes() {
-        return users.findByRoleOrderByFullName(Role.DOCENTE).stream()
+        return users.findByRoleOrderByApellidos(Role.DOCENTE).stream()
                 .filter(u -> u.isActive())
                 .map(u -> new DocenteItem(u.getId(), u.getFullName()))
                 .toList();

@@ -24,6 +24,22 @@ describe('cliente http', () => {
     }
   });
 
+  it('mientras el servidor arranca no dice sin conexion antes del tope de 200 s', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      expect(TOPE_PETICION_MS).toBeGreaterThanOrEqual(200_000);
+      vi.stubGlobal('fetch', vi.fn((_u: string, init?: RequestInit) => new Promise<Response>((resolver, rechazar) => {
+        init?.signal?.addEventListener('abort', () => rechazar(new DOMException('abort', 'AbortError')));
+        setTimeout(() => resolver(new Response('{"ok":true}', { status: 200 })), 190_000);
+      })));
+      const peticion = api.get('/api/arranque');
+      await vi.advanceTimersByTimeAsync(190_001);
+      await expect(peticion).resolves.toEqual({ ok: true });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('un 502/503/504 del proxy cuenta como sin conexion, no como rechazo', async () => {
     for (const status of [502, 503, 504]) {
       vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status })));
