@@ -8,10 +8,10 @@ export type Session = {
 };
 export type Block = {
   id: number; grade: string; weekday: number; blockNo: number; subject: string; startTime: string;
-  room?: string;
+  room?: string; teacherId?: number;
 };
 export type PendingBlock = { blockId: number; grade: string; subject: string; blockNo: number };
-export type StudentDto = { id: number; documentId: string; fullName: string; grade: string };
+export type StudentDto = { id: number; documentId: string; fullName: string; grade: string; sortKey?: string };
 export type SchoolDay = { calendarDate: string; dayType: DayType; description?: string; cycleDay?: number | null; cycleDayFixed?: number | null };
 export type Bootstrap = { blocks: Block[]; students: StudentDto[]; schoolDays: SchoolDay[] };
 

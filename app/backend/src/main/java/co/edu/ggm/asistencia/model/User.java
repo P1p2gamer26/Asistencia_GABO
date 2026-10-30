@@ -21,6 +21,15 @@ public class User {
     @Column(name = "full_name")
     private String fullName;
 
+    @Column(name = "last_name")
+    private String lastName;
+
+    @Column(name = "second_surname")
+    private String secondSurname;
+
+    @Column(name = "first_names")
+    private String firstNames;
+
     @Enumerated(EnumType.STRING)
     private Role role;
 

@@ -133,4 +133,40 @@ describe('PanelUsuarios', () => {
     });
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/guardado/i));
   });
+
+  it('borrar pide confirmacion y no llama al servidor si se cancela', async () => {
+    const fetchMock = vi.fn(async () => respuesta(USUARIOS));
+    vi.stubGlobal('fetch', fetchMock);
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    render(<PanelUsuarios />);
+    await screen.findByText('Francisco Palacios');
+    await userEvent.click(screen.getByRole('button', { name: /borrar cuenta de francisco palacios/i }));
+    expect(window.confirm).toHaveBeenCalled();
+    expect(fetchMock.mock.calls.some(([, init]) => (init as RequestInit | undefined)?.method === 'DELETE')).toBe(false);
+  });
+
+  it('confirmado, borra la cuenta con DELETE y recarga la lista', async () => {
+    const fetchMock = vi.fn(async (_u: string, init?: RequestInit) =>
+      init?.method === 'DELETE' ? new Response(null, { status: 204 }) : respuesta(USUARIOS));
+    vi.stubGlobal('fetch', fetchMock);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    render(<PanelUsuarios />);
+    await screen.findByText('Francisco Palacios');
+    await userEvent.click(screen.getByRole('button', { name: /borrar cuenta de francisco palacios/i }));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/borrada/i));
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/api/admin/users/3'),
+      expect.objectContaining({ method: 'DELETE' }));
+  });
+
+  it('si el servidor rechaza el borrado muestra el motivo', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (_u: string, init?: RequestInit) =>
+      init?.method === 'DELETE'
+        ? respuesta({ detail: 'Tiene 4 bloques en el horario. Reasignalos antes.' }, 409)
+        : respuesta(USUARIOS)));
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    render(<PanelUsuarios />);
+    await screen.findByText('Francisco Palacios');
+    await userEvent.click(screen.getByRole('button', { name: /borrar cuenta de francisco palacios/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Tiene 4 bloques/);
+  });
 });

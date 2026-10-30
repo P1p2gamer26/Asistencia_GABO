@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, AVISO_ENCOLADO } from '../../api/client';
+import { api, AVISO_ENCOLADO, HttpError } from '../../api/client';
 import type { AdminUser, Role } from '../../api/contract';
 
 const ROLES: Role[] = ['ADMIN', 'DOCENTE', 'ACUDIENTE'];
@@ -77,6 +77,21 @@ const [aviso, setAviso] = useState('');
       setAviso(`Contrasena de ${u.email} restablecida a: ${r.temporaryPassword}`);
     } catch {
       setError('No se pudo restablecer la contrasena.');
+    }
+  }
+
+  // ponytail: confirm() nativo; sin cola offline a proposito, borrar no se difiere.
+  async function borrar(u: AdminUser) {
+    setError(''); setAviso('');
+    const ok = window.confirm(`Borrar la cuenta de ${u.fullName} (${u.email})? `
+      + 'Solo se borra la cuenta: la asistencia que registro se conserva. No se puede deshacer.');
+    if (!ok) return;
+    try {
+      await api.delete(`/api/admin/users/${u.id}`);
+      setAviso(`Cuenta de ${u.email} borrada.`);
+      await cargar();
+    } catch (e) {
+      setError(e instanceof HttpError ? e.message : 'No se pudo borrar la cuenta (revise la conexion).');
     }
   }
 
@@ -209,6 +224,11 @@ const [aviso, setAviso] = useState('');
                   <button type="button" className="secundario chico"
                           onClick={() => void resetear(u)}>
                     Restablecer clave
+                  </button>
+                  <button type="button" className="secundario chico"
+                          aria-label={`Borrar cuenta de ${u.fullName}`}
+                          onClick={() => void borrar(u)}>
+                    Borrar
                   </button>
                 </td>
                   </>

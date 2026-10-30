@@ -11,9 +11,9 @@ import java.util.List;
 import java.util.Optional;
 
 public interface StudentRepository extends JpaRepository<Student, Long> {
-    List<Student> findByActiveTrueAndGradeInOrderByLastNameAscFirstNameAsc(Collection<String> grades);
-    List<Student> findByActiveTrueOrderByLastNameAscFirstNameAsc();
-    List<Student> findByActiveTrueAndGradeOrderByLastNameAscFirstNameAsc(String grade);
+    List<Student> findByActiveTrueAndGradeInOrderByLastNameAscSecondSurnameAscFirstNameAsc(Collection<String> grades);
+    List<Student> findByActiveTrueOrderByLastNameAscSecondSurnameAscFirstNameAsc();
+    List<Student> findByActiveTrueAndGradeOrderByLastNameAscSecondSurnameAscFirstNameAsc(String grade);
     Optional<Student> findByDocumentIdAndActiveTrue(String documentId);
     Optional<Student> findByDocumentId(String documentId);
 
@@ -23,10 +23,10 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     // orden_curso() (V64): "ORDER BY grade" a secas pone '1001' antes que '101'.
     @Query(value = """
             SELECT s.* FROM students s
-            ORDER BY orden_curso(s.grade), s.grade, s.last_name, s.first_name
+            ORDER BY orden_curso(s.grade), s.grade, s.last_name, s.second_surname, s.first_name
             """, nativeQuery = true)
     List<Student> findAllOrdenados();
-    List<Student> findByGradeOrderByLastNameAscFirstNameAsc(String grade);
+    List<Student> findByGradeOrderByLastNameAscSecondSurnameAscFirstNameAsc(String grade);
     boolean existsByDocumentId(String documentId);
 
     interface ChildRow {
@@ -43,7 +43,7 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
             FROM students s
             JOIN guardianships g ON g.student_id = s.id
             WHERE g.guardian_id = :guardianId AND s.active
-            ORDER BY s.first_name
+            ORDER BY s.last_name, s.second_surname, s.first_name
             """, nativeQuery = true)
     List<ChildRow> findChildren(@Param("guardianId") Long guardianId);
 
