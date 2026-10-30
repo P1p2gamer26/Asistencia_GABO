@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import CambiarClave from './CambiarClave';
 
 describe('CambiarClave', () => {
@@ -14,7 +15,7 @@ describe('CambiarClave', () => {
   it('avisa si las dos claves nuevas no coinciden, sin llamar al servidor', async () => {
     const f = vi.fn();
     vi.stubGlobal('fetch', f);
-    render(<CambiarClave />);
+    render(<MemoryRouter><CambiarClave /></MemoryRouter>);
 
     await userEvent.type(screen.getByLabelText(/actual/i), 'cambiar123');
     await userEvent.type(screen.getByLabelText(/^nueva/i), 'unaClaveNueva');
@@ -28,7 +29,7 @@ describe('CambiarClave', () => {
   it('avisa si la nueva es demasiado corta, sin llamar al servidor', async () => {
     const f = vi.fn();
     vi.stubGlobal('fetch', f);
-    render(<CambiarClave />);
+    render(<MemoryRouter><CambiarClave /></MemoryRouter>);
 
     await userEvent.type(screen.getByLabelText(/actual/i), 'cambiar123');
     await userEvent.type(screen.getByLabelText(/^nueva/i), 'corta');
@@ -42,7 +43,7 @@ describe('CambiarClave', () => {
   it('con datos correctos manda el cambio al servidor', async () => {
     const f = vi.fn(async (..._args: unknown[]) => new Response('', { status: 204 }));
     vi.stubGlobal('fetch', f);
-    render(<CambiarClave />);
+    render(<MemoryRouter><CambiarClave /></MemoryRouter>);
 
     await userEvent.type(screen.getByLabelText(/actual/i), 'cambiar123');
     await userEvent.type(screen.getByLabelText(/^nueva/i), 'unaClaveNueva');
@@ -55,7 +56,7 @@ describe('CambiarClave', () => {
 
   it('si el servidor dice que la actual no coincide, lo muestra', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 401 })));
-    render(<CambiarClave />);
+    render(<MemoryRouter><CambiarClave /></MemoryRouter>);
 
     await userEvent.type(screen.getByLabelText(/actual/i), 'equivocada');
     await userEvent.type(screen.getByLabelText(/^nueva/i), 'unaClaveNueva');

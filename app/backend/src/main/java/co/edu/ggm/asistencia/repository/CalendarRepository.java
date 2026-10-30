@@ -23,6 +23,11 @@ public interface CalendarRepository extends JpaRepository<SchoolDay, LocalDate> 
 
     List<SchoolDay> findByDayType(DayType dayType);
 
+    List<SchoolDay> findByDayTypeIn(java.util.Collection<DayType> dayTypes);
+
+    List<SchoolDay> findByDayTypeInAndCalendarDateBetweenOrderByCalendarDate(
+            java.util.Collection<DayType> dayTypes, LocalDate from, LocalDate to);
+
     List<SchoolDay> findByDayTypeAndCalendarDateBetweenOrderByCalendarDate(
             DayType dayType, LocalDate from, LocalDate to);
 
@@ -31,7 +36,7 @@ public interface CalendarRepository extends JpaRepository<SchoolDay, LocalDate> 
 
     @Query(value = """
             SELECT calendar_date FROM school_calendar
-            WHERE day_type = 'LECTIVO' AND calendar_date > :date
+            WHERE day_type IN ('LECTIVO','DIA_CERO') AND calendar_date > :date
               AND EXTRACT(YEAR FROM calendar_date) = EXTRACT(YEAR FROM CAST(:date AS date))
             ORDER BY calendar_date LIMIT 1
             """, nativeQuery = true)

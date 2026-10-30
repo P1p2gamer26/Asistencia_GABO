@@ -75,7 +75,11 @@ function TablaMesPorCurso({ cursos }: { cursos: CursoMes[] }) {
         <tbody>
           {cursos.map((c) => (
             <tr key={c.grade}>
-              <td>{c.grade}</td>
+              <td>
+                {c.sinRegistros
+                  ? c.grade
+                  : <Link to={`/curso/${encodeURIComponent(c.grade)}`}>{c.grade}</Link>}
+              </td>
               <td className="num">
                 {c.sinRegistros
                   // Un curso sin ningun registro NO es 100% de asistencia: no se

@@ -8,6 +8,7 @@ import RegistroClase from './pages/RegistroClase';
 import Ingreso from './pages/Ingreso';
 // Track C rellena estos:
 import Consultas from './pages/Consultas';
+import CursoDia from './pages/CursoDia';
 import Dashboard from './pages/Dashboard';
 import Padre from './pages/Padre';
 import Admin from './pages/Admin';
@@ -76,6 +77,8 @@ export default function App() {
              element={<SoloRoles roles={PERSONAL}><Ingreso /></SoloRoles>} />
       <Route path="/consultas"
              element={<SoloRoles roles={PERSONAL}><Consultas /></SoloRoles>} />
+      <Route path="/curso/:grade"
+             element={<SoloRoles roles={PERSONAL}><CursoDia /></SoloRoles>} />
       <Route path="/dashboard"
              element={<SoloRoles roles={['ADMIN', 'ORIENTADOR']}><Dashboard /></SoloRoles>} />
       <Route path="/admin" element={<SoloRoles roles={['ADMIN']}><Admin /></SoloRoles>} />
