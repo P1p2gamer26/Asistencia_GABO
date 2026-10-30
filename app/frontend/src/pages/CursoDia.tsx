@@ -33,6 +33,45 @@ const diaInicial = () => {
 const rotulo = (iso: string) =>
   new Date(`${iso}T12:00`).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
 
+/** Que bloques ya se tomaron ese dia y como van sus marcas. */
+function ResumenBloques({ bloques, estudiantes, marcas, fecha }: {
+  bloques: Bloque[]; estudiantes: { id: number }[]; marcas: Marca[]; fecha: string;
+}) {
+  return (
+    <div className="tabla-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Bloque</th><th>Materia</th><th>Docente</th><th>Estado</th>
+            {ESTADOS.map((e) => <th key={e.valor} className="num">{e.valor}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {bloques.map((b) => {
+            const delBloque = marcas.filter((m) => m.blockNo === b.blockNo && m.classDate === fecha);
+            const marcados = new Set(delBloque.map((m) => m.studentId)).size;
+            const total = estudiantes.length;
+            const estado = marcados === 0 ? 'Pendiente'
+              : marcados < total ? `Parcial (${marcados} de ${total})`
+              : 'Tomada';
+            return (
+              <tr key={b.blockNo}>
+                <td>{b.blockNo}</td>
+                <td>{b.subject ?? '—'}</td>
+                <td>{b.teacherName ?? '—'}</td>
+                <td>{estado}</td>
+                {ESTADOS.map((e) => (
+                  <td key={e.valor} className="num">{delBloque.filter((m) => m.status === e.valor).length}</td>
+                ))}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 /** Dia 0: asistencia general del dia, una marca por estudiante y sin bloques. */
 function FormularioDiaCero({ grade, fecha, estudiantes }: {
   grade: string; fecha: string; estudiantes: { id: number; fullName: string }[];
@@ -93,7 +132,13 @@ function FormularioDiaCero({ grade, fecha, estudiantes }: {
                           <button key={st.valor} type="button"
                                   aria-pressed={marcas[e.id] === st.valor}
                                   aria-label={`${e.fullName}: ${st.etiqueta}`}
-                                  onClick={() => setMarcas((m) => ({ ...m, [e.id]: st.valor }))}>
+                                  onClick={() => setMarcas((m) => {
+                                    // Otro clic en el mismo estado lo quita: un P por error se corrige solo.
+                                    const siguiente = { ...m };
+                                    if (siguiente[e.id] === st.valor) delete siguiente[e.id];
+                                    else siguiente[e.id] = st.valor;
+                                    return siguiente;
+                                  })}>
                             {st.valor}
                           </button>
                         ))}
@@ -167,6 +212,9 @@ export default function CursoDia() {
 
       {datos && bloques.length > 0 && (
         <>
+          <h3>Bloques del dia</h3>
+          <ResumenBloques bloques={bloques} estudiantes={datos.estudiantes} marcas={datos.marcas} fecha={fecha} />
+          <h3>Estudiantes por bloque</h3>
           <div className="tabla-scroll">
             <table>
               <thead>
