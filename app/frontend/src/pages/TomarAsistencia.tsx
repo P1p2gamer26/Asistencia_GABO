@@ -454,11 +454,8 @@ type Confirmacion = { tipo: 'cargando' | 'ok' | 'offline' | 'lento' | 'error'; t
 
 /** Confirmacion a pantalla completa; se cierra sola a los 3 s o al tocar Continuar. */
 function AvisoEnvio({ tipo, titulo, detalle, onCerrar }: Confirmacion & { onCerrar: () => void }) {
-  useEffect(() => {
-    if (tipo === 'cargando') return;   // se cierra cuando termina el envio
-    const t = setTimeout(onCerrar, tipo === 'ok' ? 3000 : tipo === 'lento' ? 7000 : 5000);
-    return () => clearTimeout(t);
-  }, [tipo, onCerrar]);
+  // Sin cierre automatico: el docente tiene que confirmar con "Continuar". Antes se
+  // cerraba sola en 3 segundos y muchos no alcanzaban a verla.
   const icono = tipo === 'ok' ? '✓' : tipo === 'offline' || tipo === 'lento' ? '⇪' : '!';
   if (tipo === 'cargando') {
     return (
