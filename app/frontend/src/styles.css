@@ -323,10 +323,15 @@ tbody tr:hover { background: #fbfaf4; }
 .calendario-dia .numero { font-weight: 700; font-size: .95rem; }
 /* Las celdas de consulta son botones: no heredan el verde de los botones de la app. */
 button.calendario-dia { background: #fff; color: var(--tinta); font-weight: 400; min-height: var(--calendario-celda);
-                        width: 100%; text-align: left; cursor: pointer; }
-button.calendario-dia:hover { background: #eef2ec; color: var(--tinta); border-color: var(--verde); }
-button.calendario-dia.seleccionado { background: var(--verde); color: #fff; border-color: var(--verde); }
-button.calendario-dia.seleccionado .numero { color: #fff; }
+                        width: 100%; text-align: left; cursor: pointer; box-shadow: none; transform: none; }
+button.calendario-dia:hover:not(:disabled) { background: #f3f6f1; color: var(--tinta); border-color: #9bb8a4;
+                                             box-shadow: none; transform: none; }
+button.calendario-dia:focus-visible { outline: 2px solid var(--verde); outline-offset: 1px; }
+button.calendario-dia.seleccionado,
+button.calendario-dia.seleccionado:hover:not(:disabled) { background: var(--verde); color: #fff; border-color: var(--verde); }
+button.calendario-dia.seleccionado .numero,
+button.calendario-dia.seleccionado .dia-semana { color: #fff; }
+.calendario-dia .dia-semana { font-size: .7rem; color: var(--tinta-suave); text-transform: uppercase; letter-spacing: .03em; }
 .calendario-dia .tipo { color: var(--tinta-suave); }
 .calendario-dia .ciclo { font-size: .75rem; font-weight: 700; }
 .calendario-dia.anclado .ciclo { text-decoration: underline; }

@@ -44,6 +44,10 @@ function mockApi() {
   });
 }
 
+// Celda del calendario por su numero de dia (cada celda tambien lleva el dia de la semana).
+const celdaDia = (n: number) =>
+  screen.getAllByRole('gridcell').find((c) => c.querySelector('.numero')?.textContent === String(n))!;
+
 describe('Consultas por calendario', () => {
   beforeEach(() => {
     localStorage.setItem('ggm.session', JSON.stringify({
@@ -52,59 +56,75 @@ describe('Consultas por calendario', () => {
     }));
   });
 
-  it('por dia es el modo por defecto: al tocar un dia lista los salones con bloques y tomados', async () => {
+  it('por dia es el modo por defecto: al tocar un dia pasa a los salones con bloques y tomados', async () => {
     const fetchMock = mockApi();
     vi.stubGlobal('fetch', fetchMock);
     render(<CalendarioSemana setError={() => {}} />);
 
     expect(screen.getByRole('button', { name: 'Por dia' })).toHaveAttribute('aria-pressed', 'true');
-    fireEvent.click(screen.getByRole('gridcell', { name: '1' }));
+    fireEvent.click(celdaDia(1));
 
-    const fila = await screen.findByRole('button', { name: '601' });
-    expect(fila.closest('tr')!.querySelectorAll('td')[1]).toHaveTextContent('2');
-    expect(fila.closest('tr')!.querySelectorAll('td')[2]).toHaveTextContent('1');
+    const salon = await screen.findByRole('button', { name: /Salón 601/ });
+    expect(salon).toHaveTextContent('1 de 2 bloques tomados');
+    // Al estar en los salones, el calendario ya no se ve.
+    expect(screen.queryByRole('grid')).not.toBeInTheDocument();
     expect(fetchMock.mock.calls.map((c) => String(c[0])).some((u) => u.includes('/api/reports/dia?fecha='))).toBe(true);
   });
 
-  it('abrir un salon muestra sus bloques con quien tomo y luego los estudiantes', async () => {
+  it('abrir un salon muestra sus bloques con quien tomo y luego los estudiantes, con boton de volver', async () => {
     vi.stubGlobal('fetch', mockApi());
     render(<CalendarioSemana setError={() => {}} />);
-    fireEvent.click(screen.getByRole('gridcell', { name: '1' }));
-    fireEvent.click(await screen.findByRole('button', { name: '601' }));
+    fireEvent.click(celdaDia(1));
+    fireEvent.click(await screen.findByRole('button', { name: /Salón 601/ }));
 
     expect(await screen.findByText(/Bloque 1 · Matematicas · Ana Docente · Tomada por Luisa Registro/)).toBeInTheDocument();
     expect(screen.getByText('Pendiente')).toBeInTheDocument();
-    expect(screen.getByText(/Bloque 2 · Ingles · Pedro Docente/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ver más detalle' })).toBeInTheDocument();
+    // Los salones desaparecen y hay boton para volver a ellos.
+    expect(screen.queryByRole('button', { name: /Salón 601/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Volver a los salones/ })).toBeInTheDocument();
   });
 
-  it('ver mas detalle muestra quien registro cada marca del estudiante', async () => {
+  it('ver mas detalle muestra quien registro cada marca y se puede volver', async () => {
     vi.stubGlobal('fetch', mockApi());
     render(<CalendarioSemana setError={() => {}} />);
-    fireEvent.click(screen.getByRole('gridcell', { name: '1' }));
-    fireEvent.click(await screen.findByRole('button', { name: '601' }));
+    fireEvent.click(celdaDia(1));
+    fireEvent.click(await screen.findByRole('button', { name: /Salón 601/ }));
 
     fireEvent.click(await screen.findByRole('button', { name: 'Ver más detalle' }));
     await waitFor(() => expect(screen.getByText('Registrado por')).toBeInTheDocument());
     expect(screen.getByText('Luisa Registro')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Volver a los estudiantes/ }));
+    expect(screen.queryByText('Registrado por')).not.toBeInTheDocument();
+  });
+
+  it('volver al calendario desde los salones', async () => {
+    vi.stubGlobal('fetch', mockApi());
+    render(<CalendarioSemana setError={() => {}} />);
+    fireEvent.click(celdaDia(1));
+    await screen.findByRole('button', { name: /Salón 601/ });
+    fireEvent.click(screen.getByRole('button', { name: /Volver al calendario/ }));
+    expect(screen.getByRole('grid')).toBeInTheDocument();
   });
 
   it('por semana: elige la semana, lista los salones y ofrece el Excel', async () => {
     vi.stubGlobal('fetch', mockApi());
     render(<CalendarioSemana setError={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: 'Por semana' }));
-    fireEvent.click(screen.getByRole('gridcell', { name: '1' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Consultar semana' }));
+    fireEvent.click(celdaDia(1));
+    fireEvent.click(screen.getByRole('button', { name: /Consultar la semana/ }));
 
-    expect(await screen.findByRole('button', { name: /601/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /Salón 601/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Descargar Excel de la semana/ })).toBeInTheDocument();
   });
 
-  it('el calendario muestra todos los dias del mes, tambien los ultimos', () => {
+  it('el calendario muestra todos los dias del mes, cada uno con su dia de la semana', () => {
     render(<CalendarioSemana setError={() => {}} />);
     const hoy = new Date();
     const diasDelMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
-    const botonesDia = screen.getAllByRole('gridcell').filter((c) => /^\d+$/.test(c.textContent ?? ''));
-    expect(botonesDia.length).toBe(diasDelMes);
+    const celdas = screen.getAllByRole('gridcell').filter((c) => c.querySelector('.numero'));
+    expect(celdas.length).toBe(diasDelMes);
+    expect(celdas[0].querySelector('.dia-semana')).toBeInTheDocument();
   });
 });
