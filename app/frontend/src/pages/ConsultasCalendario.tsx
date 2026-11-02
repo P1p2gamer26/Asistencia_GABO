@@ -178,7 +178,7 @@ export default function CalendarioSemana({ setError }: { setError: (e: string) =
           <div className="lista-salones">
             {cursos.map((c) => (
               <button key={c.grade} type="button" onClick={() => void abrirCurso(c.grade)}>
-                <strong>{c.grade}</strong>
+                <strong style={{ display: 'block' }}>{c.grade}</strong>
                 <span className="meta">{c.ausentes} ausentes · {c.evasiones} evasiones · {c.tardes} tardes</span>
               </button>
             ))}
