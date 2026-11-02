@@ -142,7 +142,7 @@ export default function CalendarioSemana({ setError }: { setError: (e: string) =
           <tr>{['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'].map((d) => <th key={d}>{d}</th>)}</tr>
         </thead>
         <tbody>
-          {Array.from({ length: celdas.length / 7 }, (_, fila) => (
+          {Array.from({ length: Math.ceil(celdas.length / 7) }, (_, fila) => (
             <tr key={fila}>
               {celdas.slice(fila * 7, fila * 7 + 7).map((f, i) => {
                 if (!f) return <td key={i} />;

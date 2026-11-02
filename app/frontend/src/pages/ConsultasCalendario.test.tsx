@@ -71,6 +71,15 @@ describe('Consultas por calendario', () => {
     expect(screen.getByText('Luisa Registro')).toBeInTheDocument();
   });
 
+  it('el calendario muestra todos los dias del mes, tambien los ultimos', () => {
+    render(<CalendarioSemana setError={() => {}} />);
+    const hoy = new Date();
+    const diasDelMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
+    const botonesDia = screen.getAllByRole('button').filter((b) => /^\d+$/.test(b.textContent ?? ''));
+    expect(botonesDia.length).toBe(diasDelMes);
+    expect(screen.getByRole('button', { name: String(diasDelMes) })).toBeInTheDocument();
+  });
+
   it('ofrece el Excel de la semana con una hoja por curso', async () => {
     vi.stubGlobal('fetch', mockApi());
     render(<CalendarioSemana setError={() => {}} />);
