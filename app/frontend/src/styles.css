@@ -330,7 +330,9 @@ button.calendario-dia:focus-visible { outline: 2px solid var(--verde); outline-o
 button.calendario-dia.seleccionado,
 button.calendario-dia.seleccionado:hover:not(:disabled) { background: var(--verde); color: #fff; border-color: var(--verde); }
 button.calendario-dia.seleccionado .numero,
-button.calendario-dia.seleccionado .dia-semana { color: #fff; }
+button.calendario-dia.seleccionado .dia-semana,
+button.calendario-dia.seleccionado .ciclo,
+button.calendario-dia.seleccionado .tipo-corto { color: #fff; }
 .calendario-dia .dia-semana { font-size: .7rem; color: var(--tinta-suave); text-transform: uppercase; letter-spacing: .03em; }
 .calendario-dia .tipo { color: var(--tinta-suave); }
 .calendario-dia .ciclo { font-size: .75rem; font-weight: 700; }

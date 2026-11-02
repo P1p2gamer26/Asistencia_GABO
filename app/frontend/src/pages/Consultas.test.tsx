@@ -214,6 +214,9 @@ describe('Consultas', () => {
     render(<Consultas />);
     fireEvent.click(screen.getByRole('button', { name: 'Por curso' }));
 
+    // El calendario de la pestaña por defecto ya pidio school-days al montar: lo que cuenta es
+    // que el resumen semanal no vuelva a pedirlo.
+    const llamadasAntes = f.mock.calls.filter(([u]) => String(u).includes('school-days')).length;
     await userEvent.click(screen.getByRole('button', { name: /resumen semanal/i }));
     await waitFor(() => expect(screen.getByRole('option', { name: '601' })).toBeInTheDocument());
     await userEvent.selectOptions(screen.getByLabelText(/curso/i), '601');
@@ -234,7 +237,7 @@ describe('Consultas', () => {
     expect(screen.getByText(/Comentarios de la semana/)).toBeInTheDocument();
     expect(screen.getByText(/bloque 2 \(Ciencias, Francisco Palacios\): Falta — sin excusa/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /descargar excel/i })).toBeInTheDocument();
-    expect(f.mock.calls.some(([u]) => String(u).includes('school-days'))).toBe(false);
+    expect(f.mock.calls.filter(([u]) => String(u).includes('school-days')).length).toBe(llamadasAntes);
   });
   it('tomas de asistencia: lista quien tomo cada lista y resalta cuando no fue el titular', async () => {
     const f = vi.fn(async (url: string) => {

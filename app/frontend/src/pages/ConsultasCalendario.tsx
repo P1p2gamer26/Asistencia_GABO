@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api, apiUrl, getSession } from '../api/client';
 
 type Bloque = { blockNo: number; subject: string | null; teacherName: string | null };
@@ -22,6 +22,11 @@ type DetalleEstudiante = {
   fullName: string; grade: string; present: number; late: number; absent: number; evasion: number;
   marcas: { classDate: string; blockNo: number; subject: string | null; status: string; comment: string | null;
             recordedByName: string | null; recordedAt: string | null }[];
+};
+
+type DiaCalendario = { calendarDate: string; dayType: string; description: string | null; cycleDay: number | null };
+const ETIQUETA_TIPO: Record<string, string> = {
+  FESTIVO: 'Festivo', VACACIONES: 'Vacaciones', INSTITUCIONAL: 'Inst.', SUSPENDIDO: 'Suspendido',
 };
 
 type Modo = 'dia' | 'semana';
@@ -93,6 +98,27 @@ export default function CalendarioSemana({ setError }: { setError: (e: string) =
   }, [mes]);
 
   const enSemana = (f: string) => modo === 'semana' && lunes !== null && lunesDe(f) === lunes;
+
+  // Tipo de cada dia y su dia de ciclo, como en la pantalla de Calendario.
+  const [calDias, setCalDias] = useState<Record<string, DiaCalendario>>({});
+  useEffect(() => {
+    const ultimo = new Date(mes.getFullYear(), mes.getMonth() + 1, 0).getDate();
+    const desde = iso(new Date(mes.getFullYear(), mes.getMonth(), 1));
+    const hasta = iso(new Date(mes.getFullYear(), mes.getMonth(), ultimo));
+    api.get<DiaCalendario[]>(`/api/calendar/school-days?from=${desde}&to=${hasta}`)
+      .then((lista) => setCalDias(Object.fromEntries(lista.map((d) => [d.calendarDate, d]))))
+      .catch(() => setCalDias({}));
+  }, [mes]);
+
+  /** Etiqueta de la celda: "Día N", "Día 0" o el tipo de un dia no lectivo. */
+  function etiquetaDia(f: string) {
+    const d = calDias[f];
+    if (!d) return null;
+    if (d.dayType === 'DIA_CERO') return <span className="ciclo">Día 0</span>;
+    if (d.cycleDay) return <span className="ciclo">Día {d.cycleDay}</span>;
+    if (d.dayType !== 'LECTIVO') return <span className="tipo-corto">{d.description ?? ETIQUETA_TIPO[d.dayType] ?? d.dayType}</span>;
+    return null;
+  }
 
   function limpiarCurso() {
     setCurso(null);
@@ -205,6 +231,7 @@ export default function CalendarioSemana({ setError }: { setError: (e: string) =
                     onClick={() => void elegirDia(f)}>
               <span className="dia-semana">{diaSemanaDe(f)}</span>
               <span className="numero">{Number(f.slice(8))}</span>
+              {etiquetaDia(f)}
             </button>
           ) : <div key={`hueco-${i}`} className="calendario-hueco" role="gridcell" />)}
         </div>
