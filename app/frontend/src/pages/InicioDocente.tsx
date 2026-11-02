@@ -69,7 +69,7 @@ export default function InicioDocente() {
            setDia({ lectivo: false, fecha: hoy, motivo: diaLocal.description ?? null, bloques: [] });
            return;
          }
-         const bloques = await db.blocks.where('weekday').equals(diaLocal.cycleDay ?? 0).toArray();
+         const bloques = await db.blocks.where('weekday').equals(diaLocal.cycleDay ?? diaLocal.cicloBloques ?? 0).toArray();
          const conConteo = await Promise.all(bloques
            .sort((a, b) => a.blockNo - b.blockNo)
            .map(async (b) => ({

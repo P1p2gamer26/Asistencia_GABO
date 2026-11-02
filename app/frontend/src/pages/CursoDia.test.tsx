@@ -64,19 +64,16 @@ describe('CursoDia', () => {
     expect(screen.getAllByText('Tomada').length).toBe(2);
   });
 
-  it('en el dia 0 otro clic en P quita la marca', async () => {
-    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      if (String(url).includes('/api/dia-cero') && init?.method === 'PUT') return respuesta({ guardadas: 0 });
-      if (String(url).includes('/api/dia-cero')) return respuesta([]);
-      return respuesta({ ...semanaPara(String(url)), dias: [{ fecha: new URL(String(url), 'http://x').searchParams.get('from'), cicloDia: null, descripcion: null, bloques: [], tipo: 'DIA_CERO' }], marcas: [] });
-    });
-    vi.stubGlobal('fetch', fetchMock);
+  it('el dia 0 muestra sus bloques para tomar lista, igual que un dia normal', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => respuesta({
+      ...semanaPara(String(url)),
+      dias: [{ fecha: new URL(String(url), 'http://x').searchParams.get('from'), cicloDia: null,
+        descripcion: null, tipo: 'DIA_CERO', bloques: [{ blockNo: 1, subject: 'Matematicas', teacherName: 'Ana' }] }],
+      marcas: [],
+    })));
     pintar();
-    const pBoton = await screen.findByRole('button', { name: 'Luis Ruiz: Presente' });
-    fireEvent.click(pBoton);
-    expect(pBoton).toHaveAttribute('aria-pressed', 'true');
-    fireEvent.click(pBoton);
-    expect(pBoton).toHaveAttribute('aria-pressed', 'false');
+    expect(await screen.findByRole('heading', { name: 'Bloques del dia' })).toBeInTheDocument();
+    expect(screen.queryByText('Asistencia general del dia')).not.toBeInTheDocument();
   });
 
   it('un dia sin clases lo dice en vez de mostrar una tabla vacia', async () => {

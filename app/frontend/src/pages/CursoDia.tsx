@@ -72,95 +72,6 @@ function ResumenBloques({ bloques, estudiantes, marcas, fecha }: {
   );
 }
 
-/** Dia 0: asistencia general del dia, una marca por estudiante y sin bloques. */
-function FormularioDiaCero({ grade, fecha, estudiantes }: {
-  grade: string; fecha: string; estudiantes: { id: number; fullName: string }[];
-}) {
-  const [marcas, setMarcas] = useState<Record<number, string>>({});
-  const [cargando, setCargando] = useState(true);
-  const [guardando, setGuardando] = useState(false);
-  const [aviso, setAviso] = useState('');
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    setCargando(true);
-    setError('');
-    setAviso('');
-    api.get<{ studentId: number; status: string }[]>(
-      `/api/dia-cero?grade=${encodeURIComponent(grade)}&date=${fecha}`)
-      .then((lista) => setMarcas(Object.fromEntries(lista.map((m) => [m.studentId, m.status]))))
-      .catch(() => setError('No se pudo cargar la asistencia del dia. Requiere conexion.'))
-      .finally(() => setCargando(false));
-  }, [grade, fecha]);
-
-  async function guardar() {
-    setGuardando(true);
-    setAviso('');
-    setError('');
-    const body = {
-      grade, date: fecha,
-      marcas: Object.entries(marcas).map(([id, status]) => ({ studentId: Number(id), status, comment: null })),
-    };
-    try {
-      await api.put('/api/dia-cero', body);
-      setAviso('Asistencia guardada.');
-    } catch {
-      setError('No se pudo guardar. Revisa la conexion y vuelve a intentar.');
-    } finally {
-      setGuardando(false);
-    }
-  }
-
-  return (
-    <div className="grafica">
-      <h3>Asistencia general del dia</h3>
-      <p className="meta">Dia 0: los estudiantes asisten al colegio sin clases por bloque. No marcar a alguien no genera pendientes.</p>
-      {cargando && <p className="meta">Cargando...</p>}
-      {error && <p role="alert" className="error">{error}</p>}
-      {!cargando && (
-        <>
-          <div className="tabla-scroll">
-            <table>
-              <thead><tr><th>Estudiante</th><th>Estado</th></tr></thead>
-              <tbody>
-                {estudiantes.map((e) => (
-                  <tr key={e.id}>
-                    <td>{e.fullName}</td>
-                    <td>
-                      <div className="segmentado">
-                        {ESTADOS.map((st) => (
-                          <button key={st.valor} type="button"
-                                  aria-pressed={marcas[e.id] === st.valor}
-                                  aria-label={`${e.fullName}: ${st.etiqueta}`}
-                                  onClick={() => setMarcas((m) => {
-                                    // Otro clic en el mismo estado lo quita: un P por error se corrige solo.
-                                    const siguiente = { ...m };
-                                    if (siguiente[e.id] === st.valor) delete siguiente[e.id];
-                                    else siguiente[e.id] = st.valor;
-                                    return siguiente;
-                                  })}>
-                            {st.valor}
-                          </button>
-                        ))}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p>
-            <button type="button" onClick={guardar} disabled={guardando}>
-              {guardando ? 'Guardando...' : 'Guardar asistencia'}
-            </button>
-          </p>
-          {aviso && <p role="status" className="meta">{aviso}</p>}
-        </>
-      )}
-    </div>
-  );
-}
-
 export default function CursoDia() {
   const { grade = '' } = useParams();
   const [fecha, setFecha] = useState(diaInicial);
@@ -202,11 +113,7 @@ export default function CursoDia() {
       {error && <p role="alert" className="error">{error}</p>}
       {cargando && <p className="meta">Cargando...</p>}
 
-      {datos && dia?.tipo === 'DIA_CERO' && (
-        <FormularioDiaCero grade={grade} fecha={fecha} estudiantes={datos.estudiantes} />
-      )}
-
-      {datos && dia?.tipo !== 'DIA_CERO' && bloques.length === 0 && (
+      {datos && bloques.length === 0 && (
         <p className="meta">{dia?.descripcion ?? 'Sin clases este dia.'}</p>
       )}
 

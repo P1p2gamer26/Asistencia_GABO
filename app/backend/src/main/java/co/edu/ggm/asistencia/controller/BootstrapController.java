@@ -86,7 +86,8 @@ public class BootstrapController {
         List<CalendarController.DayDto> dias = calendar.range(hoy.minusMonths(1), hoy.plusMonths(3))
                 .stream()
                 .map(d -> new CalendarController.DayDto(d.getCalendarDate(), d.getDayType(),
-                        d.getDescription(), d.getCycleDay(), d.getCycleDayFixed()))
+                        d.getDescription(), d.getCycleDay(), d.getCycleDayFixed(),
+                        calendar.cicloBloquesSiDia0(d.getCalendarDate(), d.getDayType())))
                 .toList();
 
         return new Bootstrap(

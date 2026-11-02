@@ -26,7 +26,7 @@ export default function Horario() {
   const puedeVerCursos = getSession()?.role === 'ADMIN';
   useEffect(() => {
     void db.schoolDays.get(new Date().toLocaleDateString('en-CA'))
-      .then((dia) => setHoy(dia?.cycleDay ?? null));
+      .then((dia) => setHoy(dia?.cycleDay ?? dia?.cicloBloques ?? null));
   }, []);
 
   // Listas para los desplegables: salones y docentes. Son datos de coordinacion y

@@ -142,8 +142,11 @@ public class ReportController {
             var dow = d.getCalendarDate().getDayOfWeek();
             if (dow == java.time.DayOfWeek.SATURDAY || dow == java.time.DayOfWeek.SUNDAY) continue;
             Integer ciclo = d.getCycleDay();
+            // Un dia 0 no tiene numero, pero sus bloques son los del ciclo que le corresponde.
+            Integer ciclosBloques = d.getDayType() == DayType.DIA_CERO
+                    ? calendarioService.cicloBloques(d.getCalendarDate()) : ciclo;
             dias.add(new DiaSemana(d.getCalendarDate(), ciclo, d.getDescription(),
-                    ciclo == null ? List.of() : bloquesPorCiclo.getOrDefault(ciclo, List.of()),
+                    ciclosBloques == null ? List.of() : bloquesPorCiclo.getOrDefault(ciclosBloques, List.of()),
                     d.getDayType().name()));
         }
         var marcas = repo.marcasSemana(grade, from, to).stream()
@@ -180,7 +183,7 @@ public class ReportController {
 
     @GetMapping("/dia")
     public DiaCursos dia(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {
-        int ciclo = calendarioService.cycleDay(fecha);
+        int ciclo = calendarioService.cicloBloques(fecha);
         var cursos = repo.cursosConEstudiantes();
         if (ciclo == 0) return new DiaCursos(fecha, 0, agruparDia(List.of(), cursos));   // sin clases por bloque
         return new DiaCursos(fecha, ciclo, agruparDia(repo.bloquesDelDia(ciclo, fecha), cursos));

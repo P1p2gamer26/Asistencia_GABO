@@ -61,6 +61,22 @@ public class CalendarService {
         return day == null ? 0 : day;
     }
 
+    /**
+     * Ciclo cuyos bloques se usan ese dia. Un dia 0 no tiene numero, asi que usa el ciclo
+     * del siguiente dia lectivo (sus bloques son los de ese dia de ciclo).
+     */
+    public int cicloBloques(LocalDate date) {
+        var dia = repo.findById(date).orElse(null);
+        if (dia == null || dia.getDayType() != DayType.DIA_CERO) return cycleDay(date);
+        LocalDate sig = repo.siguienteLectivoEstricto(date);
+        return sig == null ? 0 : cycleDay(sig);
+    }
+
+    /** Solo para dias 0: el ciclo de sus bloques; null en cualquier otro dia. */
+    public Integer cicloBloquesSiDia0(LocalDate date, DayType tipo) {
+        return tipo == DayType.DIA_CERO ? cicloBloques(date) : null;
+    }
+
     /** Los ultimos n dias lectivos anteriores a una fecha, del mas reciente al mas antiguo. */
     public List<LocalDate> ultimosLectivosAntesDe(LocalDate antesDe, int n) {
         return conPendientes.stream()

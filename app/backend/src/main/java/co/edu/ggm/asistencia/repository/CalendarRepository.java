@@ -42,6 +42,10 @@ public interface CalendarRepository extends JpaRepository<SchoolDay, LocalDate> 
             """, nativeQuery = true)
     LocalDate siguienteLectivo(@Param("date") LocalDate date);
 
+    @Query(value = "SELECT calendar_date FROM school_calendar WHERE day_type = 'LECTIVO' "
+            + "AND calendar_date > :date ORDER BY calendar_date LIMIT 1", nativeQuery = true)
+    LocalDate siguienteLectivoEstricto(@Param("date") LocalDate date);
+
     @Query(value = """
             SELECT c.calendar_date AS calendarDate, c.day_type AS dayType,
                    c.description AS description, cc.cycle_day AS cycleDay,

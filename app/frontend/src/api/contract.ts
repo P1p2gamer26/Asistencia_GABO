@@ -12,7 +12,7 @@ export type Block = {
 };
 export type PendingBlock = { blockId: number; grade: string; subject: string; blockNo: number };
 export type StudentDto = { id: number; documentId: string; fullName: string; grade: string; sortKey?: string };
-export type SchoolDay = { calendarDate: string; dayType: DayType; description?: string; cycleDay?: number | null; cycleDayFixed?: number | null };
+export type SchoolDay = { calendarDate: string; dayType: DayType; description?: string; cycleDay?: number | null; cycleDayFixed?: number | null; cicloBloques?: number | null };
 export type Bootstrap = { blocks: Block[]; students: StudentDto[]; schoolDays: SchoolDay[];
   /** Cursos asignados al docente sin horario (el backend puede omitirlo). */
   assignedGrades?: string[] };
