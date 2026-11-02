@@ -236,7 +236,9 @@ export default function CalendarioSemana({ setError }: { setError: (e: string) =
               {dia.cursos.map((c) => (
                 <button key={c.grade} type="button" onClick={() => void abrirCurso(c.grade)}>
                   <strong style={{ display: 'block' }}>Salón {c.grade}</strong>
-                  <span className="meta">{c.tomados} de {c.bloques} bloques tomados</span>
+                  <span className="meta">
+                    {c.bloques === 0 ? 'Sin horario cargado' : `${c.tomados} de ${c.bloques} bloques tomados`}
+                  </span>
                 </button>
               ))}
             </div>

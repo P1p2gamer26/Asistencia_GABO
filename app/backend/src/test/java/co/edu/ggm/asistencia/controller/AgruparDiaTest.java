@@ -26,13 +26,16 @@ class AgruparDiaTest {
                 new Fila("601", (short) 2, "Ciencias", "Alejandro", 0, null),
                 new Fila("602", (short) 1, "Mates", "Francisco", 28, "Francisco"));
 
-        var cursos = ReportController.agruparDia(filas);
+        var cursos = ReportController.agruparDia(filas, List.of("601", "602", "9901"));
 
-        assertEquals(2, cursos.size());
+        // Salen todos los cursos con estudiantes, tambien el que no tiene horario.
+        assertEquals(3, cursos.size());
         assertEquals("601", cursos.get(0).grade());
         assertEquals(2, cursos.get(0).bloques());
         assertEquals(1, cursos.get(0).tomados());
         assertEquals("Yamile", cursos.get(0).detalle().get(0).quienTomo());
         assertEquals(0, cursos.get(0).detalle().get(1).marcas());
+        assertEquals("9901", cursos.get(2).grade());
+        assertEquals(0, cursos.get(2).bloques());
     }
 }

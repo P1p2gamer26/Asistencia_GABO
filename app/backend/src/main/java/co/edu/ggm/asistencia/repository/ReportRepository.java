@@ -614,6 +614,13 @@ public interface ReportRepository extends Repository<Student, Long> {
             """, nativeQuery = true)
     List<BloqueDiaRow> bloquesDelDia(@Param("weekday") int weekday, @Param("fecha") LocalDate fecha);
 
+    /** Cursos que tienen estudiantes activos, en el orden del colegio. Incluye los que no tienen horario. */
+    @Query(value = """
+            SELECT g.grade FROM (SELECT DISTINCT s.grade AS grade FROM students s WHERE s.active) g
+            ORDER BY orden_curso(g.grade), g.grade
+            """, nativeQuery = true)
+    List<String> cursosConEstudiantes();
+
     interface EstudianteSemanaRow { Long getId(); String getDocumentId(); String getFullName(); }
 
     /** Activos del curso mas quien tenga marcas en el rango en ese curso aunque ya no este activo. */
