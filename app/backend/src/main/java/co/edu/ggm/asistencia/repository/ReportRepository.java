@@ -592,6 +592,28 @@ public interface ReportRepository extends Repository<Student, Long> {
     List<MarcaSemanaRow> marcasSemana(@Param("grade") String grade,
                                       @Param("from") LocalDate from, @Param("to") LocalDate to);
 
+    interface BloqueDiaRow {
+        String getGrade(); Short getBlockNo(); String getSubject(); String getTeacherName();
+        Long getMarcas(); String getQuienTomo();
+    }
+
+    /** Todos los bloques de un dia de ciclo, con cuantas marcas tienen ese dia y quien las registro. */
+    @Query(value = """
+            SELECT sb.grade AS grade, sb.block_no AS blockNo, su.name AS subject, tu.full_name AS teacherName,
+                   (SELECT count(*) FROM attendance a WHERE a.schedule_block_id = sb.id
+                      AND a.class_date = :fecha AND a.deleted_at IS NULL) AS marcas,
+                   (SELECT COALESCE(ru.full_name, a2.recorded_by_name) FROM attendance a2
+                      LEFT JOIN users ru ON ru.id = a2.recorded_by
+                     WHERE a2.schedule_block_id = sb.id AND a2.class_date = :fecha AND a2.deleted_at IS NULL
+                     LIMIT 1) AS quienTomo
+            FROM schedule_blocks sb
+            LEFT JOIN subjects su ON su.id = sb.subject_id
+            LEFT JOIN users tu ON tu.id = sb.teacher_id
+            WHERE sb.weekday = :weekday
+            ORDER BY orden_curso(sb.grade), sb.grade, sb.block_no
+            """, nativeQuery = true)
+    List<BloqueDiaRow> bloquesDelDia(@Param("weekday") int weekday, @Param("fecha") LocalDate fecha);
+
     interface EstudianteSemanaRow { Long getId(); String getDocumentId(); String getFullName(); }
 
     /** Activos del curso mas quien tenga marcas en el rango en ese curso aunque ya no este activo. */

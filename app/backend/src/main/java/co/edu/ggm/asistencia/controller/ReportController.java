@@ -154,6 +154,35 @@ public class ReportController {
         return new SemanaDto(estudiantes, dias, marcas);
     }
 
+    // ---- Consulta por dia: salones con bloques esperados y tomados ese dia exacto ----
+
+    public record BloqueDia(int blockNo, String subject, String teacherName, int marcas, String quienTomo) {}
+    public record CursoDia(String grade, int bloques, int tomados, List<BloqueDia> detalle) {}
+    public record DiaCursos(LocalDate fecha, int cicloDia, List<CursoDia> cursos) {}
+
+    /** Agrupa las filas de bloques del dia por curso, en el orden de la consulta. */
+    static List<CursoDia> agruparDia(List<ReportRepository.BloqueDiaRow> filas) {
+        var porCurso = new java.util.LinkedHashMap<String, List<BloqueDia>>();
+        for (var f : filas) {
+            porCurso.computeIfAbsent(f.getGrade(), k -> new java.util.ArrayList<>()).add(new BloqueDia(
+                    f.getBlockNo(), f.getSubject(), f.getTeacherName(),
+                    f.getMarcas() == null ? 0 : f.getMarcas().intValue(), f.getQuienTomo()));
+        }
+        var salida = new java.util.ArrayList<CursoDia>();
+        for (var e : porCurso.entrySet()) {
+            int tomados = (int) e.getValue().stream().filter(b -> b.marcas() > 0).count();
+            salida.add(new CursoDia(e.getKey(), e.getValue().size(), tomados, e.getValue()));
+        }
+        return salida;
+    }
+
+    @GetMapping("/dia")
+    public DiaCursos dia(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {
+        int ciclo = calendarioService.cycleDay(fecha);
+        if (ciclo == 0) return new DiaCursos(fecha, 0, List.of());   // sin clases por bloque
+        return new DiaCursos(fecha, ciclo, agruparDia(repo.bloquesDelDia(ciclo, fecha)));
+    }
+
     public record DocenteItem(Long id, String fullName) {}
 
     @GetMapping("/docentes")
