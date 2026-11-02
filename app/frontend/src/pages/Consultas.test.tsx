@@ -27,6 +27,7 @@ describe('Consultas', () => {
     const f = vi.fn(async () => respuesta(FILAS));
     vi.stubGlobal('fetch', f);
     render(<Consultas />);
+    fireEvent.click(screen.getByRole('button', { name: 'Por curso' }));
     // El montaje carga la lista de cursos (una llamada); eso no cuenta como consulta.
     const llamadasAlMontar = f.mock.calls.length;
 
@@ -41,6 +42,7 @@ describe('Consultas', () => {
   it('explica por que hay que elegir un curso', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => respuesta(FILAS)));
     render(<Consultas />);
+    fireEvent.click(screen.getByRole('button', { name: 'Por curso' }));
     expect(screen.getByText(/elija un curso/i)).toBeInTheDocument();
   });
 
@@ -48,6 +50,7 @@ describe('Consultas', () => {
     const f = vi.fn(async (_url: string) => respuesta(FILAS));
     vi.stubGlobal('fetch', f);
     render(<Consultas />);
+    fireEvent.click(screen.getByRole('button', { name: 'Por curso' }));
 
     await waitFor(() => expect(screen.getByRole('option', { name: '601' })).toBeInTheDocument());
     await userEvent.selectOptions(screen.getByLabelText(/curso/i), '601');
@@ -65,6 +68,7 @@ describe('Consultas', () => {
     const f = vi.fn(async () => respuesta(FILAS));
     vi.stubGlobal('fetch', f);
     render(<Consultas />);
+    fireEvent.click(screen.getByRole('button', { name: 'Por curso' }));
 
     await waitFor(() => expect(screen.getByRole('option', { name: '601' })).toBeInTheDocument());
     await userEvent.selectOptions(screen.getByLabelText(/curso/i), '601');
@@ -85,6 +89,7 @@ describe('Consultas', () => {
     ];
     vi.stubGlobal('fetch', vi.fn(async () => respuesta(sinDatos)));
     render(<Consultas />);
+    fireEvent.click(screen.getByRole('button', { name: 'Por curso' }));
 
     await waitFor(() => expect(screen.getByRole('option', { name: '607' })).toBeInTheDocument());
     await userEvent.selectOptions(screen.getByLabelText(/curso/i), '607');
@@ -106,6 +111,7 @@ describe('Consultas', () => {
     });
     vi.stubGlobal('fetch', f);
     render(<Consultas />);
+    fireEvent.click(screen.getByRole('button', { name: 'Por curso' }));
 
     await waitFor(() => expect(screen.getByRole('option', { name: '601' })).toBeInTheDocument());
     await userEvent.selectOptions(screen.getByLabelText(/curso/i), '601');
@@ -126,6 +132,7 @@ describe('Consultas', () => {
     });
     vi.stubGlobal('fetch', f);
     render(<Consultas />);
+    fireEvent.click(screen.getByRole('button', { name: 'Por curso' }));
 
     await waitFor(() => expect(screen.getByRole('option', { name: '601' })).toBeInTheDocument());
     await userEvent.selectOptions(screen.getByLabelText(/curso/i), '601');
@@ -140,6 +147,7 @@ describe('Consultas', () => {
   it('la descarga en Excel si permite todos los cursos', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => respuesta(FILAS)));
     render(<Consultas />);
+    fireEvent.click(screen.getByRole('button', { name: 'Por curso' }));
     // Los campos ya traen el mes en curso por defecto: se limpian antes de escribir.
     await userEvent.clear(screen.getByLabelText(/desde/i));
     await userEvent.type(screen.getByLabelText(/desde/i), '2026-02-01');
@@ -164,6 +172,7 @@ describe('Consultas', () => {
     });
     vi.stubGlobal('fetch', f);
     render(<Consultas />);
+    fireEvent.click(screen.getByRole('button', { name: 'Por curso' }));
 
     await userEvent.click(screen.getByRole('button', { name: /por estudiante/i }));
     await userEvent.type(screen.getByLabelText(/estudiante/i), 'carla');
@@ -203,6 +212,7 @@ describe('Consultas', () => {
     });
     vi.stubGlobal('fetch', f);
     render(<Consultas />);
+    fireEvent.click(screen.getByRole('button', { name: 'Por curso' }));
 
     await userEvent.click(screen.getByRole('button', { name: /resumen semanal/i }));
     await waitFor(() => expect(screen.getByRole('option', { name: '601' })).toBeInTheDocument());
@@ -239,6 +249,7 @@ describe('Consultas', () => {
     });
     vi.stubGlobal('fetch', f);
     render(<Consultas />);
+    fireEvent.click(screen.getByRole('button', { name: 'Por curso' }));
 
     await userEvent.click(screen.getByRole('button', { name: /tomas de asistencia/i }));
     await waitFor(() => expect(screen.getByText('Matematicas')).toBeInTheDocument());

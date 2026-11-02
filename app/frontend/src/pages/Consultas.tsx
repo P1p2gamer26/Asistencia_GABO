@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, apiUrl, getSession } from '../api/client';
 import { useCursos } from '../lib/useCursos';
 import { useDebounce } from '../lib/useDebounce';
+import CalendarioSemana from './ConsultasCalendario';
 
 type Fila = {
   studentId: number; documentId: string; fullName: string; grade: string;
@@ -28,8 +29,9 @@ type MarcaSemana = {
   studentId: number; documentId: string; fullName: string; status: string; comment: string | null;
 };
 
-type Modo = 'curso' | 'estudiante' | 'tomas' | 'semana';
+type Modo = 'calendario' | 'curso' | 'estudiante' | 'tomas' | 'semana';
 const MODOS: { id: Modo; texto: string }[] = [
+  { id: 'calendario', texto: 'Calendario' },
   { id: 'curso', texto: 'Por curso' },
   { id: 'estudiante', texto: 'Por estudiante' },
   { id: 'tomas', texto: 'Tomas de asistencia' },
@@ -58,7 +60,7 @@ async function bajarExcel(params: string, nombre: string) {
 
 export default function Consultas() {
   const hoy = new Date();
-  const [modo, setModo] = useState<Modo>('curso');
+  const [modo, setModo] = useState<Modo>('calendario');
   // Del 1 del mes a hoy por defecto: antes arrancaban vacias y "Consultar" quedaba
   // deshabilitado, asi que elegir un curso no mostraba nada y parecia roto.
   const [from, setFrom] = useState(isoLocal(new Date(hoy.getFullYear(), hoy.getMonth(), 1)));
@@ -84,6 +86,7 @@ export default function Consultas() {
                   onClick={() => { setModo(m.id); setError(''); }}>{m.texto}</button>
         ))}
       </div>
+      {modo === 'calendario' && <CalendarioSemana setError={setError} />}
       {modo === 'curso' && <PorCurso from={from} to={to} fechas={fechas} cursos={cursos} setError={setError} />}
       {modo === 'estudiante' && <PorEstudiante from={from} to={to} fechas={fechas} setError={setError} />}
       {modo === 'tomas' && <Tomas from={from} to={to} fechas={fechas} cursos={cursos} setError={setError} />}

@@ -111,7 +111,8 @@ public class ReportController {
     }
 
     public record MarcaSemana(LocalDate classDate, short blockNo, String subject, String teacherName,
-                              Long studentId, String documentId, String fullName, String status, String comment) {}
+                              Long studentId, String documentId, String fullName, String status, String comment,
+                              String recordedByName) {}
 
     public record EstudianteSemana(Long id, String documentId, String fullName) {}
     public record BloqueSemana(short blockNo, String subject, String teacherName,
@@ -148,7 +149,7 @@ public class ReportController {
         var marcas = repo.marcasSemana(grade, from, to).stream()
                 .map(r -> new MarcaSemana(r.getClassDate(), r.getBlockNo() == null ? 0 : r.getBlockNo(),
                         r.getSubject(), r.getTeacherName(), r.getStudentId(), r.getDocumentId(),
-                        r.getFullName(), r.getStatus(), r.getComment()))
+                        r.getFullName(), r.getStatus(), r.getComment(), r.getRecordedByName()))
                 .toList();
         return new SemanaDto(estudiantes, dias, marcas);
     }
@@ -229,6 +230,16 @@ public class ReportController {
                 }
                 libro = excel.buildSemanal(semana(grade, from, to), from, to);
                 nombre = "semana_%s_%s_%s.xlsx".formatted(curso, from, to);
+            }
+            case "semanal-cursos" -> {
+                // Una hoja por curso con movimientos en el rango, y una hoja de comentarios.
+                var cursos = new java.util.LinkedHashMap<String, SemanaDto>();
+                for (String g : repo.summary(null, from, to).stream()
+                        .map(ReportRepository.Row::getGrade).distinct().toList()) {
+                    cursos.put(g, semana(g, from, to));
+                }
+                libro = excel.buildSemanalCursos(cursos, from, to);
+                nombre = "semana_cursos_%s_%s.xlsx".formatted(from, to);
             }
             case "inasistencias" -> {
                 libro = excel.buildInasistencias(repo.absences(grade, from, to), from, to);

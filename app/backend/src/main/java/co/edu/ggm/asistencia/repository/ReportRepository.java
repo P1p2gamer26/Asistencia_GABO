@@ -567,7 +567,7 @@ public interface ReportRepository extends Repository<Student, Long> {
     interface MarcaSemanaRow {
         LocalDate getClassDate(); Short getBlockNo(); String getSubject(); String getTeacherName();
         Long getStudentId(); String getDocumentId(); String getFullName();
-        String getStatus(); String getComment();
+        String getStatus(); String getComment(); String getRecordedByName();
     }
 
     /** Marcas de un curso en un rango corto, por estudiante: base del resumen semanal. */
@@ -576,12 +576,14 @@ public interface ReportRepository extends Repository<Student, Long> {
                    tu.full_name AS teacherName, s.id AS studentId, s.document_id AS documentId,
                    trim(regexp_replace(concat_ws(' ', s.last_name, s.second_surname,
                         s.first_name, s.middle_name), '\\s+', ' ', 'g')) AS fullName,
-                   a.status AS status, a.comment AS comment
+                   a.status AS status, a.comment AS comment,
+                   COALESCE(ru.full_name, a.recorded_by_name) AS recordedByName
             FROM attendance a
             JOIN students s ON s.id = a.student_id
             JOIN schedule_blocks sb ON sb.id = a.schedule_block_id
             LEFT JOIN subjects su ON su.id = sb.subject_id
             LEFT JOIN users tu ON tu.id = sb.teacher_id
+            LEFT JOIN users ru ON ru.id = a.recorded_by
             WHERE a.deleted_at IS NULL
               AND a.class_date BETWEEN :from AND :to
               AND sb.grade = :grade

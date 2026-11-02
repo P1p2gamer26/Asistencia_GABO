@@ -264,83 +264,127 @@ public class ExcelReportService {
      */
     public byte[] buildSemanal(ReportController.SemanaDto semana, LocalDate from, LocalDate to) {
         try (var wb = new SXSSFWorkbook(100); var out = new ByteArrayOutputStream()) {
-            var hoja = wb.createSheet("Semana " + from + " a " + to);
-            Row r1 = hoja.createRow(0);
-            Row r2 = hoja.createRow(1);
-            r1.createCell(0).setCellValue("Estudiante");
-            r1.createCell(1).setCellValue("Documento");
-
-            // columna de cada (fecha, bloque)
-            var columna = new HashMap<String, Integer>();
-            int col = 2;
-            for (var d : semana.dias()) {
-                String etiqueta = DIA_CORTO[d.fecha().getDayOfWeek().getValue() - 1] + " "
-                        + "%02d/%02d".formatted(d.fecha().getDayOfMonth(), d.fecha().getMonthValue())
-                        + " · " + (d.cicloDia() != null ? "Día " + d.cicloDia()
-                        : d.descripcion() != null && !d.descripcion().isBlank() ? d.descripcion() : "Sin clase");
-                r1.createCell(col).setCellValue(etiqueta);
-                int ancho = Math.max(1, d.bloques().size());
-                if (ancho > 1) hoja.addMergedRegion(new CellRangeAddress(0, 0, col, col + ancho - 1));
-                for (var b : d.bloques()) {
-                    r2.createCell(col).setCellValue("B" + b.blockNo());
-                    columna.put(d.fecha() + "/" + b.blockNo(), col++);
-                }
-                if (d.bloques().isEmpty()) col++;
-            }
-            String[] totales = {"P", "T", "F", "E", "Dias con falta"};
-            int colTotales = col;
-            for (int i = 0; i < totales.length; i++) r1.createCell(colTotales + i).setCellValue(totales[i]);
-
-            var marcasDe = new HashMap<Long, List<ReportController.MarcaSemana>>();
-            for (var m : semana.marcas()) marcasDe.computeIfAbsent(m.studentId(), k -> new ArrayList<>()).add(m);
-
-            int n = 2;
-            for (var e : semana.estudiantes()) {
-                Row r = hoja.createRow(n++);
-                r.createCell(0).setCellValue(e.fullName());
-                r.createCell(1).setCellValue(e.documentId());
-                int[] cuenta = new int[4];
-                var diasFalta = new java.util.TreeSet<LocalDate>();
-                for (var m : marcasDe.getOrDefault(e.id(), List.of())) {
-                    int idx = "PTFE".indexOf(m.status());
-                    if (idx >= 0) cuenta[idx]++;
-                    if ("F".equals(m.status()) || "E".equals(m.status())) diasFalta.add(m.classDate());
-                    Integer c = columna.get(m.classDate() + "/" + m.blockNo());
-                    if (c == null) continue;
-                    boolean hayComentario = m.comment() != null && !m.comment().isBlank();
-                    r.createCell(c).setCellValue(m.status() + (hayComentario ? " (comentario)" : ""));
-                }
-                for (int i = 0; i < 4; i++) r.createCell(colTotales + i).setCellValue(cuenta[i]);
-                r.createCell(colTotales + 4).setCellValue(diasFalta.size());
-            }
-
-            var cicloDe = new HashMap<LocalDate, Integer>();
-            for (var d : semana.dias()) cicloDe.put(d.fecha(), d.cicloDia());
-            var com = wb.createSheet("Comentarios");
-            String[] cab = {"Estudiante", "Fecha", "Dia ciclo", "Bloque", "Materia", "Docente", "Estado", "Comentario"};
-            Row h = com.createRow(0);
-            for (int i = 0; i < cab.length; i++) h.createCell(i).setCellValue(cab[i]);
-            int k = 1;
-            for (var e : semana.estudiantes()) {
-                for (var m : marcasDe.getOrDefault(e.id(), List.of())) {
-                    if (m.comment() == null || m.comment().isBlank()) continue;
-                    Row r = com.createRow(k++);
-                    r.createCell(0).setCellValue(e.fullName());
-                    r.createCell(1).setCellValue(m.classDate().toString());
-                    Integer ciclo = cicloDe.get(m.classDate());
-                    r.createCell(2).setCellValue(ciclo == null ? "" : String.valueOf(ciclo));
-                    r.createCell(3).setCellValue(m.blockNo());
-                    r.createCell(4).setCellValue(texto(m.subject()));
-                    r.createCell(5).setCellValue(texto(m.teacherName()));
-                    r.createCell(6).setCellValue(ESTADO_LEGIBLE.getOrDefault(m.status(), m.status()));
-                    r.createCell(7).setCellValue(m.comment());
-                }
-            }
+            escribirGrid(wb.createSheet("Semana " + from + " a " + to), semana);
+            var cursos = new LinkedHashMap<String, ReportController.SemanaDto>();
+            cursos.put("", semana);
+            escribirComentarios(wb.createSheet("Comentarios"), cursos, false);
             wb.write(out);
             wb.dispose();
             return out.toByteArray();
         } catch (IOException e) {
             throw new UncheckedIOException(e);
+        }
+    }
+
+    /** Un libro con una hoja por curso (la rejilla de cada uno) y una hoja de comentarios. */
+    public byte[] buildSemanalCursos(Map<String, ReportController.SemanaDto> cursos, LocalDate from, LocalDate to) {
+        try (var wb = new SXSSFWorkbook(100); var out = new ByteArrayOutputStream()) {
+            for (var e : cursos.entrySet()) {
+                escribirGrid(wb.createSheet(e.getKey()), e.getValue());
+            }
+            escribirComentarios(wb.createSheet("Comentarios"), cursos, true);
+            wb.write(out);
+            wb.dispose();
+            return out.toByteArray();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /**
+     * Rejilla de la semana: estudiantes x (dia, bloque). Celda vacia = sin marca. Los
+     * dias sin clase ocupan una columna para que se vea que no son un olvido.
+     */
+    private void escribirGrid(org.apache.poi.ss.usermodel.Sheet hoja, ReportController.SemanaDto semana) {
+        Row r1 = hoja.createRow(0);
+        Row r2 = hoja.createRow(1);
+        r1.createCell(0).setCellValue("Estudiante");
+        r1.createCell(1).setCellValue("Documento");
+
+        // columna de cada (fecha, bloque)
+        var columna = new HashMap<String, Integer>();
+        int col = 2;
+        for (var d : semana.dias()) {
+            String etiqueta = DIA_CORTO[d.fecha().getDayOfWeek().getValue() - 1] + " "
+                    + "%02d/%02d".formatted(d.fecha().getDayOfMonth(), d.fecha().getMonthValue())
+                    + " · " + (d.cicloDia() != null ? "Día " + d.cicloDia()
+                    : d.descripcion() != null && !d.descripcion().isBlank() ? d.descripcion() : "Sin clase");
+            r1.createCell(col).setCellValue(etiqueta);
+            int ancho = Math.max(1, d.bloques().size());
+            if (ancho > 1) hoja.addMergedRegion(new CellRangeAddress(0, 0, col, col + ancho - 1));
+            for (var b : d.bloques()) {
+                r2.createCell(col).setCellValue("B" + b.blockNo());
+                columna.put(d.fecha() + "/" + b.blockNo(), col++);
+            }
+            if (d.bloques().isEmpty()) col++;
+        }
+        String[] totales = {"P", "T", "F", "E", "Dias con falta"};
+        int colTotales = col;
+        for (int i = 0; i < totales.length; i++) r1.createCell(colTotales + i).setCellValue(totales[i]);
+
+        var marcasDe = new HashMap<Long, List<ReportController.MarcaSemana>>();
+        for (var m : semana.marcas()) marcasDe.computeIfAbsent(m.studentId(), k -> new ArrayList<>()).add(m);
+
+        int n = 2;
+        for (var e : semana.estudiantes()) {
+            Row r = hoja.createRow(n++);
+            r.createCell(0).setCellValue(e.fullName());
+            r.createCell(1).setCellValue(e.documentId());
+            int[] cuenta = new int[4];
+            var diasFalta = new java.util.TreeSet<LocalDate>();
+            for (var m : marcasDe.getOrDefault(e.id(), List.of())) {
+                int idx = "PTFE".indexOf(m.status());
+                if (idx >= 0) cuenta[idx]++;
+                if ("F".equals(m.status()) || "E".equals(m.status())) diasFalta.add(m.classDate());
+                Integer c = columna.get(m.classDate() + "/" + m.blockNo());
+                if (c == null) continue;
+                boolean hayComentario = m.comment() != null && !m.comment().isBlank();
+                r.createCell(c).setCellValue(m.status() + (hayComentario ? " (comentario)" : ""));
+            }
+            for (int i = 0; i < 4; i++) r.createCell(colTotales + i).setCellValue(cuenta[i]);
+            r.createCell(colTotales + 4).setCellValue(diasFalta.size());
+        }
+    }
+
+    /** Hoja de comentarios: una fila por marca con comentario, con quien la registro. */
+    private void escribirComentarios(org.apache.poi.ss.usermodel.Sheet com,
+                                     Map<String, ReportController.SemanaDto> cursos, boolean conCurso) {
+        // El libro de un solo curso conserva sus columnas; el de varios cursos agrega Curso
+        // al inicio y "Registrado por" antes del comentario.
+        List<String> cab = new ArrayList<>(List.of("Estudiante", "Fecha", "Dia ciclo", "Bloque", "Materia",
+                "Docente", "Estado"));
+        if (conCurso) { cab.add(0, "Curso"); cab.add("Registrado por"); }
+        cab.add("Comentario");
+        Row h = com.createRow(0);
+        for (int i = 0; i < cab.size(); i++) h.createCell(i).setCellValue(cab.get(i));
+        int k = 1;
+        for (var curso : cursos.entrySet()) {
+            var semana = curso.getValue();
+            var cicloDe = new HashMap<LocalDate, Integer>();
+            for (var d : semana.dias()) cicloDe.put(d.fecha(), d.cicloDia());
+            for (var e : semana.estudiantes()) {
+                for (var m : semana.marcas()) {
+                    if (!e.id().equals(m.studentId())) continue;
+                    if (m.comment() == null || m.comment().isBlank()) continue;
+                    Integer ciclo = cicloDe.get(m.classDate());
+                    List<Object> vals = new ArrayList<>();
+                    if (conCurso) vals.add(curso.getKey());
+                    vals.add(e.fullName());
+                    vals.add(m.classDate().toString());
+                    vals.add(ciclo == null ? "" : String.valueOf(ciclo));
+                    vals.add((double) m.blockNo());
+                    vals.add(texto(m.subject()));
+                    vals.add(texto(m.teacherName()));
+                    vals.add(ESTADO_LEGIBLE.getOrDefault(m.status(), m.status()));
+                    if (conCurso) vals.add(texto(m.recordedByName()));
+                    vals.add(m.comment());
+                    Row r = com.createRow(k++);
+                    for (int i = 0; i < vals.size(); i++) {
+                        if (vals.get(i) instanceof Double d) r.createCell(i).setCellValue(d);
+                        else r.createCell(i).setCellValue((String) vals.get(i));
+                    }
+                }
+            }
         }
     }
 
