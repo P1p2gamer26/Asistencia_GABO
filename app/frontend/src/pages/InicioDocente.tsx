@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, getSession } from '../api/client';
 import { db } from '../db/local';
+import AvisosTomaLista from '../components/AvisosTomaLista';
 
 type Bloque = {
   id: number; blockNo: number; grade: string; subject: string; room?: string;
@@ -91,6 +92,7 @@ export default function InicioDocente() {
     <main className="card ancha">
       <h1>Hola, {getSession()?.fullName}</h1>
 
+      <AvisosTomaLista />
       {error && <p role="alert" className="error">{error}</p>}
       {!dia && !error && <p className="meta">Cargando...</p>}
 

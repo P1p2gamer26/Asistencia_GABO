@@ -26,6 +26,11 @@ app:
     secret: ${JWT_SECRET:cambiar-en-produccion-minimo-32-bytes-de-entropia}
     access-ttl-minutes: 60
     refresh-ttl-days: 30
+  push:
+    # Sin claves la funcion queda desactivada (no hay avisos ni errores).
+    vapid-public: ${VAPID_PUBLIC:}
+    vapid-private: ${VAPID_PRIVATE:}
+    subject: ${VAPID_SUBJECT:mailto:coordinacion@ggm.edu.co}
   notify:
     enabled: ${NOTIFY_ENABLED:false}
     from: ${MAIL_FROM:no-reply@ggm.edu.co}

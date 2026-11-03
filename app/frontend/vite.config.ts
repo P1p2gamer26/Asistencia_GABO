@@ -42,6 +42,8 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,png,svg,woff2}'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
+        // Avisos push de toma de lista: listeners 'push' y 'notificationclick' (public/push-sw.js).
+        importScripts: ['push-sw.js'],
         runtimeCaching: [
           // La API vive en otro dominio en produccion (Vercel sirve la PWA, Fly.io la
           // API), asi que la regla no puede ser una ruta relativa. Nunca se cachea:
