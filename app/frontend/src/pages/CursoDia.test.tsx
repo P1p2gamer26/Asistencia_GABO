@@ -9,8 +9,8 @@ function semanaPara(url: string) {
   return {
     estudiantes: [{ id: 5, documentId: '1', fullName: 'Luis Ruiz' }],
     dias: [{ fecha, cicloDia: 1, descripcion: null, bloques: [
-      { blockNo: 1, subject: 'Matematicas', teacherName: 'Marta Restrepo' },
-      { blockNo: 2, subject: 'Ingles', teacherName: 'Jorge Gutierrez' },
+      { blockNo: 1, subject: 'Matematicas', teacherName: 'Marta Restrepo', startTime: '07:00:00', endTime: '07:50:00' },
+      { blockNo: 2, subject: 'Ingles', teacherName: 'Jorge Gutierrez', startTime: '07:50:00', endTime: '08:40:00' },
     ] }],
     marcas: [
       { classDate: fecha, blockNo: 1, studentId: 5, status: 'P', comment: null },
@@ -62,6 +62,14 @@ describe('CursoDia', () => {
     await screen.findByRole('heading', { name: 'Bloques del dia' });
     // El estudiante tiene marca en los dos bloques: ambos quedan tomados.
     expect(screen.getAllByText('Tomada').length).toBe(2);
+  });
+
+  it('el resumen de bloques muestra la hora de inicio y fin de cada bloque', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => respuesta(semanaPara(String(url)))));
+    pintar();
+    await screen.findByRole('heading', { name: 'Bloques del dia' });
+    expect(screen.getByText('07:00 – 07:50')).toBeInTheDocument();
+    expect(screen.getByText('07:50 – 08:40')).toBeInTheDocument();
   });
 
   it('el dia 0 muestra sus bloques para tomar lista, igual que un dia normal', async () => {

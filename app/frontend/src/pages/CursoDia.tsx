@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { ESTADOS } from '../api/contract';
 
-type Bloque = { blockNo: number; subject: string | null; teacherName: string | null };
+type Bloque = { blockNo: number; subject: string | null; teacherName: string | null; startTime: string | null; endTime: string | null };
 type DiaSemana = { fecha: string; cicloDia: number | null; descripcion: string | null; bloques: Bloque[]; tipo: string };
 type Marca = { classDate: string; blockNo: number; studentId: number; status: string; comment: string | null };
 type Respuesta = {
@@ -30,6 +30,9 @@ const diaInicial = () => {
   while (esFinDeSemana(f)) f = sumarDias(f, -1);
   return f;
 };
+// La API manda la hora como "07:00:00": se muestra solo HH:mm.
+const franja = (inicio: string | null, fin: string | null) =>
+  inicio && fin ? `${inicio.slice(0, 5)} – ${fin.slice(0, 5)}` : '—';
 const rotulo = (iso: string) =>
   new Date(`${iso}T12:00`).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
 
@@ -42,7 +45,7 @@ function ResumenBloques({ bloques, estudiantes, marcas, fecha }: {
       <table>
         <thead>
           <tr>
-            <th>Bloque</th><th>Materia</th><th>Docente</th><th>Estado</th>
+            <th>Bloque</th><th>Hora</th><th>Materia</th><th>Docente</th><th>Estado</th>
             {ESTADOS.map((e) => <th key={e.valor} className="num">{e.valor}</th>)}
           </tr>
         </thead>
@@ -57,6 +60,7 @@ function ResumenBloques({ bloques, estudiantes, marcas, fecha }: {
             return (
               <tr key={b.blockNo}>
                 <td>{b.blockNo}</td>
+                <td>{franja(b.startTime, b.endTime)}</td>
                 <td>{b.subject ?? '—'}</td>
                 <td>{b.teacherName ?? '—'}</td>
                 <td>{estado}</td>
