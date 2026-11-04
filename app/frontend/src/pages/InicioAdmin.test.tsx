@@ -122,23 +122,6 @@ describe('InicioAdmin', () => {
     expect(enlaces).toEqual(['602', '601', '603']);
   });
 
-  it('cada bloque dice si la lista se tomo y quien la tomo', async () => {
-    vi.stubGlobal('fetch', mockFetch());
-    pintar();
-    await waitFor(() => expect(screen.getByText(/tomada por Docente Uno \(3 marcas\)/)).toBeInTheDocument());
-    expect(screen.getAllByText('no tomada').length).toBeGreaterThan(0);
-  });
-
-  it('al tocar el numero de bloque aparecen los comentarios del docente', async () => {
-    vi.stubGlobal('fetch', mockFetch());
-    pintar();
-    const boton = await screen.findAllByRole('button', { name: 'Bloque 1' });
-    fireEvent.click(boton[0]);
-    await waitFor(() => expect(screen.getByText(/Llego con cita medica/)).toBeInTheDocument());
-    // El alumno sin comentario no aparece en la lista.
-    expect(screen.queryByText(/Luis Ruiz/)).not.toBeInTheDocument();
-  });
-
   it('muestra las evasiones y ausencias de hoy con el curso', async () => {
     vi.stubGlobal('fetch', mockFetch());
     pintar();

@@ -28,15 +28,9 @@ type BloqueDia = { blockNo: number; subject: string; teacherName: string; marcas
 type CursoDia = { grade: string; bloques: number; tomados: number; detalle: BloqueDia[] };
 type DiaCursos = { fecha: string; cicloDia: number; cursos: CursoDia[] };
 
-// Marca por estudiante del endpoint /api/reports/semana (trae el comentario).
-type MarcaSemana = {
-  blockNo: number; fullName: string; status: string; comment: string | null; recordedByName: string | null;
-};
-type RespuestaSemana = { marcas: MarcaSemana[] };
-
-// Lo que se muestra por curso: bloques y conteos de hoy.
+// Lo que se muestra por curso: conteos de hoy.
 type CursoHoy = {
-  grade: string; bloques: BloqueDia[]; tomados: number;
+  grade: string;
   present: number; late: number; absent: number; evasion: number;
 };
 
@@ -82,65 +76,14 @@ function ListaNovedades({ titulo, items, sinRegistros, vacioTexto }: {
   );
 }
 
-// Un bloque: dice si ya se tomo la lista y quien la tomo. Al hacer clic en el
-// numero abre los comentarios que el docente dejo en ese bloque hoy.
-function BloqueHoy({ grade, fecha, bloque }: { grade: string; fecha: string; bloque: BloqueDia }) {
-  const [abierto, setAbierto] = useState(false);
-  const [comentarios, setComentarios] = useState<MarcaSemana[] | null>(null);
-  const [errorCom, setErrorCom] = useState('');
-  const tomado = bloque.marcas > 0;
-
-  const alternar = () => {
-    const siguiente = !abierto;
-    setAbierto(siguiente);
-    if (siguiente && comentarios === null) {
-      api.get<RespuestaSemana>(
-        `/api/reports/semana?grade=${encodeURIComponent(grade)}&from=${fecha}&to=${fecha}`)
-        .then((r) => setComentarios(r.marcas.filter((m) => m.blockNo === bloque.blockNo && m.comment)))
-        .catch(() => setErrorCom('No se pudieron cargar los comentarios.'));
-    }
-  };
-
-  return (
-    <div className="bloque-hoy">
-      <button type="button" className="bloque-numero" onClick={alternar}
-              aria-expanded={abierto}>
-        Bloque {bloque.blockNo}
-      </button>
-      {' '}· {bloque.subject} · {bloque.teacherName} ·{' '}
-      {tomado
-        ? <span>tomada{bloque.quienTomo ? ` por ${bloque.quienTomo}` : ''} ({bloque.marcas} marcas)</span>
-        : <strong className="sin-tomar">no tomada</strong>}
-      {abierto && (
-        <div className="bloque-comentarios">
-          {errorCom && <p className="meta">{errorCom}</p>}
-          {!errorCom && comentarios === null && <p className="meta">Cargando comentarios...</p>}
-          {comentarios && comentarios.length === 0 && (
-            <p className="meta">Sin comentarios en este bloque.</p>
-          )}
-          {comentarios && comentarios.length > 0 && (
-            <ul>
-              {comentarios.map((m, i) => (
-                <li key={`${m.fullName}-${i}`}>
-                  <strong>{m.fullName}</strong> ({m.status}): {m.comment}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function TablaHoyPorCurso({ cursos, fecha }: { cursos: CursoHoy[]; fecha: string }) {
+// Solo los conteos. El detalle (bloques, comentarios, quien tomo) esta en la pagina del curso.
+function TablaHoyPorCurso({ cursos }: { cursos: CursoHoy[] }) {
   return (
     <div className="tabla-scroll">
       <table>
         <thead>
           <tr><th>Curso</th><th className="num">Asistencia</th><th className="num">P</th>
-              <th className="num">T</th><th className="num">F</th><th className="num">E</th>
-              <th>Bloques de hoy</th></tr>
+              <th className="num">T</th><th className="num">F</th><th className="num">E</th></tr>
         </thead>
         <tbody>
           {cursos.map((c) => {
@@ -153,12 +96,6 @@ function TablaHoyPorCurso({ cursos, fecha }: { cursos: CursoHoy[]; fecha: string
                 <td className="num">{c.late}</td>
                 <td className="num">{c.absent}</td>
                 <td className="num">{c.evasion}</td>
-                <td>
-                  <span className="meta">{c.tomados} de {c.bloques.length} tomados</span>
-                  {c.bloques.map((b) => (
-                    <BloqueHoy key={b.blockNo} grade={c.grade} fecha={fecha} bloque={b} />
-                  ))}
-                </td>
               </tr>
             );
           })}
@@ -186,7 +123,7 @@ export default function InicioAdmin() {
       .finally(() => setCargando(false));
   }, []);
 
-  // Todos los cursos del dia (con sus bloques) cruzados con los conteos de marcas de hoy.
+  // Cursos del dia cruzados con los conteos de marcas de hoy.
   useEffect(() => {
     if (!hoy?.fecha || !hoy.lectivo) return;
     Promise.all([
@@ -207,8 +144,6 @@ export default function InicioAdmin() {
           const m = marcas[c.grade];
           return {
             grade: c.grade,
-            bloques: c.detalle,
-            tomados: c.tomados,
             present: m?.present ?? 0,
             late: m?.late ?? 0,
             absent: m?.absent ?? 0,
@@ -289,10 +224,10 @@ export default function InicioAdmin() {
           {cursosHoy.length > 0 && (
             <div className="grafica">
               <h3>Todos los cursos de hoy</h3>
-              <TablaHoyPorCurso cursos={cursosHoy} fecha={hoy.fecha} />
+              <TablaHoyPorCurso cursos={cursosHoy} />
               <p className="meta">
                 Asistencia = (P + T) / (P + T + F + E) del dia. Ordenado de mejor a peor.
-                Toca el numero de un bloque para ver los comentarios del docente.
+                Toca el curso para ver sus bloques y los comentarios de los docentes.
                 Para meses anteriores, usa <Link to="/consultas">Consultas</Link> o el{' '}
                 <Link to="/dashboard">Tablero</Link>.
               </p>
