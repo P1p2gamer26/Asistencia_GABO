@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import InicioAdmin from './InicioAdmin';
@@ -28,11 +28,24 @@ const DIA = {
 };
 
 // Filas del endpoint de resumen de HOY: una por estudiante.
+// 601: 0 presentes, 2 faltas, 1 evasion -> 0 %. 602: 2 presentes -> 100 %. 603: sin marcas.
 const RESUMEN_HOY = [
   { studentId: 1, documentId: '1', fullName: 'A', grade: '601', present: 0, late: 0, absent: 1, evasion: 0, schoolDays: 1, attendanceRate: 0 },
   { studentId: 2, documentId: '2', fullName: 'B', grade: '601', present: 0, late: 0, absent: 1, evasion: 1, schoolDays: 1, attendanceRate: 0 },
-  { studentId: 3, documentId: '3', fullName: 'C', grade: '602', present: 1, late: 1, absent: 0, evasion: 0, schoolDays: 1, attendanceRate: 100 },
+  { studentId: 3, documentId: '3', fullName: 'C', grade: '602', present: 2, late: 0, absent: 0, evasion: 0, schoolDays: 1, attendanceRate: 100 },
 ];
+
+// Marcas del dia por bloque, con comentarios (endpoint /api/reports/semana).
+const SEMANA = {
+  estudiantes: [], dias: [], marcas: [
+    { classDate: '2026-08-24', blockNo: 1, subject: 'Matematicas', teacherName: 'Docente Uno',
+      studentId: 1, documentId: '1', fullName: 'Ana Gomez', status: 'F', comment: 'Llego con cita medica',
+      recordedByName: 'Docente Uno' },
+    { classDate: '2026-08-24', blockNo: 1, subject: 'Matematicas', teacherName: 'Docente Uno',
+      studentId: 2, documentId: '2', fullName: 'Luis Ruiz', status: 'P', comment: null,
+      recordedByName: 'Docente Uno' },
+  ],
+};
 
 const NOVEDADES = {
   evasiones: [
@@ -54,11 +67,12 @@ function respuesta(datos: unknown) {
 }
 
 function mockFetch(hoy: unknown = HOY, novedades: unknown = NOVEDADES,
-                   dia: unknown = DIA, resumen: unknown = RESUMEN_HOY) {
+                   dia: unknown = DIA, resumen: unknown = RESUMEN_HOY, semana: unknown = SEMANA) {
   return vi.fn(async (url: string) => {
     if (String(url).includes('/novedades')) return respuesta(novedades);
     if (String(url).includes('/summary')) return respuesta(resumen);
     if (String(url).includes('/reports/dia')) return respuesta(dia);
+    if (String(url).includes('/semana')) return respuesta(semana);
     return respuesta(hoy);
   });
 }
@@ -81,15 +95,7 @@ describe('InicioAdmin', () => {
     await waitFor(() => expect(screen.getByText(/12 de 36/)).toBeInTheDocument());
   });
 
-  it('muestra los estados de hoy', async () => {
-    vi.stubGlobal('fetch', mockFetch());
-    pintar();
-    await waitFor(() => expect(screen.getAllByText('22').length).toBeGreaterThan(0));
-    expect(screen.getAllByText(/ausentes hoy/i).length).toBeGreaterThan(0);
-  });
-
   it('no muestra datos del mes en la pantalla de inicio', async () => {
-    // El mes vive en Consultas y en el Tablero, no en el inicio.
     vi.stubGlobal('fetch', mockFetch());
     pintar();
     await waitFor(() => expect(screen.getByText(/12 de 36/)).toBeInTheDocument());
@@ -98,26 +104,39 @@ describe('InicioAdmin', () => {
     expect(screen.queryByText(/en lo que va del mes/i)).not.toBeInTheDocument();
   });
 
-  it('muestra todos los cursos del dia, tambien los que no tienen marcas', async () => {
+  it('las evasiones y ausencias de hoy van arriba, antes de los indicadores', async () => {
     vi.stubGlobal('fetch', mockFetch());
     pintar();
-    await screen.findByRole('link', { name: '601' });
-    expect(screen.getByRole('link', { name: '602' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '603' })).toBeInTheDocument();
+    const evasiones = await screen.findByText('Evasiones de hoy');
+    const indicador = await screen.findByText('Llegadas tarde hoy');
+    // Document.DOCUMENT_POSITION_FOLLOWING: el indicador viene despues de las listas.
+    expect(evasiones.compareDocumentPosition(indicador) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('muestra los bloques pendientes del curso con materia y docente', async () => {
+  it('los cursos van de mejor a peor asistencia y los sin marcas al final', async () => {
     vi.stubGlobal('fetch', mockFetch());
     pintar();
-    await waitFor(() => expect(screen.getByText(/Bloque 2 · Ciencias · Docente Dos/)).toBeInTheDocument());
-    expect(screen.getByText(/Bloque 1 · Sociales · Docente Cuatro/)).toBeInTheDocument();
+    await screen.findByRole('link', { name: '602' });
+    const enlaces = screen.getAllByRole('link').map((a) => a.textContent)
+      .filter((t) => ['601', '602', '603'].includes(t ?? ''));
+    expect(enlaces).toEqual(['602', '601', '603']);
   });
 
-  it('cuando el dia no tiene cursos, la tabla no aparece', async () => {
-    vi.stubGlobal('fetch', mockFetch(HOY, NOVEDADES, { ...DIA, cursos: [] }));
+  it('cada bloque dice si la lista se tomo y quien la tomo', async () => {
+    vi.stubGlobal('fetch', mockFetch());
     pintar();
-    await waitFor(() => expect(screen.getByText(/12 de 36/)).toBeInTheDocument());
-    expect(screen.queryByText(/todos los cursos de hoy/i)).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/tomada por Docente Uno \(3 marcas\)/)).toBeInTheDocument());
+    expect(screen.getAllByText('no tomada').length).toBeGreaterThan(0);
+  });
+
+  it('al tocar el numero de bloque aparecen los comentarios del docente', async () => {
+    vi.stubGlobal('fetch', mockFetch());
+    pintar();
+    const boton = await screen.findAllByRole('button', { name: 'Bloque 1' });
+    fireEvent.click(boton[0]);
+    await waitFor(() => expect(screen.getByText(/Llego con cita medica/)).toBeInTheDocument());
+    // El alumno sin comentario no aparece en la lista.
+    expect(screen.queryByText(/Luis Ruiz/)).not.toBeInTheDocument();
   });
 
   it('muestra las evasiones y ausencias de hoy con el curso', async () => {
@@ -158,7 +177,7 @@ describe('InicioAdmin', () => {
     vi.stubGlobal('fetch', mockFetch({
       ...HOY, lectivo: false, bloquesEsperados: 0, bloquesMarcados: 0,
       presentes: 0, tarde: 0, ausentes: 0, evasiones: 0, ingresos: 0,
-    }, NOVEDADES, { ...DIA, cursos: [] }));
+    }, NOVEDADES, { ...DIA, cursos: [] }, []));
     pintar();
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/hoy no hay clase/i));
     expect(screen.queryByText(/0 de 0/)).not.toBeInTheDocument();
@@ -185,7 +204,7 @@ describe('InicioAdmin', () => {
     await screen.findByRole('link', { name: '601' });
     await waitFor(() => {
       const fila = screen.getByRole('link', { name: '601' }).closest('tr')!;
-      // columnas: curso, bloques tomados, P, T, F, E, pendientes
+      // columnas: curso, asistencia, P, T, F, E, bloques
       expect(fila.querySelectorAll('td')[4]).toHaveTextContent('2');
       expect(fila.querySelectorAll('td')[5]).toHaveTextContent('1');
     });

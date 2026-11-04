@@ -28,16 +28,28 @@ type BloqueDia = { blockNo: number; subject: string; teacherName: string; marcas
 type CursoDia = { grade: string; bloques: number; tomados: number; detalle: BloqueDia[] };
 type DiaCursos = { fecha: string; cicloDia: number; cursos: CursoDia[] };
 
+// Marca por estudiante del endpoint /api/reports/semana (trae el comentario).
+type MarcaSemana = {
+  blockNo: number; fullName: string; status: string; comment: string | null; recordedByName: string | null;
+};
+type RespuestaSemana = { marcas: MarcaSemana[] };
+
 // Lo que se muestra por curso: bloques y conteos de hoy.
 type CursoHoy = {
-  grade: string; bloques: number; tomados: number;
+  grade: string; bloques: BloqueDia[]; tomados: number;
   present: number; late: number; absent: number; evasion: number;
-  pendientes: BloqueDia[];
 };
 
 const fechaLarga = (iso: string) =>
   new Date(`${iso}T00:00`).toLocaleDateString('es-CO',
     { weekday: 'long', day: 'numeric', month: 'long' });
+
+// Asistencia de hoy: presentes y llegadas tarde cuentan como asistio.
+// Sin marcas no hay tasa, asi que el curso va al final.
+const tasa = (c: CursoHoy): number | null => {
+  const total = c.present + c.late + c.absent + c.evasion;
+  return total === 0 ? null : (c.present + c.late) / total;
+};
 
 function ListaNovedades({ titulo, items, sinRegistros, vacioTexto }: {
   titulo: string; items: Novedad[]; sinRegistros: boolean; vacioTexto: string;
@@ -70,35 +82,86 @@ function ListaNovedades({ titulo, items, sinRegistros, vacioTexto }: {
   );
 }
 
-function TablaHoyPorCurso({ cursos }: { cursos: CursoHoy[] }) {
+// Un bloque: dice si ya se tomo la lista y quien la tomo. Al hacer clic en el
+// numero abre los comentarios que el docente dejo en ese bloque hoy.
+function BloqueHoy({ grade, fecha, bloque }: { grade: string; fecha: string; bloque: BloqueDia }) {
+  const [abierto, setAbierto] = useState(false);
+  const [comentarios, setComentarios] = useState<MarcaSemana[] | null>(null);
+  const [errorCom, setErrorCom] = useState('');
+  const tomado = bloque.marcas > 0;
+
+  const alternar = () => {
+    const siguiente = !abierto;
+    setAbierto(siguiente);
+    if (siguiente && comentarios === null) {
+      api.get<RespuestaSemana>(
+        `/api/reports/semana?grade=${encodeURIComponent(grade)}&from=${fecha}&to=${fecha}`)
+        .then((r) => setComentarios(r.marcas.filter((m) => m.blockNo === bloque.blockNo && m.comment)))
+        .catch(() => setErrorCom('No se pudieron cargar los comentarios.'));
+    }
+  };
+
+  return (
+    <div className="bloque-hoy">
+      <button type="button" className="bloque-numero" onClick={alternar}
+              aria-expanded={abierto}>
+        Bloque {bloque.blockNo}
+      </button>
+      {' '}· {bloque.subject} · {bloque.teacherName} ·{' '}
+      {tomado
+        ? <span>tomada{bloque.quienTomo ? ` por ${bloque.quienTomo}` : ''} ({bloque.marcas} marcas)</span>
+        : <strong className="sin-tomar">no tomada</strong>}
+      {abierto && (
+        <div className="bloque-comentarios">
+          {errorCom && <p className="meta">{errorCom}</p>}
+          {!errorCom && comentarios === null && <p className="meta">Cargando comentarios...</p>}
+          {comentarios && comentarios.length === 0 && (
+            <p className="meta">Sin comentarios en este bloque.</p>
+          )}
+          {comentarios && comentarios.length > 0 && (
+            <ul>
+              {comentarios.map((m, i) => (
+                <li key={`${m.fullName}-${i}`}>
+                  <strong>{m.fullName}</strong> ({m.status}): {m.comment}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TablaHoyPorCurso({ cursos, fecha }: { cursos: CursoHoy[]; fecha: string }) {
   return (
     <div className="tabla-scroll">
       <table>
         <thead>
-          <tr><th>Curso</th><th className="num">Bloques tomados</th><th className="num">P</th>
+          <tr><th>Curso</th><th className="num">Asistencia</th><th className="num">P</th>
               <th className="num">T</th><th className="num">F</th><th className="num">E</th>
-              <th>Pendientes</th></tr>
+              <th>Bloques de hoy</th></tr>
         </thead>
         <tbody>
-          {cursos.map((c) => (
-            <tr key={c.grade}>
-              <td><Link to={`/curso/${encodeURIComponent(c.grade)}`}>{c.grade}</Link></td>
-              <td className="num">{c.tomados} de {c.bloques}</td>
-              <td className="num">{c.present}</td>
-              <td className="num">{c.late}</td>
-              <td className="num">{c.absent}</td>
-              <td className="num">{c.evasion}</td>
-              <td>
-                {c.pendientes.length === 0
-                  ? <span className="meta">ninguno</span>
-                  : c.pendientes.map((b) => (
-                      <span key={b.blockNo} className="meta" style={{ display: 'block' }}>
-                        Bloque {b.blockNo} · {b.subject} · {b.teacherName}
-                      </span>
-                    ))}
-              </td>
-            </tr>
-          ))}
+          {cursos.map((c) => {
+            const t = tasa(c);
+            return (
+              <tr key={c.grade}>
+                <td><Link to={`/curso/${encodeURIComponent(c.grade)}`}>{c.grade}</Link></td>
+                <td className="num">{t === null ? <span className="meta">sin marcas</span> : `${(t * 100).toFixed(1)} %`}</td>
+                <td className="num">{c.present}</td>
+                <td className="num">{c.late}</td>
+                <td className="num">{c.absent}</td>
+                <td className="num">{c.evasion}</td>
+                <td>
+                  <span className="meta">{c.tomados} de {c.bloques.length} tomados</span>
+                  {c.bloques.map((b) => (
+                    <BloqueHoy key={b.blockNo} grade={c.grade} fecha={fecha} bloque={b} />
+                  ))}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -144,19 +207,23 @@ export default function InicioAdmin() {
           const m = marcas[c.grade];
           return {
             grade: c.grade,
-            bloques: c.bloques,
+            bloques: c.detalle,
             tomados: c.tomados,
             present: m?.present ?? 0,
             late: m?.late ?? 0,
             absent: m?.absent ?? 0,
             evasion: m?.evasion ?? 0,
-            // Pendiente: bloque del dia sin ninguna marca.
-            pendientes: c.detalle.filter((b) => b.marcas === 0),
           };
         });
-        // Primero los cursos con bloques pendientes, y dentro de cada grupo por curso.
-        lista.sort((a, b) =>
-          (b.pendientes.length - a.pendientes.length) || a.grade.localeCompare(b.grade, 'es', { numeric: true }));
+        // De mejor a peor asistencia; los cursos sin marcas van al final, por curso.
+        lista.sort((a, b) => {
+          const ta = tasa(a);
+          const tb = tasa(b);
+          if (ta === null && tb === null) return a.grade.localeCompare(b.grade, 'es', { numeric: true });
+          if (ta === null) return 1;
+          if (tb === null) return -1;
+          return (tb - ta) || a.grade.localeCompare(b.grade, 'es', { numeric: true });
+        });
         setCursosHoy(lista);
       })
       .catch(() => setCursosHoy([]));
@@ -197,6 +264,17 @@ export default function InicioAdmin() {
         </p>
       )}
 
+      {novedades && (
+        <div className="novedades-grid">
+          <ListaNovedades titulo="Evasiones de hoy" items={novedades.evasiones}
+                           sinRegistros={novedades.sinRegistros}
+                           vacioTexto="No hay evasiones registradas hoy." />
+          <ListaNovedades titulo="Ausencias de hoy" items={novedades.ausencias}
+                           sinRegistros={novedades.sinRegistros}
+                           vacioTexto="No hay ausencias registradas hoy." />
+        </div>
+      )}
+
       {hoy && hoy.lectivo && (
         <>
           <div className="kpis">
@@ -211,25 +289,16 @@ export default function InicioAdmin() {
           {cursosHoy.length > 0 && (
             <div className="grafica">
               <h3>Todos los cursos de hoy</h3>
-              <TablaHoyPorCurso cursos={cursosHoy} />
+              <TablaHoyPorCurso cursos={cursosHoy} fecha={hoy.fecha} />
               <p className="meta">
-                Los cursos con bloques pendientes van primero. Para meses anteriores, usa{' '}
-                <Link to="/consultas">Consultas</Link> o el <Link to="/dashboard">Tablero</Link>.
+                Asistencia = (P + T) / (P + T + F + E) del dia. Ordenado de mejor a peor.
+                Toca el numero de un bloque para ver los comentarios del docente.
+                Para meses anteriores, usa <Link to="/consultas">Consultas</Link> o el{' '}
+                <Link to="/dashboard">Tablero</Link>.
               </p>
             </div>
           )}
         </>
-      )}
-
-      {novedades && (
-        <div className="novedades-grid">
-          <ListaNovedades titulo="Evasiones de hoy" items={novedades.evasiones}
-                           sinRegistros={novedades.sinRegistros}
-                           vacioTexto="No hay evasiones registradas hoy." />
-          <ListaNovedades titulo="Ausencias de hoy" items={novedades.ausencias}
-                           sinRegistros={novedades.sinRegistros}
-                           vacioTexto="No hay ausencias registradas hoy." />
-        </div>
       )}
     </main>
   );
