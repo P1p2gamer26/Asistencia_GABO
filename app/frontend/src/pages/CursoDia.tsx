@@ -72,12 +72,41 @@ export default function CursoDia() {
   const [datos, setDatos] = useState<Respuesta | null>(null);
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(true);
-  // Orden de los salones del colegio, para ir al anterior o al siguiente.
+  // Salones en el orden de la tabla del inicio, para ir al anterior o al siguiente.
   const [salones, setSalones] = useState<string[]>([]);
 
+  // Mismo orden que la tabla "Todos los cursos de hoy" del inicio: de mejor a peor
+  // asistencia de hoy; los cursos sin marcas van al final.
   useEffect(() => {
-    api.get<{ cursos: { grade: string }[] }>(`/api/reports/dia?fecha=${diaInicial()}`)
-      .then((r) => setSalones(r.cursos.map((c) => c.grade)))
+    const hoyIso = diaInicial();
+    Promise.all([
+      api.get<{ cursos: { grade: string }[] }>(`/api/reports/dia?fecha=${hoyIso}`),
+      api.get<{ grade: string; present: number; late: number; absent: number; evasion: number }[]>(
+        `/api/reports/summary?from=${hoyIso}&to=${hoyIso}`),
+    ])
+      .then(([dia, filas]) => {
+        const acum: Record<string, { present: number; late: number; absent: number; evasion: number }> = {};
+        for (const f of filas) {
+          const a = acum[f.grade] ?? { present: 0, late: 0, absent: 0, evasion: 0 };
+          a.present += f.present; a.late += f.late; a.absent += f.absent; a.evasion += f.evasion;
+          acum[f.grade] = a;
+        }
+        const tasa = (g: string): number | null => {
+          const a = acum[g];
+          if (!a) return null;
+          const total = a.present + a.late + a.absent + a.evasion;
+          return total === 0 ? null : (a.present + a.late) / total;
+        };
+        const orden = dia.cursos.map((c) => c.grade).sort((x, y) => {
+          const tx = tasa(x);
+          const ty = tasa(y);
+          if (tx === null && ty === null) return x.localeCompare(y, 'es', { numeric: true });
+          if (tx === null) return 1;
+          if (ty === null) return -1;
+          return (ty - tx) || x.localeCompare(y, 'es', { numeric: true });
+        });
+        setSalones(orden);
+      })
       .catch(() => setSalones([]));
   }, []);
   const posicion = salones.indexOf(grade);

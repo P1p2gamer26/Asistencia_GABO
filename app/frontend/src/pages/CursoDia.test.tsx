@@ -80,21 +80,29 @@ describe('CursoDia', () => {
     expect(screen.getByText('Sin comentarios hoy en este curso.')).toBeInTheDocument();
   });
 
-  it('los botones de salon anterior y siguiente llevan al salon vecino del colegio', async () => {
+  it('el salon siguiente sigue el orden de la tabla del inicio: de mejor a peor asistencia', async () => {
+    // 1001 tiene 100 % y 1002 tiene 50 %: 1002 viene despues de 1001. 1003 no tiene marcas: va al final.
     const fetchMock = vi.fn(async (url: string) => {
       if (String(url).includes('/reports/dia')) {
-        return respuesta({ fecha: '2026-08-24', cicloDia: 1, cursos: [{ grade: '1001', bloques: 0, tomados: 0, detalle: [] }, { grade: '1002', bloques: 0, tomados: 0, detalle: [] }, { grade: '1003', bloques: 0, tomados: 0, detalle: [] }] });
+        return respuesta({ fecha: '2026-08-24', cicloDia: 1, cursos: [{ grade: '1003', bloques: 0, tomados: 0, detalle: [] }, { grade: '1002', bloques: 0, tomados: 0, detalle: [] }, { grade: '1001', bloques: 0, tomados: 0, detalle: [] }] });
+      }
+      if (String(url).includes('/summary')) {
+        return respuesta([
+          { studentId: 1, documentId: '1', fullName: 'A', grade: '1001', present: 2, late: 0, absent: 0, evasion: 0, schoolDays: 1, attendanceRate: 100 },
+          { studentId: 2, documentId: '2', fullName: 'B', grade: '1002', present: 1, late: 0, absent: 1, evasion: 0, schoolDays: 1, attendanceRate: 50 },
+        ]);
       }
       return respuesta(semanaPara(String(url)));
     });
     vi.stubGlobal('fetch', fetchMock);
     render(
-      <MemoryRouter initialEntries={['/curso/1002']}>
+      <MemoryRouter initialEntries={['/curso/1001']}>
         <Routes><Route path="/curso/:grade" element={<CursoDia />} /></Routes>
       </MemoryRouter>);
-    await screen.findByRole('button', { name: /Salon siguiente/ });
-    fireEvent.click(screen.getByRole('button', { name: /Salon siguiente/ }));
-    await waitFor(() => expect(fetchMock.mock.calls.some((c) => String(c[0]).includes('grade=1003'))).toBe(true));
+    const siguiente = await screen.findByRole('button', { name: /Salon siguiente/ });
+    await waitFor(() => expect(siguiente).not.toBeDisabled());
+    fireEvent.click(siguiente);
+    await waitFor(() => expect(fetchMock.mock.calls.some((c) => String(c[0]).includes('grade=1002'))).toBe(true));
   });
 
   it('el dia 0 muestra sus bloques para tomar lista, igual que un dia normal', async () => {
