@@ -7,24 +7,42 @@ const HOY = {
   lectivo: true, fecha: '2026-08-24',
   bloquesEsperados: 36, bloquesMarcados: 12,
   presentes: 320, tarde: 14, ausentes: 22, evasiones: 4,
-  ingresos: 380, mesAsistencia: 94.6, mesDiasLectivos: 16,
-  mesPresentes: 900, mesTarde: 40, mesAusentes: 60, mesEvasiones: 8,
-  mesPorCurso: [
-    { grade: '601', present: 10, late: 1, absent: 5, evasion: 0, attendanceRate: 68.8, sinRegistros: false },
-    { grade: '602', present: 20, late: 0, absent: 1, evasion: 0, attendanceRate: 95.2, sinRegistros: false },
-    { grade: '603', present: 0, late: 0, absent: 0, evasion: 0, attendanceRate: 0, sinRegistros: true },
+  ingresos: 380,
+};
+
+// Bloques del dia por curso (endpoint /api/reports/dia).
+const DIA = {
+  fecha: '2026-08-24', cicloDia: 3,
+  cursos: [
+    { grade: '601', bloques: 2, tomados: 1, detalle: [
+      { blockNo: 1, subject: 'Matematicas', teacherName: 'Docente Uno', marcas: 3, quienTomo: 'Docente Uno' },
+      { blockNo: 2, subject: 'Ciencias', teacherName: 'Docente Dos', marcas: 0, quienTomo: null },
+    ] },
+    { grade: '602', bloques: 1, tomados: 1, detalle: [
+      { blockNo: 1, subject: 'Ingles', teacherName: 'Docente Tres', marcas: 2, quienTomo: 'Docente Tres' },
+    ] },
+    { grade: '603', bloques: 1, tomados: 0, detalle: [
+      { blockNo: 1, subject: 'Sociales', teacherName: 'Docente Cuatro', marcas: 0, quienTomo: null },
+    ] },
   ],
 };
 
+// Filas del endpoint de resumen de HOY: una por estudiante.
+const RESUMEN_HOY = [
+  { studentId: 1, documentId: '1', fullName: 'A', grade: '601', present: 0, late: 0, absent: 1, evasion: 0, schoolDays: 1, attendanceRate: 0 },
+  { studentId: 2, documentId: '2', fullName: 'B', grade: '601', present: 0, late: 0, absent: 1, evasion: 1, schoolDays: 1, attendanceRate: 0 },
+  { studentId: 3, documentId: '3', fullName: 'C', grade: '602', present: 1, late: 1, absent: 0, evasion: 0, schoolDays: 1, attendanceRate: 100 },
+];
+
 const NOVEDADES = {
   evasiones: [
-    { studentId: 1, fullName: 'Juan Perez', grade: '601', classDate: '2026-08-20',
+    { studentId: 1, fullName: 'Juan Perez', grade: '601', classDate: '2026-08-24',
       subject: 'Matematicas', comment: 'se salio del salon' },
   ],
   // Las ausencias vienen agrupadas por estudiante+dia (no por bloque), sin una
   // sola materia: el backend informa cobertura ("dia completo" o "N de M").
   ausencias: [
-    { studentId: 2, fullName: 'Ana Gomez', grade: '602', classDate: '2026-08-21',
+    { studentId: 2, fullName: 'Ana Gomez', grade: '602', classDate: '2026-08-24',
       subject: null, comment: 'Falto el dia completo' },
   ],
   sinRegistros: false,
@@ -35,9 +53,12 @@ function respuesta(datos: unknown) {
     { status: 200, headers: { 'Content-Type': 'application/json' } });
 }
 
-function mockFetch(hoy: unknown = HOY, novedades: unknown = NOVEDADES) {
+function mockFetch(hoy: unknown = HOY, novedades: unknown = NOVEDADES,
+                   dia: unknown = DIA, resumen: unknown = RESUMEN_HOY) {
   return vi.fn(async (url: string) => {
     if (String(url).includes('/novedades')) return respuesta(novedades);
+    if (String(url).includes('/summary')) return respuesta(resumen);
+    if (String(url).includes('/reports/dia')) return respuesta(dia);
     return respuesta(hoy);
   });
 }
@@ -63,29 +84,43 @@ describe('InicioAdmin', () => {
   it('muestra los estados de hoy', async () => {
     vi.stubGlobal('fetch', mockFetch());
     pintar();
-    await waitFor(() => expect(screen.getByText('22')).toBeInTheDocument());
-    // El KPI y el encabezado de la tabla por curso dicen lo mismo.
+    await waitFor(() => expect(screen.getAllByText('22').length).toBeGreaterThan(0));
     expect(screen.getAllByText(/ausentes hoy/i).length).toBeGreaterThan(0);
   });
 
-  it('muestra el mes con sus totales y el desglose por curso', async () => {
+  it('no muestra datos del mes en la pantalla de inicio', async () => {
+    // El mes vive en Consultas y en el Tablero, no en el inicio.
     vi.stubGlobal('fetch', mockFetch());
     pintar();
-    await waitFor(() => expect(screen.getAllByText(/94.6/).length).toBeGreaterThan(0));
-    expect(screen.getByText(/16 dias lectivos/i)).toBeInTheDocument();
-    expect(screen.getByText('900')).toBeInTheDocument(); // presentes del mes
-    expect(screen.getAllByText('601').length).toBeGreaterThan(0);
-    expect(screen.getByText('602')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/12 de 36/)).toBeInTheDocument());
+    expect(screen.queryByText(/asistencia del mes/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/dias lectivos transcurridos/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/en lo que va del mes/i)).not.toBeInTheDocument();
   });
 
-  it('un curso sin registros en el mes no se confunde con 100% de asistencia', async () => {
+  it('muestra todos los cursos del dia, tambien los que no tienen marcas', async () => {
     vi.stubGlobal('fetch', mockFetch());
     pintar();
-    await waitFor(() => expect(screen.getByText('603')).toBeInTheDocument());
-    expect(screen.getByText(/sin registros/i)).toBeInTheDocument();
+    await screen.findByRole('link', { name: '601' });
+    expect(screen.getByRole('link', { name: '602' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '603' })).toBeInTheDocument();
   });
 
-  it('muestra las evasiones y ausencias recientes con el curso', async () => {
+  it('muestra los bloques pendientes del curso con materia y docente', async () => {
+    vi.stubGlobal('fetch', mockFetch());
+    pintar();
+    await waitFor(() => expect(screen.getByText(/Bloque 2 · Ciencias · Docente Dos/)).toBeInTheDocument());
+    expect(screen.getByText(/Bloque 1 · Sociales · Docente Cuatro/)).toBeInTheDocument();
+  });
+
+  it('cuando el dia no tiene cursos, la tabla no aparece', async () => {
+    vi.stubGlobal('fetch', mockFetch(HOY, NOVEDADES, { ...DIA, cursos: [] }));
+    pintar();
+    await waitFor(() => expect(screen.getByText(/12 de 36/)).toBeInTheDocument());
+    expect(screen.queryByText(/todos los cursos de hoy/i)).not.toBeInTheDocument();
+  });
+
+  it('muestra las evasiones y ausencias de hoy con el curso', async () => {
     vi.stubGlobal('fetch', mockFetch());
     pintar();
     await waitFor(() => expect(screen.getByText('Juan Perez')).toBeInTheDocument());
@@ -103,15 +138,15 @@ describe('InicioAdmin', () => {
     expect(screen.getAllByText('Ana Gomez')).toHaveLength(1);
   });
 
-  it('sin evasiones ni ausencias en el periodo lo dice, no se queda mudo', async () => {
+  it('sin evasiones ni ausencias hoy lo dice, no se queda mudo', async () => {
     vi.stubGlobal('fetch', mockFetch(HOY, { evasiones: [], ausencias: [], sinRegistros: false }));
     pintar();
     await waitFor(() =>
-      expect(screen.getByText(/no hay evasiones registradas/i)).toBeInTheDocument());
-    expect(screen.getByText(/no hay ausencias registradas/i)).toBeInTheDocument();
+      expect(screen.getByText(/no hay evasiones registradas hoy/i)).toBeInTheDocument());
+    expect(screen.getByText(/no hay ausencias registradas hoy/i)).toBeInTheDocument();
   });
 
-  it('si nadie ha tomado asistencia en el periodo lo distingue de cero novedades', async () => {
+  it('si nadie ha tomado asistencia hoy lo distingue de cero novedades', async () => {
     vi.stubGlobal('fetch', mockFetch(HOY, { evasiones: [], ausencias: [], sinRegistros: true }));
     pintar();
     await waitFor(() =>
@@ -119,16 +154,14 @@ describe('InicioAdmin', () => {
     expect(screen.queryByText(/no hay evasiones registradas/i)).not.toBeInTheDocument();
   });
 
-  it('un dia no lectivo lo dice, y ademas muestra el mes y las novedades', async () => {
+  it('un dia no lectivo lo dice y sigue mostrando las novedades', async () => {
     vi.stubGlobal('fetch', mockFetch({
       ...HOY, lectivo: false, bloquesEsperados: 0, bloquesMarcados: 0,
       presentes: 0, tarde: 0, ausentes: 0, evasiones: 0, ingresos: 0,
-    }));
+    }, NOVEDADES, { ...DIA, cursos: [] }));
     pintar();
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/hoy no hay clase/i));
     expect(screen.queryByText(/0 de 0/)).not.toBeInTheDocument();
-    // La pantalla no se queda vacia un sabado: el mes y las novedades siguen.
-    expect(screen.getAllByText(/94.6/).length).toBeGreaterThan(0);
     await waitFor(() => expect(screen.getByText('Juan Perez')).toBeInTheDocument());
   });
 
@@ -146,31 +179,15 @@ describe('InicioAdmin', () => {
     expect(enlace).toHaveAttribute('href', '/curso/601');
   });
 
-  it('cada curso muestra cuantos ausentes y evasiones hay hoy', async () => {
-    const fetchMock = vi.fn(async (url: string) => {
-      if (String(url).includes('/summary')) {
-        return respuesta([
-          { studentId: 1, documentId: '1', fullName: 'A', grade: '601', present: 0, late: 0, absent: 1, evasion: 0, schoolDays: 1, attendanceRate: 0 },
-          { studentId: 2, documentId: '2', fullName: 'B', grade: '601', present: 0, late: 0, absent: 1, evasion: 1, schoolDays: 1, attendanceRate: 0 },
-        ]);
-      }
-      return mockFetch()(url);
-    });
-    vi.stubGlobal('fetch', fetchMock);
-    pintar();
-    await screen.findByRole('link', { name: '601' });
-    await waitFor(() => expect(screen.getByRole('columnheader', { name: 'Ausentes hoy' })).toBeInTheDocument());
-    await waitFor(() => {
-      const fila = screen.getByRole('link', { name: '601' }).closest('tr')!;
-      expect(fila.querySelectorAll('td')[6]).toHaveTextContent('2');
-      expect(fila.querySelectorAll('td')[7]).toHaveTextContent('1');
-    });
-  });
-
-  it('un curso sin registros en el mes no es un enlace', async () => {
+  it('cada curso muestra sus faltas y evasiones de hoy', async () => {
     vi.stubGlobal('fetch', mockFetch());
     pintar();
     await screen.findByRole('link', { name: '601' });
-    expect(screen.queryByRole('link', { name: '603' })).not.toBeInTheDocument();
+    await waitFor(() => {
+      const fila = screen.getByRole('link', { name: '601' }).closest('tr')!;
+      // columnas: curso, bloques tomados, P, T, F, E, pendientes
+      expect(fila.querySelectorAll('td')[4]).toHaveTextContent('2');
+      expect(fila.querySelectorAll('td')[5]).toHaveTextContent('1');
+    });
   });
 });

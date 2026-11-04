@@ -2,22 +2,13 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, getSession } from '../api/client';
 import Kpi from '../components/charts/Kpi';
-import LineasNovedades from '../components/charts/LineasNovedades';
-import type { DiaMes } from '../components/charts/LineasNovedades';
 
-type CursoMes = {
-  grade: string; present: number; late: number; absent: number; evasion: number;
-  attendanceRate: number; sinRegistros: boolean;
-};
-
+// Solo datos del dia: el mes vive en Consultas y en el Tablero.
 type ResumenHoy = {
   lectivo: boolean; fecha: string;
   bloquesEsperados: number; bloquesMarcados: number;
   presentes: number; tarde: number; ausentes: number; evasiones: number;
-  ingresos: number; mesAsistencia: number; mesDiasLectivos: number;
-  mesPresentes: number; mesTarde: number; mesAusentes: number; mesEvasiones: number;
-  mesPorCurso: CursoMes[];
-  mesPorDia: DiaMes[];
+  ingresos: number;
 };
 
 type Novedad = {
@@ -28,6 +19,21 @@ type Novedad = {
 };
 
 type Novedades = { evasiones: Novedad[]; ausencias: Novedad[]; sinRegistros: boolean };
+
+// Una fila por estudiante del endpoint de resumen; aqui se suma por curso.
+type FilaResumen = { grade: string; present: number; late: number; absent: number; evasion: number };
+
+// Bloques del dia por curso, del endpoint /api/reports/dia.
+type BloqueDia = { blockNo: number; subject: string; teacherName: string; marcas: number; quienTomo: string | null };
+type CursoDia = { grade: string; bloques: number; tomados: number; detalle: BloqueDia[] };
+type DiaCursos = { fecha: string; cicloDia: number; cursos: CursoDia[] };
+
+// Lo que se muestra por curso: bloques y conteos de hoy.
+type CursoHoy = {
+  grade: string; bloques: number; tomados: number;
+  present: number; late: number; absent: number; evasion: number;
+  pendientes: BloqueDia[];
+};
 
 const fechaLarga = (iso: string) =>
   new Date(`${iso}T00:00`).toLocaleDateString('es-CO',
@@ -40,10 +46,10 @@ function ListaNovedades({ titulo, items, sinRegistros, vacioTexto }: {
     <div className="grafica">
       <h3>{titulo}</h3>
       {sinRegistros ? (
-        // Distinto de "cero novedades": aqui nadie ha tomado asistencia en el
-        // periodo, asi que un "0" seria una buena noticia falsa.
+        // Distinto de "cero novedades": aqui nadie ha tomado asistencia hoy,
+        // asi que un "0" seria una buena noticia falsa.
         <p className="meta" role="status">
-          Nadie ha registrado asistencia en este periodo todavia.
+          Nadie ha registrado asistencia hoy todavia.
         </p>
       ) : items.length === 0 ? (
         <p className="meta">{vacioTexto}</p>
@@ -64,38 +70,33 @@ function ListaNovedades({ titulo, items, sinRegistros, vacioTexto }: {
   );
 }
 
-type HoyCurso = { ausentes: number; evasiones: number };
-
-function TablaMesPorCurso({ cursos, hoyPorCurso }: { cursos: CursoMes[]; hoyPorCurso: Record<string, HoyCurso> }) {
+function TablaHoyPorCurso({ cursos }: { cursos: CursoHoy[] }) {
   return (
     <div className="tabla-scroll">
       <table>
         <thead>
-          <tr><th>Curso</th><th className="num">Asistencia</th><th className="num">P</th>
+          <tr><th>Curso</th><th className="num">Bloques tomados</th><th className="num">P</th>
               <th className="num">T</th><th className="num">F</th><th className="num">E</th>
-              <th className="num">Ausentes hoy</th><th className="num">Evasiones hoy</th></tr>
+              <th>Pendientes</th></tr>
         </thead>
         <tbody>
           {cursos.map((c) => (
             <tr key={c.grade}>
-              <td>
-                {c.sinRegistros
-                  ? c.grade
-                  : <Link to={`/curso/${encodeURIComponent(c.grade)}`}>{c.grade}</Link>}
-              </td>
-              <td className="num">
-                {c.sinRegistros
-                  // Un curso sin ningun registro NO es 100% de asistencia: no se
-                  // le pone un numero que se pueda confundir con uno real.
-                  ? <span className="curso-sin-registros">sin registros</span>
-                  : `${c.attendanceRate.toFixed(1)} %`}
-              </td>
+              <td><Link to={`/curso/${encodeURIComponent(c.grade)}`}>{c.grade}</Link></td>
+              <td className="num">{c.tomados} de {c.bloques}</td>
               <td className="num">{c.present}</td>
               <td className="num">{c.late}</td>
               <td className="num">{c.absent}</td>
               <td className="num">{c.evasion}</td>
-              <td className="num">{c.sinRegistros ? '—' : (hoyPorCurso[c.grade]?.ausentes ?? 0)}</td>
-              <td className="num">{c.sinRegistros ? '—' : (hoyPorCurso[c.grade]?.evasiones ?? 0)}</td>
+              <td>
+                {c.pendientes.length === 0
+                  ? <span className="meta">ninguno</span>
+                  : c.pendientes.map((b) => (
+                      <span key={b.blockNo} className="meta" style={{ display: 'block' }}>
+                        Bloque {b.blockNo} · {b.subject} · {b.teacherName}
+                      </span>
+                    ))}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -107,41 +108,61 @@ function TablaMesPorCurso({ cursos, hoyPorCurso }: { cursos: CursoMes[]; hoyPorC
 export default function InicioAdmin() {
   const [hoy, setHoy] = useState<ResumenHoy | null>(null);
   const [novedades, setNovedades] = useState<Novedades | null>(null);
-  const [hoyPorCurso, setHoyPorCurso] = useState<Record<string, HoyCurso>>({});
+  const [cursosHoy, setCursosHoy] = useState<CursoHoy[]>([]);
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
     Promise.all([
       api.get<ResumenHoy>('/api/reports/today'),
-      api.get<Novedades>('/api/reports/novedades?dias=7&limite=5'),
+      // dias=0: desde hoy hasta hoy, o sea solo el dia de hoy.
+      api.get<Novedades>('/api/reports/novedades?dias=0&limite=5'),
     ])
       .then(([h, n]) => { setHoy(h); setNovedades(n); })
       .catch(() => setError('No se pudo cargar el resumen de hoy. Requiere conexion.'))
       .finally(() => setCargando(false));
   }, []);
 
-  // Ausentes y evasiones de hoy por curso: una sola consulta, sumada por curso.
+  // Todos los cursos del dia (con sus bloques) cruzados con los conteos de marcas de hoy.
   useEffect(() => {
-    if (!hoy?.fecha) return;
-    api.get<{ grade: string; absent: number; evasion: number }[]>(
-      `/api/reports/summary?from=${hoy.fecha}&to=${hoy.fecha}`)
-      .then((filas) => {
-        const acum: Record<string, HoyCurso> = {};
+    if (!hoy?.fecha || !hoy.lectivo) return;
+    Promise.all([
+      api.get<DiaCursos>(`/api/reports/dia?fecha=${hoy.fecha}`),
+      api.get<FilaResumen[]>(`/api/reports/summary?from=${hoy.fecha}&to=${hoy.fecha}`),
+    ])
+      .then(([dia, filas]) => {
+        const marcas: Record<string, FilaResumen> = {};
         for (const f of filas) {
-          const a = acum[f.grade] ?? { ausentes: 0, evasiones: 0 };
-          a.ausentes += f.absent;
-          a.evasiones += f.evasion;
-          acum[f.grade] = a;
+          const m = marcas[f.grade] ?? { grade: f.grade, present: 0, late: 0, absent: 0, evasion: 0 };
+          m.present += f.present;
+          m.late += f.late;
+          m.absent += f.absent;
+          m.evasion += f.evasion;
+          marcas[f.grade] = m;
         }
-        setHoyPorCurso(acum);
+        const lista: CursoHoy[] = dia.cursos.map((c) => {
+          const m = marcas[c.grade];
+          return {
+            grade: c.grade,
+            bloques: c.bloques,
+            tomados: c.tomados,
+            present: m?.present ?? 0,
+            late: m?.late ?? 0,
+            absent: m?.absent ?? 0,
+            evasion: m?.evasion ?? 0,
+            // Pendiente: bloque del dia sin ninguna marca.
+            pendientes: c.detalle.filter((b) => b.marcas === 0),
+          };
+        });
+        // Primero los cursos con bloques pendientes, y dentro de cada grupo por curso.
+        lista.sort((a, b) =>
+          (b.pendientes.length - a.pendientes.length) || a.grade.localeCompare(b.grade, 'es', { numeric: true }));
+        setCursosHoy(lista);
       })
-      .catch(() => setHoyPorCurso({}));
-  }, [hoy?.fecha]);
+      .catch(() => setCursosHoy([]));
+  }, [hoy?.fecha, hoy?.lectivo]);
 
   const faltan = hoy ? hoy.bloquesEsperados - hoy.bloquesMarcados : 0;
-  // mesPorCurso ya viene de peor a mejor y los cursos sin registros van al final.
-  const peorCurso = hoy?.mesPorCurso.find((c) => !c.sinRegistros) ?? null;
 
   return (
     <main className="card ancha">
@@ -157,22 +178,14 @@ export default function InicioAdmin() {
               {hoy.lectivo
                 ? <>Hoy es dia lectivo. Se esperan <strong>{hoy.bloquesEsperados}</strong> llamados
                     de lista y van <strong>{hoy.bloquesMarcados}</strong>
-                    {faltan > 0 ? <> — faltan <strong>{faltan}</strong> por reportar.</> : '.'}</>
-                : <>Sin clases en el calendario de este dia: lo de abajo es el acumulado del mes.</>}
-              {' '}En los <strong>{hoy.mesDiasLectivos}</strong> dias lectivos del mes la asistencia
-              va en <strong>{hoy.mesAsistencia.toFixed(1)} %</strong>, con{' '}
-              <strong>{hoy.mesAusentes}</strong> ausencias, <strong>{hoy.mesEvasiones}</strong>{' '}
-              evasiones y <strong>{hoy.mesTarde}</strong> llegadas tarde.
-              {peorCurso && <> El curso que va mas atras es <strong>{peorCurso.grade}</strong>.</>}
+                    {faltan > 0 ? <> — faltan <strong>{faltan}</strong> por reportar.</> : '.'}
+                    {' '}Hasta ahora hay <strong>{hoy.ausentes}</strong> ausencias,{' '}
+                    <strong>{hoy.tarde}</strong> llegadas tarde y{' '}
+                    <strong>{hoy.evasiones}</strong> evasiones.</>
+                : <>Hoy no hay clase segun el calendario escolar.</>}
             </p>
           )}
         </div>
-        {hoy && hoy.mesPorDia?.length > 0 && (
-          <div className="cabecera-grafica">
-            <h3>Novedades por dia del mes</h3>
-            <LineasNovedades serie={hoy.mesPorDia} />
-          </div>
-        )}
       </div>
 
       {error && <p role="alert" className="error">{error}</p>}
@@ -195,45 +208,27 @@ export default function InicioAdmin() {
             <Kpi valor={hoy.ingresos} etiqueta="Ingresos por porteria" />
           </div>
 
-          {faltan > 0 && (
-            <p className="meta">
-              Faltan <strong>{faltan}</strong> bloques por reportar.{' '}
-              <Link to="/consultas">Ver el detalle</Link>
-            </p>
+          {cursosHoy.length > 0 && (
+            <div className="grafica">
+              <h3>Todos los cursos de hoy</h3>
+              <TablaHoyPorCurso cursos={cursosHoy} />
+              <p className="meta">
+                Los cursos con bloques pendientes van primero. Para meses anteriores, usa{' '}
+                <Link to="/consultas">Consultas</Link> o el <Link to="/dashboard">Tablero</Link>.
+              </p>
+            </div>
           )}
         </>
       )}
 
-      {/* El mes no depende de que hoy sea lectivo: son datos acumulados de dias
-          anteriores, y en un sabado o domingo son justamente lo que llena la
-          pantalla en vez de dejarla vacia. */}
-      {hoy && (
-        <div className="grafica">
-          <h3>En lo que va del mes</h3>
-          <div className="kpis">
-            <Kpi valor={hoy.mesAsistencia.toFixed(1)} sufijo="%" etiqueta="Asistencia del mes" principal />
-            <Kpi valor={hoy.mesPresentes} etiqueta="Presentes (mes)" />
-            <Kpi valor={hoy.mesTarde} etiqueta="Llegadas tarde (mes)" />
-            <Kpi valor={hoy.mesAusentes} etiqueta="Ausentes (mes)" alerta={hoy.mesAusentes > 0} />
-            <Kpi valor={hoy.mesEvasiones} etiqueta="Evasiones (mes)" alerta={hoy.mesEvasiones > 0 && 'evasion'} />
-          </div>
-          <p className="meta">{hoy.mesDiasLectivos} dias lectivos transcurridos</p>
-
-          <h3>Asistencia por curso (peor a mejor)</h3>
-          <TablaMesPorCurso cursos={hoy.mesPorCurso} hoyPorCurso={hoyPorCurso} />
-
-          <p className="meta"><Link to="/dashboard">Ver el tablero completo</Link></p>
-        </div>
-      )}
-
       {novedades && (
         <div className="novedades-grid">
-          <ListaNovedades titulo="Evasiones recientes" items={novedades.evasiones}
+          <ListaNovedades titulo="Evasiones de hoy" items={novedades.evasiones}
                            sinRegistros={novedades.sinRegistros}
-                           vacioTexto="No hay evasiones registradas en este periodo." />
-          <ListaNovedades titulo="Ausencias recientes" items={novedades.ausencias}
+                           vacioTexto="No hay evasiones registradas hoy." />
+          <ListaNovedades titulo="Ausencias de hoy" items={novedades.ausencias}
                            sinRegistros={novedades.sinRegistros}
-                           vacioTexto="No hay ausencias registradas en este periodo." />
+                           vacioTexto="No hay ausencias registradas hoy." />
         </div>
       )}
     </main>
