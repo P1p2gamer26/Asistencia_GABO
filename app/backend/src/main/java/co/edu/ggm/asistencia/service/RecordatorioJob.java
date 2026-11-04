@@ -78,6 +78,9 @@ public class RecordatorioJob {
             String tipo = ventana(hora, b.inicio(), b.fin());
             if (tipo == null) continue;
             if ("SIN_TOMA".equals(tipo) && tomado(b.id(), hoy)) continue;
+            // Sin dispositivo suscrito no se registra el aviso: asi, si el docente acepta
+            // el permiso mas tarde, todavia recibe los avisos de sus bloques pendientes.
+            if (!push.tieneSuscripciones(b.teacherId())) continue;
             int nuevo = jdbc.update("""
                     INSERT INTO reminder_log (teacher_id, schedule_block_id, class_date, tipo)
                     VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING

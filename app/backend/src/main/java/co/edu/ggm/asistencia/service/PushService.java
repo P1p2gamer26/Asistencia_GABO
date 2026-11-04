@@ -39,6 +39,13 @@ public class PushService {
         return publica != null && !publica.isBlank() && privada != null && !privada.isBlank();
     }
 
+    /** Si el docente tiene al menos un dispositivo suscrito. Sin eso, un aviso no llegaria a nadie. */
+    public boolean tieneSuscripciones(long userId) {
+        Boolean existe = jdbc.queryForObject(
+                "SELECT EXISTS(SELECT 1 FROM push_subscriptions WHERE user_id = ?)", Boolean.class, userId);
+        return Boolean.TRUE.equals(existe);
+    }
+
     public String clavePublica() {
         return publica;
     }
