@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { ESTADOS } from '../api/contract';
 
@@ -67,10 +67,22 @@ function ComentariosDia({ bloques, estudiantes, marcas, fecha }: {
 
 export default function CursoDia() {
   const { grade = '' } = useParams();
+  const navigate = useNavigate();
   const [fecha, setFecha] = useState(diaInicial);
   const [datos, setDatos] = useState<Respuesta | null>(null);
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(true);
+  // Orden de los salones del colegio, para ir al anterior o al siguiente.
+  const [salones, setSalones] = useState<string[]>([]);
+
+  useEffect(() => {
+    api.get<{ cursos: { grade: string }[] }>(`/api/reports/dia?fecha=${diaInicial()}`)
+      .then((r) => setSalones(r.cursos.map((c) => c.grade)))
+      .catch(() => setSalones([]));
+  }, []);
+  const posicion = salones.indexOf(grade);
+  const salonAnterior = posicion > 0 ? salones[posicion - 1] : null;
+  const salonSiguiente = posicion >= 0 && posicion < salones.length - 1 ? salones[posicion + 1] : null;
 
   useEffect(() => {
     setCargando(true);
@@ -100,6 +112,17 @@ export default function CursoDia() {
         <button type="button" className="secundario" onClick={() => setFecha(diaInicial())}>Hoy</button>
         <button type="button" className="secundario" onClick={() => setFecha(diaHabil(fecha, 1))}>
           Dia siguiente »
+        </button>
+      </div>
+
+      <div className="filtros-tablero">
+        <button type="button" className="secundario" disabled={!salonAnterior}
+                onClick={() => salonAnterior && navigate(`/curso/${encodeURIComponent(salonAnterior)}`)}>
+          « Salon anterior
+        </button>
+        <button type="button" className="secundario" disabled={!salonSiguiente}
+                onClick={() => salonSiguiente && navigate(`/curso/${encodeURIComponent(salonSiguiente)}`)}>
+          Salon siguiente »
         </button>
       </div>
 

@@ -44,16 +44,17 @@ describe('CursoDia', () => {
   });
 
   it('el dia anterior pide la fecha anterior al dia que se ve', async () => {
-    const fetchMock = vi.fn(async (url: string) => respuesta(semanaPara(String(url))));
+    const fetchMock = vi.fn(async (url: string) => respuesta(String(url).includes('/reports/dia') ? { fecha: '', cicloDia: 1, cursos: [] } : semanaPara(String(url))));
     vi.stubGlobal('fetch', fetchMock);
     pintar();
     await screen.findAllByRole('table');
-    const primera = new URL(String(fetchMock.mock.calls[0][0]), 'http://x').searchParams.get('from')!;
+    const primera = new URL(String(fetchMock.mock.calls.map((c) => String(c[0])).find((u) => u.includes('/semana'))), 'http://x').searchParams.get('from')!;
     fireEvent.click(screen.getByRole('button', { name: /dia anterior/i }));
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    const segunda = new URL(String(fetchMock.mock.calls[1][0]), 'http://x').searchParams.get('from')!;
+    const semanas = () => fetchMock.mock.calls.map((c) => String(c[0])).filter((u) => u.includes('/semana'));
+    await waitFor(() => expect(semanas()).toHaveLength(2));
+    const segunda = new URL(semanas()[1], 'http://x').searchParams.get('from')!;
     expect(segunda < primera).toBe(true);
-    expect(String(fetchMock.mock.calls[1][0])).toContain('grade=601');
+    expect(semanas()[1]).toContain('grade=601');
   });
 
   it('los comentarios del dia aparecen con su bloque, la hora y el estudiante', async () => {
@@ -77,6 +78,23 @@ describe('CursoDia', () => {
     pintar();
     await screen.findByRole('heading', { name: 'Comentarios del dia' });
     expect(screen.getByText('Sin comentarios hoy en este curso.')).toBeInTheDocument();
+  });
+
+  it('los botones de salon anterior y siguiente llevan al salon vecino del colegio', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (String(url).includes('/reports/dia')) {
+        return respuesta({ fecha: '2026-08-24', cicloDia: 1, cursos: [{ grade: '1001', bloques: 0, tomados: 0, detalle: [] }, { grade: '1002', bloques: 0, tomados: 0, detalle: [] }, { grade: '1003', bloques: 0, tomados: 0, detalle: [] }] });
+      }
+      return respuesta(semanaPara(String(url)));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    render(
+      <MemoryRouter initialEntries={['/curso/1002']}>
+        <Routes><Route path="/curso/:grade" element={<CursoDia />} /></Routes>
+      </MemoryRouter>);
+    await screen.findByRole('button', { name: /Salon siguiente/ });
+    fireEvent.click(screen.getByRole('button', { name: /Salon siguiente/ }));
+    await waitFor(() => expect(fetchMock.mock.calls.some((c) => String(c[0]).includes('grade=1003'))).toBe(true));
   });
 
   it('el dia 0 muestra sus bloques para tomar lista, igual que un dia normal', async () => {
