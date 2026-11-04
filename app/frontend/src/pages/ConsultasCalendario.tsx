@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, apiUrl, getSession } from '../api/client';
 
 type Bloque = { blockNo: number; subject: string | null; teacherName: string | null };
@@ -81,6 +81,11 @@ export default function CalendarioSemana({ setError }: { setError: (e: string) =
   const [curso, setCurso] = useState<string | null>(null);
   const [semana, setSemana] = useState<Semana | null>(null);
   const [detalle, setDetalle] = useState<DetalleEstudiante | null>(null);
+  // El detalle aparece debajo de la lista del salon: al abrirlo se baja hasta el.
+  const detalleRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (detalle) detalleRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+  }, [detalle]);
   const [cargando, setCargando] = useState(false);
 
   // Periodo consultado: un dia o la semana, segun el modo.
@@ -364,7 +369,7 @@ export default function CalendarioSemana({ setError }: { setError: (e: string) =
       )}
 
       {detalle && (
-        <section>
+        <section ref={detalleRef}>
           <button type="button" className="secundario" onClick={() => setDetalle(null)}>« Volver a los estudiantes</button>
           <h3>{detalle.fullName} · {detalle.grade}</h3>
           <p className="meta">P {detalle.present} · T {detalle.late} · F {detalle.absent} · E {detalle.evasion}</p>
