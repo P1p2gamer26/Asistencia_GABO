@@ -36,43 +36,32 @@ const franja = (inicio: string | null, fin: string | null) =>
 const rotulo = (iso: string) =>
   new Date(`${iso}T12:00`).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
 
-/** Que bloques ya se tomaron ese dia y como van sus marcas. */
-function ResumenBloques({ bloques, estudiantes, marcas, fecha }: {
-  bloques: Bloque[]; estudiantes: { id: number }[]; marcas: Marca[]; fecha: string;
+/** Comentarios que los docentes dejaron hoy, agrupados por bloque. Sin comentarios, lo dice. */
+function ComentariosDia({ bloques, estudiantes, marcas, fecha }: {
+  bloques: Bloque[]; estudiantes: { id: number; fullName: string }[]; marcas: Marca[]; fecha: string;
 }) {
+  const nombre = (id: number) => estudiantes.find((e) => e.id === id)?.fullName ?? `Estudiante ${id}`;
+  const conComentario = marcas.filter((m) => m.classDate === fecha && m.comment && m.comment.trim() !== '');
+  if (conComentario.length === 0) {
+    return <p className="meta">Sin comentarios hoy en este curso.</p>;
+  }
   return (
-    <div className="tabla-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th>Bloque</th><th>Hora</th><th>Materia</th><th>Docente</th><th>Estado</th>
-            {ESTADOS.map((e) => <th key={e.valor} className="num">{e.valor}</th>)}
-          </tr>
-        </thead>
-        <tbody>
-          {bloques.map((b) => {
-            const delBloque = marcas.filter((m) => m.blockNo === b.blockNo && m.classDate === fecha);
-            const marcados = new Set(delBloque.map((m) => m.studentId)).size;
-            const total = estudiantes.length;
-            const estado = marcados === 0 ? 'Pendiente'
-              : marcados < total ? `Parcial (${marcados} de ${total})`
-              : 'Tomada';
-            return (
-              <tr key={b.blockNo}>
-                <td>{b.blockNo}</td>
-                <td>{franja(b.startTime, b.endTime)}</td>
-                <td>{b.subject ?? '—'}</td>
-                <td>{b.teacherName ?? '—'}</td>
-                <td>{estado}</td>
-                {ESTADOS.map((e) => (
-                  <td key={e.valor} className="num">{delBloque.filter((m) => m.status === e.valor).length}</td>
-                ))}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+    <ul className="novedad-lista">
+      {bloques.map((b) => {
+        const delBloque = conComentario.filter((m) => m.blockNo === b.blockNo);
+        if (delBloque.length === 0) return null;
+        return delBloque.map((m) => (
+          <li key={`${b.blockNo}-${m.studentId}`} className="novedad-item">
+            <strong>Bloque {b.blockNo}</strong>
+            <span className="meta"> · {franja(b.startTime, b.endTime)}</span>
+            {b.subject ? <span className="meta"> · {b.subject}</span> : null}
+            {b.teacherName ? <span className="meta"> · {b.teacherName}</span> : null}
+            <br />
+            <span>{nombre(m.studentId)}:</span> {m.comment}
+          </li>
+        ));
+      })}
+    </ul>
   );
 }
 
@@ -123,8 +112,8 @@ export default function CursoDia() {
 
       {datos && bloques.length > 0 && (
         <>
-          <h3>Bloques del dia</h3>
-          <ResumenBloques bloques={bloques} estudiantes={datos.estudiantes} marcas={datos.marcas} fecha={fecha} />
+          <h3>Comentarios del dia</h3>
+          <ComentariosDia bloques={bloques} estudiantes={datos.estudiantes} marcas={datos.marcas} fecha={fecha} />
           <h3>Estudiantes por bloque</h3>
           <div className="tabla-scroll">
             <table>

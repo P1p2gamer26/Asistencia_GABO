@@ -33,7 +33,7 @@ describe('CursoDia', () => {
   it('muestra los estudiantes del curso con su marca en cada bloque del dia', async () => {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => respuesta(semanaPara(String(url)))));
     pintar();
-    // Hay dos tablas: el resumen de bloques y la de estudiantes (la ultima).
+    // La tabla de estudiantes por bloque es la ultima.
     const tablas = await screen.findAllByRole('table');
     const tabla = tablas[tablas.length - 1];
     expect(within(tabla).getByText('Luis Ruiz')).toBeInTheDocument();
@@ -56,20 +56,27 @@ describe('CursoDia', () => {
     expect(String(fetchMock.mock.calls[1][0])).toContain('grade=601');
   });
 
-  it('el resumen de bloques dice cuales ya se tomaron', async () => {
+  it('los comentarios del dia aparecen con su bloque, la hora y el estudiante', async () => {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => respuesta(semanaPara(String(url)))));
     pintar();
-    await screen.findByRole('heading', { name: 'Bloques del dia' });
-    // El estudiante tiene marca en los dos bloques: ambos quedan tomados.
-    expect(screen.getAllByText('Tomada').length).toBe(2);
+    await screen.findByRole('heading', { name: 'Comentarios del dia' });
+    expect(screen.getByText('Bloque 2')).toBeInTheDocument();
+    expect(screen.getByText(/07:50 – 08:40/)).toBeInTheDocument();
+    expect(screen.getByText('Luis Ruiz:')).toBeInTheDocument();
+    expect(screen.getByText('no llego')).toBeInTheDocument();
+    // El bloque sin comentario no aparece en la lista.
+    expect(screen.queryByText('Bloque 1')).not.toBeInTheDocument();
   });
 
-  it('el resumen de bloques muestra la hora de inicio y fin de cada bloque', async () => {
-    vi.stubGlobal('fetch', vi.fn(async (url: string) => respuesta(semanaPara(String(url)))));
+  it('sin comentarios lo dice', async () => {
+    const sinComentarios = (url: string) => {
+      const d = semanaPara(url);
+      return { ...d, marcas: d.marcas.map((m) => ({ ...m, comment: null })) };
+    };
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => respuesta(sinComentarios(String(url)))));
     pintar();
-    await screen.findByRole('heading', { name: 'Bloques del dia' });
-    expect(screen.getByText('07:00 – 07:50')).toBeInTheDocument();
-    expect(screen.getByText('07:50 – 08:40')).toBeInTheDocument();
+    await screen.findByRole('heading', { name: 'Comentarios del dia' });
+    expect(screen.getByText('Sin comentarios hoy en este curso.')).toBeInTheDocument();
   });
 
   it('el dia 0 muestra sus bloques para tomar lista, igual que un dia normal', async () => {
@@ -80,7 +87,7 @@ describe('CursoDia', () => {
       marcas: [],
     })));
     pintar();
-    expect(await screen.findByRole('heading', { name: 'Bloques del dia' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Estudiantes por bloque' })).toBeInTheDocument();
     expect(screen.queryByText('Asistencia general del dia')).not.toBeInTheDocument();
   });
 
