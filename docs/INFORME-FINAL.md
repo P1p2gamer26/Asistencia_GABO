@@ -905,3 +905,60 @@ Requieren una persona, hardware o datos que no tenemos:
   (`CASTA?EDA`) que hay que corregir **antes** de importar.
 - **Confirmar el calendario con la rectoría**: los festivos nacionales son correctos,
   los recesos son los típicos del calendario A.
+
+## 7. Base de datos: el pendiente más grande
+
+La base de datos es el problema más grande que tiene el proyecto. No hace falta
+resolverlo de golpe, pero conviene ir mejorándola: hay tablas, datos y procesos que
+sobran o faltan. Esta sección junta lo que ya estaba anotado en otros documentos y lo
+que apareció al verificar el horario en producción (3 y 4 de noviembre de 2026).
+
+### 7.a Ya anotado en otros documentos
+
+- **Hosting.** Producción corre en Render (la app, desde `main`) y Supabase (la base).
+  Supabase free pausa el proyecto tras unos 7 días sin uso. La migración a Postgres
+  propio en una VM Oracle Always Free quedó frenada por falta de capacidad ARM en Bogotá.
+- **Conexión.** Usar el Session pooler de Supabase (puerto 5432). El Transaction pooler
+  (6543) rompe los prepared statements de Hibernate.
+- **Migraciones.** Flyway corre al arrancar la app: una migración nueva solo llega a
+  producción cuando Render redespliega.
+- **Un docente por bloque.** `schedule_blocks` tiene `UNIQUE (grade, weekday, block_no)`.
+  Las electivas de 10.º y 11.º quedan con el primer docente de la lista del PDF.
+- **Correos docentes.** Tres docentes (Leidy Linares, Marcela Vera, Yamile Pachón) tienen
+  un correo `@ggm.edu.co` provisional. Juan P. Guavita tiene el dominio mal escrito
+  (`educacionbogotal`) y el correo de Julián Vargas parece ser de otra persona.
+  Ver `docs/datos-oficiales/README.md`.
+- **Preescolar.** No tiene horario en los archivos oficiales. El horario de primera
+  infancia es un bloque de día completo por curso.
+- **Datos sin verificar.** Los códigos de carnet no se han comprobado con un carnet real,
+  el calendario de recesos no está confirmado con rectoría y
+  `legacy/Toma de asistencia.xlsx` tiene corrupción de codificación (`CASTA?EDA`).
+
+### 7.b Encontrado el 3 y 4 de noviembre de 2026 (no estaba anotado)
+
+- **Cursos fuera del horario oficial.** En producción hay cuatro cursos que no están en
+  `horario.csv`: 9901, 9902, 9903 y J03. Cada uno tiene 35 bloques con materia "Clase"
+  y horas de prueba, y suman 71 estudiantes (10, 16, 25 y 20). Su origen no está confirmado.
+  J03 es un curso real de jardín y su horario es un placeholder. Decisión pendiente.
+- **Horario de producción verificado.** Los 41 cursos del horario oficial tienen en
+  producción las mismas horas que `horario.csv` (comparación por hash de día, bloque,
+  inicio y fin, 3 de noviembre de 2026).
+- **Choques en el horario oficial.** `horario.csv` tiene 61 casos de docente en dos
+  cursos a la misma hora (la coordinación confirmó que son salones que se dividen) y
+  11 casos de aula compartida a la misma hora, sin resolver.
+- **Datos falsos disponibles.** `tools/datos-colegio.sql` genera un horario de bloques de
+  60 minutos desde las 07:00 para 12 cursos. No son datos reales y no deben cargarse en
+  producción.
+- **Scripts destructivos.** `docs/datos-oficiales/reset-produccion.sql` borra toda la base
+  (requiere activar una bandera). `tools/limpiar-produccion.sql` vacía sin cargar nada.
+  Conviene separarlos de los scripts de carga normal.
+- **Migraciones con huecos.** Hay 22 archivos de migración con versiones hasta `V74`,
+  con huecos en la numeración. Vale la pena documentar qué versiones se retiraron o se
+  fusionaron.
+- **Correo sin uso activo.** La tabla `notifications` y la cola de correo (V20) existen,
+  pero `NOTIFY_ENABLED` está en `false`. Los avisos push nuevos (V74, `push_subscriptions`
+  y `reminder_log`) no dependen de ella.
+- **Respaldos sin verificar.** Existe `tools/backup-db.sh`, pero no hay evidencia de que
+  los respaldos se hagan solos ni de que una restauración se haya probado.
+- **Acceso del asistente.** Hasta ahora solo se han hecho consultas de lectura a Supabase,
+  autorizadas por el usuario. No se ha escrito en la base de producción desde el asistente.
