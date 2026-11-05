@@ -259,4 +259,33 @@ describe('Consultas', () => {
     expect(screen.getByText('Coordinacion')).toHaveClass('distinto');
     expect(screen.getByRole('option', { name: 'Francisco Palacios' })).toBeInTheDocument();
   });
+  it('si el resumen semanal falla con 500, avisa sin culpar al internet y Reintentar vuelve a pedirlo', async () => {
+    let fallar = true;
+    let llamadas = 0;
+    const f = vi.fn(async (url: string) => {
+      const u = String(url);
+      if (u.includes('/api/reports/semana')) {
+        llamadas += 1;
+        return fallar ? new Response('{}', { status: 500 }) : respuesta({ estudiantes: [], dias: [], marcas: [] });
+      }
+      return respuesta(FILAS);
+    });
+    vi.stubGlobal('fetch', f);
+    render(<Consultas />);
+    fireEvent.click(screen.getByRole('button', { name: 'Por curso' }));
+    await userEvent.click(screen.getByRole('button', { name: /resumen semanal/i }));
+    await waitFor(() => expect(screen.getByRole('option', { name: '601' })).toBeInTheDocument());
+    await userEvent.selectOptions(screen.getByLabelText(/curso/i), '601');
+    fireEvent.change(screen.getByLabelText(/semana/i), { target: { value: '2026-11-03' } });
+
+    const alerta = await screen.findByRole('alert', {}, { timeout: 4000 });
+    expect(alerta.textContent).toMatch(/servidor/);
+    expect(alerta.textContent).not.toMatch(/conexi/i);
+
+    fallar = false;
+    const antes = llamadas;
+    await userEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+    expect(llamadas).toBe(antes);   // Reintentar remonta: la consulta se repite al elegir curso y semana de nuevo
+  });
 });

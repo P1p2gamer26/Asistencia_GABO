@@ -67,6 +67,8 @@ export default function Consultas() {
   const [from, setFrom] = useState(isoLocal(new Date(hoy.getFullYear(), hoy.getMonth(), 1)));
   const [to, setTo] = useState(isoLocal(hoy));
   const [error, setError] = useState('');
+  // Reintentar remonta la consulta activa (vuelve a pedir los datos) sin recargar la pagina.
+  const [intento, setIntento] = useState(0);
   const cursos = useCursos();
 
   const fechas = (
@@ -87,12 +89,19 @@ export default function Consultas() {
                   onClick={() => { setModo(m.id); setError(''); }}>{m.texto}</button>
         ))}
       </div>
-      {modo === 'calendario' && <CalendarioSemana setError={setError} />}
-      {modo === 'curso' && <PorCurso from={from} to={to} fechas={fechas} cursos={cursos} setError={setError} />}
-      {modo === 'estudiante' && <PorEstudiante from={from} to={to} fechas={fechas} setError={setError} />}
-      {modo === 'tomas' && <Tomas from={from} to={to} fechas={fechas} cursos={cursos} setError={setError} />}
-      {modo === 'semana' && <Semana cursos={cursos} setError={setError} />}
-      {error && <p role="alert" className="error">{error}</p>}
+      <div key={intento}>
+        {modo === 'calendario' && <CalendarioSemana setError={setError} />}
+        {modo === 'curso' && <PorCurso from={from} to={to} fechas={fechas} cursos={cursos} setError={setError} />}
+        {modo === 'estudiante' && <PorEstudiante from={from} to={to} fechas={fechas} setError={setError} />}
+        {modo === 'tomas' && <Tomas from={from} to={to} fechas={fechas} cursos={cursos} setError={setError} />}
+        {modo === 'semana' && <Semana cursos={cursos} setError={setError} />}
+      </div>
+      {error && (
+        <p role="alert" className="error">
+          {error}{' '}
+          <button type="button" onClick={() => { setError(''); setIntento((n) => n + 1); }}>Reintentar</button>
+        </p>
+      )}
     </main>
   );
 }
