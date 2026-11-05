@@ -7,6 +7,7 @@ import co.edu.ggm.asistencia.repository.ScheduleRepository;
 import co.edu.ggm.asistencia.repository.SubjectRepository;
 import co.edu.ggm.asistencia.repository.UserRepository;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -26,13 +27,15 @@ public class ScheduleAdminService {
     private final AttendanceRepository attendance;
     private final SubjectRepository subjects;
     private final UserRepository users;
+    private final JdbcTemplate jdbc;
 
     public ScheduleAdminService(ScheduleRepository schedules, AttendanceRepository attendance,
-                                SubjectRepository subjects, UserRepository users) {
+                                SubjectRepository subjects, UserRepository users, JdbcTemplate jdbc) {
         this.schedules = schedules;
         this.attendance = attendance;
         this.subjects = subjects;
         this.users = users;
+        this.jdbc = jdbc;
     }
 
     public record Datos(String grade, int weekday, int blockNo, LocalTime startTime, LocalTime endTime,
@@ -71,6 +74,9 @@ public class ScheduleAdminService {
                     "No se puede borrar: tiene " + marcas + " registro(s) de asistencia. "
                     + "Cambia la materia, el docente o el horario en vez de borrar el bloque.");
         }
+        // Los avisos de recordatorio de este bloque no son historial academico: solo
+        // registran que se envio un aviso. Se limpian para que la FK no impida borrar.
+        jdbc.update("DELETE FROM reminder_log WHERE schedule_block_id = ?", id);
         schedules.delete(b);
     }
 
