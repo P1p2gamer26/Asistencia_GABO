@@ -304,6 +304,8 @@ tbody tr:hover { background: #fbfaf4; }
   .novedades-grid { grid-template-columns: 1fr; }
 }
 .novedad-lista { list-style: none; margin: var(--e2) 0 0; padding: 0; display: grid; gap: var(--e2); }
+/* Las listas de inicio admin muestran todos los estudiantes y se desplazan dentro del cuadro. */
+.novedad-lista-scroll { max-height: 22rem; overflow-y: auto; padding-right: var(--e2); }
 .novedad-item { border-left: 3px solid var(--rejilla); padding-left: var(--e2); }
 /* El filete lleva el color de la novedad: evasiones (primer cuadro) y ausencias (segundo). */
 .novedades-grid > :nth-child(1) .novedad-item { border-left-color: var(--estado-e); }

@@ -60,7 +60,7 @@ function ListaNovedades({ titulo, items, sinRegistros, vacioTexto }: {
       ) : items.length === 0 ? (
         <p className="meta">{vacioTexto}</p>
       ) : (
-        <ul className="novedad-lista">
+        <ul className="novedad-lista novedad-lista-scroll">
           {items.map((n) => (
             <li key={`${n.studentId}-${n.classDate}`} className="novedad-item">
               <strong>{n.fullName}</strong> <span className="curso">· curso {n.grade}</span>
@@ -116,7 +116,7 @@ export default function InicioAdmin() {
     Promise.all([
       api.get<ResumenHoy>('/api/reports/today'),
       // dias=0: desde hoy hasta hoy, o sea solo el dia de hoy.
-      api.get<Novedades>('/api/reports/novedades?dias=0&limite=5'),
+      api.get<Novedades>('/api/reports/novedades?dias=0&limite=500'),
     ])
       .then(([h, n]) => { setHoy(h); setNovedades(n); })
       .catch(() => setError('No se pudo cargar el resumen de hoy. Requiere conexion.'))
