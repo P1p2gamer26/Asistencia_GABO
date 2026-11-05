@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import Escudo from '../components/Escudo';
 import BotonInstalar from '../components/BotonInstalar';
 import AvisoServidorLento from '../components/AvisoServidorLento';
+import { pedirPermisoAlEntrar, sincronizarSiConcedido } from '../push/avisos';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -16,8 +17,12 @@ export default function Login() {
     e.preventDefault();
     setBusy(true);
     setError('');
+    // Antes de cualquier await: el navegador solo muestra el permiso desde un clic directo.
+    const permiso = pedirPermisoAlEntrar();
     try {
       await api.login(email, password);
+      if (permiso) await permiso;
+      void sincronizarSiConcedido();
       navigate('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No fue posible iniciar sesion');

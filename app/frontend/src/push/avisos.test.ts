@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { activarAvisos, CLAVE_PREGUNTA, estado, yaPregunto } from './avisos';
+import { activarAvisos, CLAVE_PREGUNTA, estado, pedirPermisoAlEntrar, yaPregunto } from './avisos';
 
 // Simula un navegador de escritorio con notificaciones y service worker.
 function navegador(permiso: NotificationPermission) {
@@ -46,11 +46,18 @@ describe('avisos de toma de lista', () => {
     expect(pedir).toHaveBeenCalledTimes(1);
   });
 
-  it('si el usuario ya fue preguntado no vuelve a pedir aunque el permiso siga pendiente', async () => {
+  it('al entrar pide el permiso una sola vez; si ya se pregunto no vuelve a pedir', () => {
+    const pedir = navegador('default');
+    expect(pedirPermisoAlEntrar()).not.toBeNull();
+    expect(pedirPermisoAlEntrar()).toBeNull();
+    expect(pedir).toHaveBeenCalledTimes(1);
+  });
+
+  it('si el permiso quedo sin decidir, el boton manual vuelve a pedirlo', async () => {
     const pedir = navegador('default');
     localStorage.setItem(CLAVE_PREGUNTA, '1');
     await activarAvisos();
-    expect(pedir).not.toHaveBeenCalled();
+    expect(pedir).toHaveBeenCalledTimes(1);
   });
 
   it('en iPhone sin instalar devuelve instrucciones, no intenta pedir permiso', () => {

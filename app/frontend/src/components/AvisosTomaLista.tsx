@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { activarAvisos, estado, EstadoAvisos, sincronizarSiConcedido, yaPregunto } from '../push/avisos';
+import { activarAvisos, estado, EstadoAvisos, sincronizarSiConcedido } from '../push/avisos';
 
 /** Ofrece los avisos de toma de lista una sola vez. Nunca pide el permiso sin un toque. */
 export default function AvisosTomaLista() {
@@ -28,7 +28,18 @@ export default function AvisosTomaLista() {
     );
   }
 
-  if (est !== 'pendiente' || yaPregunto()) return null;
+  if (est === 'denegado') {
+    return (
+      <section className="aviso-push" aria-label="Avisos">
+        <p>
+          Los avisos de clase están bloqueados en este navegador. Para activarlos, abre los
+          ajustes del sitio y permite las notificaciones de esta app.
+        </p>
+      </section>
+    );
+  }
+
+  if (est !== 'pendiente') return null;
 
   return (
     <section className="aviso-push" aria-label="Avisos">

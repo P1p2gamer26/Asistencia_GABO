@@ -65,11 +65,22 @@ export async function sincronizarSiConcedido(): Promise<void> {
 }
 
 /**
- * Solo se llama desde un toque del usuario. Pide el permiso una sola vez: la marca se guarda
- * antes de preguntar, asi que si el usuario cierra el aviso o el navegador falla, no se vuelve a pedir.
+ * Se llama en el clic de "Entrar", antes de cualquier await: el navegador solo muestra el
+ * dialogo si la peticion nace de un gesto del usuario. Pide una sola vez automaticamente.
+ * Devuelve null si ya se pregunto o si no hay nada que pedir.
+ */
+export function pedirPermisoAlEntrar(): Promise<NotificationPermission> | null {
+  if (estado() !== 'pendiente' || yaPregunto()) return null;
+  marcarPregunta();
+  return Notification.requestPermission();
+}
+
+/**
+ * Boton manual, para quien rechazo o cerro el aviso del navegador. Como el navegador solo
+ * pregunta mientras el permiso siga "sin decidir", esto no sirve si ya quedo bloqueado.
  */
 export async function activarAvisos(): Promise<EstadoAvisos> {
-  if (estado() !== 'pendiente' || yaPregunto()) return estado();
+  if (estado() !== 'pendiente') return estado();
   marcarPregunta();
   const respuesta = await Notification.requestPermission();
   if (respuesta === 'granted') {

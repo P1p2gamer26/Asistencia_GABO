@@ -8,8 +8,8 @@ self.addEventListener('push', (event) => {
   }
   event.waitUntil(self.registration.showNotification(data.title || 'Asistencia GGM', {
     body: data.body || '',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
+    // El escudo a color: sin "badge" (Android lo dibuja como cuadrado si no es monocromatico).
+    icon: '/escudo.png',
     data: { url: data.url || '/' },
   }));
 });
