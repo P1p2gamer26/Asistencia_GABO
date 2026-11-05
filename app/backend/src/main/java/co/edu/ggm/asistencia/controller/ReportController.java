@@ -143,8 +143,9 @@ public class ReportController {
             if (dow == java.time.DayOfWeek.SATURDAY || dow == java.time.DayOfWeek.SUNDAY) continue;
             Integer ciclo = d.getCycleDay();
             // Un dia 0 no tiene numero, pero sus bloques son los del ciclo que le corresponde.
+            // Integer.valueOf: con int en un lado, Java desempaqueta ciclo y revienta si es null (festivos).
             Integer ciclosBloques = d.getDayType() == DayType.DIA_CERO
-                    ? calendarioService.cicloBloques(d.getCalendarDate()) : ciclo;
+                    ? Integer.valueOf(calendarioService.cicloBloques(d.getCalendarDate())) : ciclo;
             dias.add(new DiaSemana(d.getCalendarDate(), ciclo, d.getDescription(),
                     ciclosBloques == null ? List.of() : bloquesPorCiclo.getOrDefault(ciclosBloques, List.of()),
                     d.getDayType().name()));

@@ -3,6 +3,7 @@ import { api, apiUrl, getSession } from '../api/client';
 import { useCursos } from '../lib/useCursos';
 import { useDebounce } from '../lib/useDebounce';
 import CalendarioSemana from './ConsultasCalendario';
+import { mensajeConsulta } from '../lib/errorConsulta';
 
 type Fila = {
   studentId: number; documentId: string; fullName: string; grade: string;
@@ -121,8 +122,8 @@ function PorCurso({ from, to, fechas, cursos, setError }: Comun & { cursos: stri
       // que un total raro se pueda explicar (ver informe del hallazgo).
       setDiasNoLectivos(await api.get<DiaNoLectivoConMarcas[]>(
         `/api/reports/dias-no-lectivos-con-marcas?from=${from}&to=${to}`));
-    } catch {
-      setError('No se pudo consultar. Requiere conexion.');
+    } catch (e) {
+      setError(mensajeConsulta(e));
     }
   }
 
@@ -216,7 +217,7 @@ function PorEstudiante({ from, to, fechas, setError }: Comun) {
     let vigente = true;
     api.get<EstudianteBusqueda[]>(`/api/reports/estudiantes?q=${encodeURIComponent(q)}`)
        .then((r) => { if (vigente) setResultados(r); })
-       .catch(() => setError('No se pudo buscar. Requiere conexion.'));
+       .catch((e) => setError(mensajeConsulta(e)));
     return () => { vigente = false; };
   }, [q]);   // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -225,7 +226,7 @@ function PorEstudiante({ from, to, fechas, setError }: Comun) {
     setError('');
     api.get<DetalleEstudiante>(`/api/reports/estudiante/${elegido.id}?from=${from}&to=${to}`)
        .then(setDetalle)
-       .catch(() => setError('No se pudo consultar. Requiere conexion.'));
+       .catch((e) => setError(mensajeConsulta(e)));
   }, [elegido, from, to]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   async function descargar() {
@@ -339,7 +340,7 @@ function Semana({ cursos, setError }: { cursos: string[]; setError: (e: string) 
     let vigente = true;
     api.get<ResumenSemana>(`/api/reports/semana?grade=${encodeURIComponent(grade)}&from=${lunes}&to=${viernes}`)
       .then((d) => { if (vigente) setDatos(d); })
-      .catch(() => { if (vigente) setError('No se pudo consultar. Requiere conexion.'); });
+      .catch((e) => { if (vigente) setError(mensajeConsulta(e)); });
     return () => { vigente = false; };
   }, [grade, fecha]);   // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -471,7 +472,7 @@ function Tomas({ from, to, fechas, cursos, setError }: Comun & { cursos: string[
     setError('');
     api.get<Toma[]>(`/api/reports/tomas?${query()}`)
        .then(setFilas)
-       .catch(() => setError('No se pudo consultar. Requiere conexion.'));
+       .catch((e) => setError(mensajeConsulta(e)));
   }, [from, to, grade, teacherId]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   async function descargar() {

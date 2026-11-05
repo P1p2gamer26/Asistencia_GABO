@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, apiUrl, getSession } from '../api/client';
+import { mensajeConsulta } from '../lib/errorConsulta';
 
 type Bloque = { blockNo: number; subject: string | null; teacherName: string | null };
 type DiaSemana = { fecha: string; cicloDia: number | null; descripcion: string | null; bloques: Bloque[]; tipo: string };
@@ -141,8 +142,8 @@ export default function CalendarioSemana({ setError }: { setError: (e: string) =
     try {
       setDia(await api.get<DiaCursos>(`/api/reports/dia?fecha=${f}`));
       setPaso('salones');
-    } catch {
-      setError('No se pudo consultar el dia. Requiere conexion.');
+    } catch (e) {
+      setError(mensajeConsulta(e));
     } finally {
       setCargando(false);
     }
@@ -168,8 +169,8 @@ export default function CalendarioSemana({ setError }: { setError: (e: string) =
       setCursosSemana([...acum.values()]);
       setLunes(l);
       setPaso('salones');
-    } catch {
-      setError('No se pudo consultar la semana. Requiere conexion.');
+    } catch (e) {
+      setError(mensajeConsulta(e));
     } finally {
       setCargando(false);
     }
