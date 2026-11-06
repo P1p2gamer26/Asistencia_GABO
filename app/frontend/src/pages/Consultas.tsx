@@ -176,7 +176,7 @@ function PorCurso({ from, to, fechas, cursos, setError }: Comun & { cursos: stri
       {diasNoLectivos.length > 0 && (
         <p role="alert" className="aviso">
           Hay {diasNoLectivos.length} dia(s) no lectivo(s) con asistencia registrada
-          en este periodo: {diasNoLectivos.map((d) => `${d.fecha} (${d.tipo}, ${d.marcas} marcas)`)
+          en este periodo: {diasNoLectivos.map((d) => `${dmy(d.fecha)} (${d.tipo}, ${d.marcas} marcas)`)
             .join('; ')}.
         </p>
       )}
@@ -300,7 +300,7 @@ function PorEstudiante({ from, to, fechas, setError }: Comun) {
                   <tbody>
                     {detalle.marcas.map((m, i) => (
                       <tr key={i} className={`estado-${m.status}`}>
-                        <td>{m.classDate}</td><td className="num">{m.blockNo}</td><td>{m.subject ?? ''}</td>
+                        <td>{dmy(m.classDate)}</td><td className="num">{m.blockNo}</td><td>{m.subject ?? ''}</td>
                         <td><strong>{m.status}</strong> {ESTADO[m.status] ?? ''}</td>
                         <td>{m.recordedByName ?? ''}</td><td>{hora(m.recordedAt)}</td><td>{m.comment ?? ''}</td>
                       </tr>
@@ -325,6 +325,7 @@ function diasDeLaSemana(fecha: string): string[] {
 }
 
 const ddmm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+const dmy = (iso?: string) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : '');
 
 type BloqueSemana = { blockNo: number; subject: string | null; teacherName: string | null; startTime: string; endTime: string };
 type DiaSemana = { fecha: string; cicloDia: number | null; descripcion: string | null; bloques: BloqueSemana[] };
@@ -388,6 +389,11 @@ function Semana({ cursos, setError }: { cursos: string[]; setError: (e: string) 
             } catch { setError('No se pudo descargar el Excel.'); }
           }}>Descargar Excel</button>
           {marcas.length === 0 && <p className="meta">Sin marcas de asistencia en esa semana.</p>}
+          <p className="meta"><strong>P</strong> Presente · <strong>T</strong> Tarde · <strong>F</strong> Falta · <strong>E</strong> Evasión · · sin lista tomada</p>
+          {datos.dias.some((d) => d.cicloDia == null) && (
+            <p className="meta">Días sin clase esta semana: {datos.dias.filter((d) => d.cicloDia == null)
+              .map((d) => `${ddmm(d.fecha)} (${d.descripcion || 'sin clase'})`).join(', ')}.</p>
+          )}
           <div className="tabla-scroll">
             <table className="tabla-semana">
               <thead>
@@ -439,7 +445,6 @@ function Semana({ cursos, setError }: { cursos: string[]; setError: (e: string) 
               </tbody>
             </table>
           </div>
-          <p className="meta">P Presente · T Tarde · F Falta · E Evasión · · sin lista tomada</p>
           {conComentario.length > 0 && (
             <>
               <h2>Comentarios de la semana</h2>

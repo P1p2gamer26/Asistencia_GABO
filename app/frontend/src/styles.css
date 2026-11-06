@@ -279,6 +279,7 @@ tbody tr:hover { background: #fbfaf4; }
 .lista-salones { list-style: none; padding: 0; margin: 8px 0 0;
                  display: flex; flex-wrap: wrap; gap: var(--e2); }
 .lista-salones button[aria-pressed="true"] { background: var(--verde); color: #fff; }
+.lista-salones button .meta { color: inherit; }   /* el gris suave no se leia sobre el verde */
 
 /* --- Pendientes de hoy -------------------------------------------------- */
 .pendientes-hoy {

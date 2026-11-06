@@ -121,7 +121,7 @@ describe('Consultas', () => {
 
     await waitFor(() => expect(screen.getByText(/dia.* no lectivo.* con asistencia/i))
       .toBeInTheDocument());
-    expect(screen.getByText(/2026-08-03/)).toBeInTheDocument();
+    expect(screen.getByText(/03\/08\/2026/)).toBeInTheDocument();
     expect(screen.getByText(/SUSPENDIDO/)).toBeInTheDocument();
   });
 
